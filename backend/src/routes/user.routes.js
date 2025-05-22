@@ -2,7 +2,7 @@
 import express from "express";
 import { isAdmin } from "../middlewares/authorization.middleware.js";
 import { authenticateJwt } from "../middlewares/authentication.middleware.js";
-import { deleteUser, getGarzones, getUser, getUsers, updateUser } from "../controllers/user.controller.js";
+import { deleteUser, getUser, getUsers, updateUser } from "../controllers/user.controller.js";
 import { AppDataSource } from "../config/configDb.js";
 import User from "../entity/user.entity.js";
 
