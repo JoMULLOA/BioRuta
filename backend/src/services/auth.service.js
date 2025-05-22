@@ -51,7 +51,7 @@ export async function loginService(user) {
 export async function registerService(user) {
   try {
     const userRepository = AppDataSource.getRepository(User);
-
+    console.log("Datos recibidos en el registro:", user); // Verificar que los datos llegan correctamente
     const { nombreCompleto, email, rut, rol, password } = user;
 
     // Verificación de existencia de email o rut

@@ -15,6 +15,7 @@ import {
   handleSuccess,
 } from "../handlers/responseHandlers.js";
 
+
 export async function getUser(req, res) {
   try {
     const { rut, id, email } = req.query;
