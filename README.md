@@ -9,6 +9,6 @@ Proyecto relacionado a la asignatura de gestión de proyectos de software del pr
 
 > Backend: Node.JS + Express.JS
 
-> Base de datos: MongoDB + PostgresQL
+> Base de datos: PostgresQL
 
 > APIs: Open Street Map + WebPay
