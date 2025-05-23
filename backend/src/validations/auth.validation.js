@@ -16,7 +16,7 @@ const domainEmailValidator = (value, helper) => {
 export const authValidation = Joi.object({
   email: Joi.string()
     .min(15)
-    .max(35)
+    .max(50)
     .email()
     .required()
     .messages({
@@ -24,7 +24,7 @@ export const authValidation = Joi.object({
       "any.required": "El correo electrónico es obligatorio.",
       "string.base": "El correo electrónico debe ser de tipo texto.",
       "string.min": "El correo electrónico debe tener al menos 15 caracteres.",
-      "string.max": "El correo electrónico debe tener como máximo 35 caracteres.",
+      "string.max": "El correo electrónico debe tener como máximo 50 caracteres.",
     })
     .custom(domainEmailValidator, "Validación dominio email"),
   password: Joi.string()
@@ -72,7 +72,7 @@ export const registerValidation = Joi.object({
     }),
   email: Joi.string()
     .min(15)
-    .max(35)
+    .max(50)
     .email()
     .required()
     .messages({
@@ -80,7 +80,7 @@ export const registerValidation = Joi.object({
       "any.required": "El correo electrónico es obligatorio.",
       "string.base": "El correo electrónico debe ser de tipo texto.",
       "string.min": "El correo electrónico debe tener al menos 15 caracteres.",
-      "string.max": "El correo electrónico debe tener como máximo 35 caracteres.",
+      "string.max": "El correo electrónico debe tener como máximo 50 caracteres.",
     })
     .custom(domainEmailValidator, "Validación dominio email"),
   rol: Joi.string()
