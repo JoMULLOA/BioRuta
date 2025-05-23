@@ -6,6 +6,7 @@ import session from "express-session";
 import passport from "passport";
 import express, { json, urlencoded } from "express";
 import cron from "node-cron";
+import 'dotenv/config';
 
 import userRoutes from "./routes/user.routes.js"; // Rutas de usuario, que incluye /garzones
 import indexRoutes from "./routes/index.routes.js";

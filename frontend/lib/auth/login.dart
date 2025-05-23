@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'registro.dart';
+import 'verificacion.dart';
 import '../mapa.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -109,7 +109,7 @@ class _LoginPageState extends State<LoginPage> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => const RegistroPage(email: ""),
+                      builder: (_) => const VerificarCorreoPage(),
                     ),
                   );
                 },

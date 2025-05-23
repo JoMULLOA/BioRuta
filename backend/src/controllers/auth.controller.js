@@ -38,9 +38,11 @@ export async function register(req, res) {
   try {
     const { body } = req;
     const { error } = registerValidation.validate(body);
+    console.log("error", error);
     if (error)
       return handleErrorClient(res, 400, "Error de validación", error.message);
     const [newUser, errorNewUser] = await registerService(body);
+    console.log("newUser", errorNewUser);
     if (errorNewUser) return handleErrorClient(res, 400, "Error registrando al usuario", errorNewUser);
 
     handleSuccess(res, 201, "Usuario registrado con éxito", newUser);
