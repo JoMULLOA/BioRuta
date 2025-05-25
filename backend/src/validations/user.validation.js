@@ -24,7 +24,7 @@ export const userQueryValidation = Joi.object({
     }),
   email: Joi.string()
     .min(15)
-    .max(35)
+    .max(50)
     .email()
     .messages({
       "string.empty": "El correo electrónico no puede estar vacío.",
@@ -33,7 +33,7 @@ export const userQueryValidation = Joi.object({
       "string.min":
         "El correo electrónico debe tener como mínimo 15 caracteres.",
       "string.max":
-        "El correo electrónico debe tener como máximo 35 caracteres.",
+        "El correo electrónico debe tener como máximo 50 caracteres.",
     })
     .custom(domainEmailValidator, "Validación dominio email"),
     rut: Joi.string()
@@ -71,7 +71,7 @@ export const userBodyValidation = Joi.object({
     }),
   email: Joi.string()
     .min(15)
-    .max(35)
+    .max(50)
     .email()
     .messages({
       "string.empty": "El correo electrónico no puede estar vacío.",
@@ -80,7 +80,7 @@ export const userBodyValidation = Joi.object({
       "string.min":
         "El correo electrónico debe tener como mínimo 15 caracteres.",
       "string.max":
-        "El correo electrónico debe tener como máximo 35 caracteres.",
+        "El correo electrónico debe tener como máximo 50 caracteres.",
     })
     .custom(domainEmailValidator, "Validación dominio email"),
   password: Joi.string()
