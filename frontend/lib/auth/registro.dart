@@ -17,6 +17,7 @@ class _RegistroPageState extends State<RegistroPage> {
   final _rolController = TextEditingController();
   final _passwordController = TextEditingController();
   bool cargando = false;
+  bool verClave = false;
 
   Future<void> registrarUsuario() async {
     setState(() => cargando = true);
@@ -39,9 +40,10 @@ class _RegistroPageState extends State<RegistroPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("🎉 Usuario registrado con éxito")),
       );
-      Navigator.pushReplacementNamed(context, "/mapa");
+      Navigator.pushReplacementNamed(context, "/login");
     } else {
-      final error = jsonDecode(response.body)["error"] ?? "Error desconocido";
+      final Map<String, dynamic> data = jsonDecode(response.body);
+      final error = data["error"] ?? data["message"] ?? response.body;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("❌ $error")),
       );
@@ -64,15 +66,42 @@ class _RegistroPageState extends State<RegistroPage> {
               controller: _rutController,
               decoration: const InputDecoration(labelText: "RUT"),
             ),
-            TextField(
-              controller: _rolController,
+            DropdownButtonFormField<String>(
               decoration: const InputDecoration(labelText: "Rol"),
+              items: const [
+                DropdownMenuItem(value: "pasajero", child: Text("Pasajero")),
+                DropdownMenuItem(value: "conductor", child: Text("Conductor")),
+              ],
+              onChanged: (value) {
+                _rolController.text = value!;
+              },
             ),
-            TextField(
-              controller: _passwordController,
-              obscureText: true,
-              decoration: const InputDecoration(labelText: "Contraseña"),
-            ),
+            const SizedBox(height: 16),
+              TextField(
+                  controller: _passwordController,
+                  obscureText: !verClave,
+                  decoration: InputDecoration(
+                    labelText: "Contraseña",
+                    labelStyle: const TextStyle(color: Colors.white70),
+                    enabledBorder: const UnderlineInputBorder(
+                      borderSide: BorderSide(color: Colors.white70),
+                    ),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        verClave
+                            ? Icons.visibility
+                            : Icons.visibility_off,
+                        color: Colors.white70,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          verClave = !verClave;
+                        });
+                      },
+                    ),
+                  ),
+                  style: const TextStyle(color: Colors.white),
+                ),
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: cargando ? null : registrarUsuario,

@@ -3,14 +3,14 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'registro.dart';
 
-class VerificarCorreoPage extends StatefulWidget {
-  const VerificarCorreoPage({super.key});
+class RecuperarContrasenaPage extends StatefulWidget {
+  const RecuperarContrasenaPage({super.key});
 
   @override
-  State<VerificarCorreoPage> createState() => _VerificarCorreoPageState();
+  State<RecuperarContrasenaPage> createState() => _RecuperarContrasenaPageState();
 }
 
-class _VerificarCorreoPageState extends State<VerificarCorreoPage> {
+class _RecuperarContrasenaPageState extends State<RecuperarContrasenaPage> {
   final _emailController = TextEditingController();
   final _codigoController = TextEditingController();
   bool codigoEnviado = false;
@@ -20,7 +20,7 @@ class _VerificarCorreoPageState extends State<VerificarCorreoPage> {
     setState(() => cargando = true);
 
     final response = await http.post(
-      Uri.parse("http://10.0.2.2:3000/api/auth/send-code"),
+      Uri.parse("http://10.0.2.2:3000/api/auth/send-coder"),
       headers: {"Content-Type": "application/json"},
       body: jsonEncode({"email": _emailController.text.trim()}),
     );
@@ -70,7 +70,7 @@ class _VerificarCorreoPageState extends State<VerificarCorreoPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Crear cuenta")),
+      appBar: AppBar(title: const Text("Recuperación de cuenta")),
       body: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
@@ -84,7 +84,7 @@ class _VerificarCorreoPageState extends State<VerificarCorreoPage> {
             if (codigoEnviado)
               TextField(
                 controller: _codigoController,
-                decoration: const InputDecoration(labelText: "Código de verificación"),
+                decoration: const InputDecoration(labelText: "Código de recuperación"),
               ),
             const SizedBox(height: 20),
             ElevatedButton(

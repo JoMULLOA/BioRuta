@@ -15,7 +15,7 @@ async function createInitialData() {
             rut: "22.333.111-4",
             email: "usuario1@alumnos.ubiobio.cl",
             password: await encryptPassword("admin1234"),
-            rol: "pasajero",
+            rol: "administrador",
           })
         ),
       ]);

@@ -21,3 +21,17 @@ export async function enviarCodigo(email, codigo) {
 
   return transporter.sendMail(opciones);
 }
+
+export async function enviarCodigoR(email, codigo) {
+  const opciones = {
+    from: `"BioRuta App" <${process.env.GMAIL_USER}>`,
+    to: email,
+    subject: "Código de recuperación",
+    html: `
+      <p>Te saludamos desde <b>BioRuta</b>,</p>
+      <p>Tu código de recuperación es: <b>${codigo}</b></p>
+    `,
+  };
+
+  return transporter.sendMail(opciones);
+}

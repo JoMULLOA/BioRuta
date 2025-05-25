@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'verificacion.dart';
 import '../mapa.dart';
+import './recuperacion.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
@@ -15,6 +16,7 @@ class _LoginPageState extends State<LoginPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool cargando = false;
+  bool verClave = false;
 
   Future<void> login() async {
     final email = _emailController.text.trim();
@@ -46,7 +48,8 @@ class _LoginPageState extends State<LoginPage> {
         MaterialPageRoute(builder: (_) => const MapPage()),
       );
     } else {
-      final error = jsonDecode(response.body)["error"] ?? "Error desconocido";
+      final Map<String, dynamic> data = jsonDecode(response.body);
+      final error = data["error"] ?? data["message"] ?? response.body;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("❌ $error")),
       );
@@ -71,7 +74,7 @@ class _LoginPageState extends State<LoginPage> {
               TextField(
                 controller: _emailController,
                 decoration: const InputDecoration(
-                  labelText: "Correo electrónico o teléfono",
+                  labelText: "Correo electrónico",
                   labelStyle: TextStyle(color: Colors.white70),
                   enabledBorder: UnderlineInputBorder(
                     borderSide: BorderSide(color: Colors.white70),
@@ -81,17 +84,30 @@ class _LoginPageState extends State<LoginPage> {
               ),
               const SizedBox(height: 16),
               TextField(
-                controller: _passwordController,
-                obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: "Contraseña",
-                  labelStyle: TextStyle(color: Colors.white70),
-                  enabledBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: Colors.white70),
+                  controller: _passwordController,
+                  obscureText: !verClave,
+                  decoration: InputDecoration(
+                    labelText: "Contraseña",
+                    labelStyle: const TextStyle(color: Colors.white70),
+                    enabledBorder: const UnderlineInputBorder(
+                      borderSide: BorderSide(color: Colors.white70),
+                    ),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        verClave
+                            ? Icons.visibility
+                            : Icons.visibility_off,
+                        color: Colors.white70,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          verClave = !verClave;
+                        });
+                      },
+                    ),
                   ),
+                  style: const TextStyle(color: Colors.white),
                 ),
-                style: const TextStyle(color: Colors.white),
-              ),
               const SizedBox(height: 32),
               ElevatedButton(
                 onPressed: cargando ? null : login,
@@ -115,6 +131,20 @@ class _LoginPageState extends State<LoginPage> {
                 },
                 child: const Text(
                   "Crear cuenta",
+                  style: TextStyle(color: Colors.white70),
+                ),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const RecuperarContrasenaPage(),
+                      ),
+                  );
+                },
+                child: const Text(
+                  "¿Olvidaste tu contraseña?",
                   style: TextStyle(color: Colors.white70),
                 ),
               ),
