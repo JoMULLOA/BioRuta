@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'registro.dart';
+import 'contrasena.dart';
 
 class RecuperarContrasenaPage extends StatefulWidget {
   const RecuperarContrasenaPage({super.key});
@@ -22,7 +22,7 @@ class _RecuperarContrasenaPageState extends State<RecuperarContrasenaPage> {
     final response = await http.post(
       Uri.parse("http://10.0.2.2:3000/api/auth/send-coder"),
       headers: {"Content-Type": "application/json"},
-      body: jsonEncode({"email": _emailController.text.trim()}),
+      body: jsonEncode({"email": _emailController.text.trim().toLowerCase()}),
     );
 
     setState(() => cargando = false);
@@ -46,7 +46,7 @@ class _RecuperarContrasenaPageState extends State<RecuperarContrasenaPage> {
       Uri.parse("http://10.0.2.2:3000/api/auth/verify-code"),
       headers: {"Content-Type": "application/json"},
       body: jsonEncode({
-        "email": _emailController.text.trim(),
+        "email": _emailController.text.trim().toLowerCase(),
         "code": _codigoController.text.trim()
       }),
     );
@@ -57,7 +57,7 @@ class _RecuperarContrasenaPageState extends State<RecuperarContrasenaPage> {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (_) => RegistroPage(email: _emailController.text.trim()),
+          builder: (_) => CambiarContrasenaPage(email: _emailController.text.trim()),
         ),
       );
     } else {

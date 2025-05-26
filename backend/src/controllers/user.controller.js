@@ -2,6 +2,7 @@
 import {
   deleteUserService,
   getUserService,
+  getUserGService,
   getUsersService,
   updateUserService,
 } from "../services/user.service.js";

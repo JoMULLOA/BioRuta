@@ -19,7 +19,7 @@ class _LoginPageState extends State<LoginPage> {
   bool verClave = false;
 
   Future<void> login() async {
-    final email = _emailController.text.trim();
+    final email = _emailController.text.trim().toLowerCase();
     final password = _passwordController.text.trim();
 
     if (email.isEmpty || password.isEmpty) {

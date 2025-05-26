@@ -27,8 +27,8 @@ class _RegistroPageState extends State<RegistroPage> {
       headers: {"Content-Type": "application/json"},
       body: jsonEncode({
         "nombreCompleto": _nombreController.text.trim(),
-        "rut": _rutController.text.trim(),
-        "email": widget.email,
+        "rut": _rutController.text.trim().toUpperCase(),
+        "email": widget.email.toLowerCase(),
         "rol": _rolController.text.trim(),
         "password": _passwordController.text.trim(),
       }),

@@ -22,7 +22,7 @@ class _VerificarCorreoPageState extends State<VerificarCorreoPage> {
     final response = await http.post(
       Uri.parse("http://10.0.2.2:3000/api/auth/send-code"),
       headers: {"Content-Type": "application/json"},
-      body: jsonEncode({"email": _emailController.text.trim()}),
+      body: jsonEncode({"email": _emailController.text.trim().toLowerCase()}),
     );
 
     setState(() => cargando = false);
@@ -46,7 +46,7 @@ class _VerificarCorreoPageState extends State<VerificarCorreoPage> {
       Uri.parse("http://10.0.2.2:3000/api/auth/verify-code"),
       headers: {"Content-Type": "application/json"},
       body: jsonEncode({
-        "email": _emailController.text.trim(),
+        "email": _emailController.text.trim().toLowerCase(),
         "code": _codigoController.text.trim()
       }),
     );

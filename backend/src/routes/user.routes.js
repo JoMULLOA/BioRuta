@@ -15,7 +15,7 @@ router.use(authenticateJwt);
 // Rutas de usuario
 router.get("/", getUsers);
 router.get("/detail/", getUser);
-router.patch("/detail/", updateUser);
+router.patch("/actualizar", updateUser);
 router.delete("/detail/", deleteUser);
 
 export default router;

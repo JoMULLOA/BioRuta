@@ -24,6 +24,27 @@ export async function getUserService(query) {
   }
 }
 
+export async function getUserGService(query) {
+  try {
+    const { email } = query;
+
+    const userRepository = AppDataSource.getRepository(User);
+
+    const userFound = await userRepository.findOne({
+      where: [{ email: email }],
+    });
+
+    if (!userFound) return [null, "Usuario no encontrado"];
+
+    const { password, ...userData } = userFound;
+
+    return [userData, null];
+  } catch (error) {
+    console.error("Error obtener el usuario:", error);
+    return [null, "Error interno del servidor"];
+  }
+}
+
 export async function getUsersService() {
   try {
     const userRepository = AppDataSource.getRepository(User);
