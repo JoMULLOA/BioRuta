@@ -4,8 +4,11 @@ import { getUserGService } from "../services/user.service.js";
 
 export async function sendCode(req, res) {
   const { email } = req.body;
-  const codigo = generarCodigo(); // función abajo
-
+  const [user, errorUser] = await getUserGService({ email });
+  if (user) {
+    return res.status(409).json({ error: "El usuario ya está registrado" }); // 409: Conflict
+  }
+  const codigo = generarCodigo();
   try {
     await enviarCodigo(email, codigo);
     guardarCodigo(email, codigo); // lo guarda con tiempo

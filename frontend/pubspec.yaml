@@ -45,7 +45,9 @@ dev_dependencies:
 
 # The following section is specific to Flutter packages.
 flutter:
-
+  assets:
+  - assets/icon/background.png
+  - assets/icon/logosf.png
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
   # the material Icons class.
@@ -85,3 +87,5 @@ flutter_icons:
   android: true
   ios: true
   image_path: "assets/icon/bioruta.png"
+
+

@@ -43,49 +43,93 @@ class _CambiarContrasenaPageState extends State<CambiarContrasenaPage> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text("Completa tu contraseña")),
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          children: [
-            TextField(
-              controller: _passwordController,
-              obscureText: !verClave,
-              decoration: InputDecoration(
-                labelText: "Contraseña",
-                labelStyle: const TextStyle(color: Colors.white70),
-                enabledBorder: const UnderlineInputBorder(
-                  borderSide: BorderSide(color: Colors.white70),
-                  ),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      verClave
-                      ? Icons.visibility
-                      : Icons.visibility_off,
-                      color: Colors.white70,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          verClave = !verClave;
-                        });
-                      },
-                    ),
-                  ),
-                  style: const TextStyle(color: Colors.white),
-                ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: cargando ? null : actualizarUsuario,
-              child: cargando
-                  ? const CircularProgressIndicator()
-                  : const Text("Cambiar contraseña"),
-            ),
-          ],
+@override
+Widget build(BuildContext context) {
+  return Scaffold(
+    extendBodyBehindAppBar: true,
+    appBar: AppBar(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      automaticallyImplyLeading: true,
+      iconTheme: const IconThemeData(color: Colors.white),
+    ),
+    body: Stack(
+      fit: StackFit.expand,
+      children: [
+        // Imagen de fondo
+        Image.asset(
+          'assets/icon/background.png',
+          fit: BoxFit.cover,
         ),
-      ),
-    );
+
+        // Capa de oscurecimiento para mejorar contraste
+        Container(
+          color: const Color.fromARGB(128, 0, 0, 0)
+        ),
+
+        // Contenido encima del fondo
+        SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const SizedBox(height: 100),
+              const Text(
+                  "Recuperar contraseña",
+                  style: TextStyle(color: Colors.white70, fontSize: 25),
+                ),
+              const SizedBox(height: 40),
+              const Text(
+                "Ingresa tu contraseña",
+                style: TextStyle(color: Colors.white70, fontSize: 16),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _passwordController,
+                obscureText: !verClave,
+                decoration: InputDecoration(
+                  labelText: "Contraseña nueva",
+                  labelStyle: const TextStyle(color: Colors.white70),
+                  enabledBorder: const UnderlineInputBorder(
+                    borderSide: BorderSide(color: Colors.white70),
+                    ),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        verClave
+                        ? Icons.visibility
+                        : Icons.visibility_off,
+                        color: Colors.white70,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            verClave = !verClave;
+                          });
+                        },
+                      ),
+                    ),
+                    style: const TextStyle(color: Colors.white),
+                  ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: cargando ? null : actualizarUsuario,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color.fromARGB(150, 81, 52, 23), // Fondo café opaco
+                  foregroundColor: Colors.white, // Texto y spinner blanco
+                  minimumSize: const Size(double.infinity, 48),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                child: cargando
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text("Cambiar contraseña"),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
   }
 }

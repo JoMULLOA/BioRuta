@@ -67,39 +67,100 @@ class _VerificarCorreoPageState extends State<VerificarCorreoPage> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text("Crear cuenta")),
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          children: [
-            TextField(
-              controller: _emailController,
-              decoration: const InputDecoration(labelText: "Correo electrónico"),
-              keyboardType: TextInputType.emailAddress,
-            ),
-            const SizedBox(height: 10),
-            if (codigoEnviado)
-              TextField(
-                controller: _codigoController,
-                decoration: const InputDecoration(labelText: "Código de verificación"),
-              ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: cargando
-                  ? null
-                  : codigoEnviado
-                      ? verificarCodigo
-                      : enviarCodigo,
-              child: cargando
-                  ? const CircularProgressIndicator()
-                  : Text(codigoEnviado ? "Verificar código" : "Enviar código"),
-            ),
-          ],
+@override
+Widget build(BuildContext context) {
+  return Scaffold(
+    extendBodyBehindAppBar: true,
+    appBar: AppBar(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      automaticallyImplyLeading: true,
+      iconTheme: const IconThemeData(color: Colors.white),
+    ),
+    body: Stack(
+      fit: StackFit.expand,
+      children: [
+        // Imagen de fondo
+        Image.asset(
+          'assets/icon/background.png',
+          fit: BoxFit.cover,
         ),
-      ),
-    );
-  }
+
+        // Capa de oscurecimiento para mejorar contraste
+        Container(
+          color: const Color.fromARGB(128, 0, 0, 0)
+        ),
+
+        // Contenido encima del fondo
+        SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const SizedBox(height: 100),
+              const Text(
+                  "Crear cuenta",
+                  style: TextStyle(color: Colors.white70, fontSize: 25),
+                ),
+              const SizedBox(height: 40),
+              const Text(
+                "Verifica tu correo",
+                style: TextStyle(color: Colors.white70, fontSize: 16),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _emailController,
+                decoration: const InputDecoration(
+                  labelText: "Correo electrónico",
+                  labelStyle: TextStyle(color: Colors.white70),
+                  enabledBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: Colors.white70),
+                  ),
+                ),
+                style: const TextStyle(color: Colors.white),
+                keyboardType: TextInputType.emailAddress,
+              ),
+              const SizedBox(height: 10),
+              if (codigoEnviado)
+                TextField(
+                  controller: _codigoController,
+                  decoration: const InputDecoration(
+                    labelText: "Código de verificación",
+                    labelStyle: TextStyle(color: Colors.white70),
+                    enabledBorder: UnderlineInputBorder(
+                      borderSide: BorderSide(color: Colors.white70),
+                    ),
+                  ),
+                  style: const TextStyle(color: Colors.white),
+                ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: cargando
+                    ? null
+                    : codigoEnviado
+                        ? verificarCodigo
+                        : enviarCodigo,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color.fromARGB(150, 81, 52, 23),
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size(double.infinity, 48),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                child: cargando
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : Text(
+                        codigoEnviado ? "Verificar código" : "Enviar código",
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+}
 }

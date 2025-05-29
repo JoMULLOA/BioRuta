@@ -56,34 +56,53 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Text(
-                "Iniciar sesión",
-                style: TextStyle(color: Colors.white, fontSize: 24),
-              ),
-              const SizedBox(height: 24),
-              TextField(
-                controller: _emailController,
-                decoration: const InputDecoration(
-                  labelText: "Correo electrónico",
-                  labelStyle: TextStyle(color: Colors.white70),
-                  enabledBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: Colors.white70),
-                  ),
+@override
+Widget build(BuildContext context) {
+  return Scaffold(
+    body: Stack(
+      fit: StackFit.expand,
+      children: [
+        // Imagen de fondo
+        Image.asset(
+          'assets/icon/background.png',
+          fit: BoxFit.cover,
+        ),
+
+        // Capa de oscurecimiento opcional (mejora legibilidad)
+        Container(
+          color: const Color.fromARGB(128, 0, 0, 0)
+        ),
+
+        // Contenido del login
+        Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Image.asset(
+                  'assets/icon/logosf.png',
+                  height: 240,
                 ),
-                style: const TextStyle(color: Colors.white),
-              ),
-              const SizedBox(height: 16),
-              TextField(
+                const SizedBox(height: 16),
+                const Text(
+                  "Iniciar sesión",
+                  style: TextStyle(color: Colors.white70, fontSize: 20),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _emailController,
+                  decoration: const InputDecoration(
+                    labelText: "Correo electrónico",
+                    labelStyle: TextStyle(color: Colors.white70),
+                    enabledBorder: UnderlineInputBorder(
+                      borderSide: BorderSide(color: Colors.white70),
+                    ),
+                  ),
+                  style: const TextStyle(color: Colors.white),
+                ),
+                const SizedBox(height: 16),
+                TextField(
                   controller: _passwordController,
                   obscureText: !verClave,
                   decoration: InputDecoration(
@@ -94,9 +113,7 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                     suffixIcon: IconButton(
                       icon: Icon(
-                        verClave
-                            ? Icons.visibility
-                            : Icons.visibility_off,
+                        verClave ? Icons.visibility : Icons.visibility_off,
                         color: Colors.white70,
                       ),
                       onPressed: () {
@@ -108,50 +125,53 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                   style: const TextStyle(color: Colors.white),
                 ),
-              const SizedBox(height: 32),
-              ElevatedButton(
-                onPressed: cargando ? null : login,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue[700],
-                  minimumSize: const Size(double.infinity, 48),
+                const SizedBox(height: 32),
+                ElevatedButton(
+                  onPressed: cargando ? null : login,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color.fromARGB(150, 81, 52, 23),
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(double.infinity, 48),
+                  ),
+                  child: cargando
+                      ? const CircularProgressIndicator(color: Colors.white70)
+                      : const Text("Siguiente"),
                 ),
-                child: cargando
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text("Siguiente"),
-              ),
-              const SizedBox(height: 20),
-              TextButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const VerificarCorreoPage(),
-                    ),
-                  );
-                },
-                child: const Text(
-                  "Crear cuenta",
-                  style: TextStyle(color: Colors.white70),
-                ),
-              ),
-              TextButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const RecuperarContrasenaPage(),
+                const SizedBox(height: 20),
+                TextButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const VerificarCorreoPage(),
                       ),
-                  );
-                },
-                child: const Text(
-                  "¿Olvidaste tu contraseña?",
-                  style: TextStyle(color: Colors.white70),
+                    );
+                  },
+                  child: const Text(
+                    "Crear cuenta",
+                    style: TextStyle(color: Colors.white70),
+                  ),
                 ),
-              ),
-            ],
+                TextButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const RecuperarContrasenaPage(),
+                      ),
+                    );
+                  },
+                  child: const Text(
+                    "¿Olvidaste tu contraseña?",
+                    style: TextStyle(color: Colors.white70),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
-      ),
-    );
-  }
+      ],
+    ),
+  );
+}
 }
