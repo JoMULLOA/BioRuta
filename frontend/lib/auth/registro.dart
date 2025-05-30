@@ -14,7 +14,6 @@ class RegistroPage extends StatefulWidget {
 class _RegistroPageState extends State<RegistroPage> {
   final _nombreController = TextEditingController();
   final _rutController = TextEditingController();
-  final _rolController = TextEditingController();
   final _passwordController = TextEditingController();
   bool cargando = false;
   bool verClave = false;
@@ -29,7 +28,7 @@ class _RegistroPageState extends State<RegistroPage> {
         "nombreCompleto": _nombreController.text.trim(),
         "rut": _rutController.text.trim().toUpperCase(),
         "email": widget.email.toLowerCase(),
-        "rol": _rolController.text.trim(),
+        "rol": "pasajero",
         "password": _passwordController.text.trim(),
       }),
     );
@@ -83,7 +82,7 @@ class _RegistroPageState extends State<RegistroPage> {
                 const SizedBox(height: 100),
                 const Text(
                     "Crear cuenta",
-                    style: TextStyle(color: Colors.white70, fontSize: 25),
+                    style: TextStyle(color: Colors.white, fontSize: 25),
                   ),
                 const SizedBox(height: 40),
                 const Text(
@@ -99,16 +98,6 @@ class _RegistroPageState extends State<RegistroPage> {
                 TextField(
                   controller: _rutController,
                   decoration: const InputDecoration(labelText: "RUT"),
-                ),
-                DropdownButtonFormField<String>(
-                  decoration: const InputDecoration(labelText: "Rol"),
-                  items: const [
-                    DropdownMenuItem(value: "pasajero", child: Text("Pasajero")),
-                    DropdownMenuItem(value: "conductor", child: Text("Conductor")),
-                  ],
-                  onChanged: (value) {
-                    _rolController.text = value!;
-                  },
                 ),
                 const SizedBox(height: 16),
                 TextField(
