@@ -20,6 +20,7 @@ class CustomNavbar extends StatelessWidget {
       items: const [
         BottomNavigationBarItem(icon: Icon(Icons.map), label: 'Buscar'),
         BottomNavigationBarItem(icon: Icon(Icons.add), label: 'Publicar'),
+        BottomNavigationBarItem(icon: Icon( Icons.sentiment_satisfied_alt), label: 'Chat'),
         BottomNavigationBarItem(icon: Icon(Icons.message), label: 'Mensajes'),
         BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
       ],
