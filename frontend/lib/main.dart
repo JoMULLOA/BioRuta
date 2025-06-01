@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'auth/login.dart';
-import 'mapa.dart';
+import 'viaje/mapa.dart';
 
 void main() {
   runApp(const MyApp());

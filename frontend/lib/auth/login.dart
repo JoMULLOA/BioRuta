@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'verificacion.dart';
-import '../mapa.dart';
+import '../viaje/mapa.dart';
 import './recuperacion.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
