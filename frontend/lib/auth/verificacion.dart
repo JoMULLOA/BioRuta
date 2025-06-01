@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'registro.dart';
+import './registro.dart';
 
 class VerificarCorreoPage extends StatefulWidget {
   const VerificarCorreoPage({super.key});

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import './login.dart';
 
 class RegistroPage extends StatefulWidget {
   final String email;
@@ -39,7 +40,10 @@ class _RegistroPageState extends State<RegistroPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("🎉 Usuario registrado con éxito")),
       );
-      Navigator.pushReplacementNamed(context, "/login");
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginPage()),
+      );
     } else {
       final Map<String, dynamic> data = jsonDecode(response.body);
       final error = data["error"] ?? data["message"] ?? response.body;
