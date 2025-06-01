@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'auth/login.dart';
 import 'mapa.dart';
+import 'chat/chat.dart'; // Asegúrate de importar tu ChatPage
 
 void main() {
   runApp(const MyApp());
@@ -19,6 +20,7 @@ class MyApp extends StatelessWidget {
       home: const LoginPage(), // 👈 Comienza en verificación simulada
       routes: {
         '/mapa': (context) => const MapPage(),
+        '/chat': (context) => const ChatPage(), // Agrega la ruta para el chat
       },
     );
   }
