@@ -20,19 +20,22 @@ class DireccionSugerida {
   final double lat;
   final double lon;
   double distancia;
+  bool esRegional;
 
   DireccionSugerida({
     required this.displayName,
     required this.lat,
     required this.lon,
     this.distancia = 0.0,
+    this.esRegional = false,
   });
 
-  factory DireccionSugerida.fromJson(Map<String, dynamic> json) {
+  factory DireccionSugerida.fromJson(Map<String, dynamic> json, {bool esRegional = false}) {
     return DireccionSugerida(
       displayName: json['display_name'],
       lat: double.parse(json['lat']),
       lon: double.parse(json['lon']),
+      esRegional: esRegional,
     );
   }
 }
@@ -44,6 +47,7 @@ class _MapPageState extends State<MapPage> {
   List<DireccionSugerida> _sugerencias = [];
   bool _mostrandoSugerencias = false;
   Timer? _debounceTimer;
+  String _regionActual = "Desconocida";
 
   @override
   void initState() {
@@ -81,14 +85,81 @@ class _MapPageState extends State<MapPage> {
     });
   }
 
-  // 1. MÉTODO PRINCIPAL - Ejecuta búsqueda y ordena por distancia
+  // 1. MÉTODO PRINCIPAL - Ejecuta búsqueda combinada
   Future<void> _ejecutarBusqueda(String query) async {
     try {
+      List<DireccionSugerida> todasLasSugerencias = [];
+      
+      // Obtener ubicación actual para contexto regional
+      GeoPoint? ubicacionActual = await controller.myLocation();
+      String regionActual = _regionActual;
+
+      if (ubicacionActual != null) {
+        // BÚSQUEDA 1: Query + región actual (marcadas como regionales)
+        final sugerenciasRegionales = await _buscarConRegion(query, regionActual);
+        todasLasSugerencias.addAll(sugerenciasRegionales);
+
+        // BÚSQUEDA 2: Solo query (marcadas como generales)
+        if (todasLasSugerencias.length < 5) {
+          final sugerenciasGenerales = await _buscarGeneral(query, 5 - todasLasSugerencias.length);
+          // Filtrar duplicados
+          for (var sugerencia in sugerenciasGenerales) {
+            bool esDuplicado = todasLasSugerencias.any((existente) =>
+              (existente.lat - sugerencia.lat).abs() < 0.001 &&
+              (existente.lon - sugerencia.lon).abs() < 0.001
+            );
+            if (!esDuplicado) {
+              todasLasSugerencias.add(sugerencia);
+            }
+          }
+        }
+
+        // Calcular distancias y ordenar por tipo
+        if (todasLasSugerencias.isNotEmpty) {
+          _calcularDistancias(todasLasSugerencias, ubicacionActual);
+          
+          // Separar por tipo
+          final regionales = todasLasSugerencias.where((s) => s.esRegional).toList()
+            ..sort((a, b) => a.distancia.compareTo(b.distancia));
+          
+          final generales = todasLasSugerencias.where((s) => !s.esRegional).toList();
+          
+          // Combinar: primero regionales ordenadas por distancia, luego generales
+          final sugerenciasFinales = [...regionales, ...generales];
+          
+          if (mounted) {
+            setState(() {
+              _sugerencias = sugerenciasFinales.take(5).toList();
+              _mostrandoSugerencias = true;
+            });
+          }
+        }
+      } else {
+        // Fallback: búsqueda general si no hay ubicación
+        final sugerenciasGenerales = await _buscarGeneral(query, 5);
+        if (mounted) {
+          setState(() {
+            _sugerencias = sugerenciasGenerales;
+            _mostrandoSugerencias = true;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error al buscar sugerencias: $e');
+    }
+  }
+
+  // BÚSQUEDA CON REGIÓN - Para las primeras 3 sugerencias
+  Future<List<DireccionSugerida>> _buscarConRegion(String query, String region) async {
+    try {
+      // Combinar query con región para búsqueda contextual
+      final queryConRegion = '$query, $region, Chile';
+      
       final url = Uri.parse(
         'https://nominatim.openstreetmap.org/search?'
-        'q=${Uri.encodeComponent(query)}&'
+        'q=${Uri.encodeComponent(queryConRegion)}&'
         'format=json&'
-        'limit=15&'
+        'limit=3&'
         'countrycodes=cl'
       );
 
@@ -98,38 +169,37 @@ class _MapPageState extends State<MapPage> {
 
       if (respuesta.statusCode == 200) {
         final List<dynamic> data = json.decode(respuesta.body);
-        List<DireccionSugerida> sugerenciasRaw = data
-            .map((item) => DireccionSugerida.fromJson(item))
-            .toList();
-
-        GeoPoint? ubicacionActual = await controller.myLocation();
-        
-        if (ubicacionActual != null && sugerenciasRaw.isNotEmpty) {
-          // AQUÍ SE CALCULA LA DISTANCIA
-          _calcularDistancias(sugerenciasRaw, ubicacionActual);
-          
-          // AQUÍ SE ORDENAN POR DISTANCIA (menor a mayor)
-          sugerenciasRaw.sort((a, b) => a.distancia.compareTo(b.distancia));
-          final mejoresSugerencias = sugerenciasRaw.take(5).toList();
-          
-          if (mounted) {
-            setState(() {
-              _sugerencias = mejoresSugerencias;
-              _mostrandoSugerencias = true;
-            });
-          }
-        } else {
-          if (mounted) {
-            setState(() {
-              _sugerencias = sugerenciasRaw.take(5).toList();
-              _mostrandoSugerencias = true;
-            });
-          }
-        }
+        return data.map((item) => DireccionSugerida.fromJson(item, esRegional: true)).toList();
       }
     } catch (e) {
-      debugPrint('Error al buscar sugerencias: $e');
+      debugPrint('Error en búsqueda regional: $e');
     }
+    return [];
+  }
+
+  // BÚSQUEDA GENERAL - Para las últimas 2 sugerencias
+  Future<List<DireccionSugerida>> _buscarGeneral(String query, int limite) async {
+    try {
+      final url = Uri.parse(
+        'https://nominatim.openstreetmap.org/search?'
+        'q=${Uri.encodeComponent(query)}&'
+        'format=json&'
+        'limit=$limite&'
+        'countrycodes=cl'
+      );
+
+      final respuesta = await http.get(url, headers: {
+        'User-Agent': 'flutter_bioruta_app',
+      });
+
+      if (respuesta.statusCode == 200) {
+        final List<dynamic> data = json.decode(respuesta.body);
+        return data.map((item) => DireccionSugerida.fromJson(item, esRegional: false)).toList();
+      }
+    } catch (e) {
+      debugPrint('Error en búsqueda general: $e');
+    }
+    return [];
   }
 
   // 2. MÉTODO DE CÁLCULO DE DISTANCIAS
@@ -173,7 +243,7 @@ class _MapPageState extends State<MapPage> {
     final status = await Permission.location.request();
     if (status.isGranted) {
       debugPrint("✅ Permiso de ubicación concedido");
-      await centrarEnMiUbicacion();
+      await _centrarEnMiUbicacionConRegion();
     } else if (status.isDenied) {
       _mostrarDialogo("Permiso de ubicación denegado. El mapa podría no funcionar correctamente.");
     } else if (status.isPermanentlyDenied) {
@@ -198,7 +268,7 @@ class _MapPageState extends State<MapPage> {
     );
   }
 
-  Future<void> centrarEnMiUbicacion() async {
+  Future<void> _centrarEnMiUbicacionConRegion() async {
     try {
       GeoPoint? miPosicion = await controller.myLocation();
       if (miPosicion == null) {
@@ -207,11 +277,85 @@ class _MapPageState extends State<MapPage> {
         }
         return;
       }
+
+      // Identificar región y ajustar zoom
+      String region = await _identificarRegion(miPosicion);
+      double zoomNivel = _obtenerZoomParaRegion(region);
+      
+      setState(() {
+        _regionActual = region;
+      });
+
       await controller.moveTo(miPosicion);
-      debugPrint("📍 Mapa centrado en: ${miPosicion.latitude}, ${miPosicion.longitude}");
+      await controller.setZoom(zoomLevel: zoomNivel);
+      
+      debugPrint("📍 Ubicado en: $region (${miPosicion.latitude}, ${miPosicion.longitude})");
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('📍 Ubicado en: $region')),
+        );
+      }
     } catch (e) {
       debugPrint("❌ Error al centrar en ubicación: $e");
     }
+  }
+
+  Future<String> _identificarRegion(GeoPoint posicion) async {
+    try {
+      final url = Uri.parse(
+        'https://nominatim.openstreetmap.org/reverse?'
+        'lat=${posicion.latitude}&'
+        'lon=${posicion.longitude}&'
+        'format=json&'
+        'addressdetails=1&'
+        'zoom=10'
+      );
+
+      final respuesta = await http.get(url, headers: {
+        'User-Agent': 'flutter_bioruta_app',
+      });
+
+      if (respuesta.statusCode == 200) {
+        final data = json.decode(respuesta.body);
+        final address = data['address'];
+        
+        // Priorizar diferentes niveles administrativos
+        String region = address['state'] ?? 
+                       address['region'] ?? 
+                       address['county'] ?? 
+                       address['city'] ?? 
+                       address['town'] ?? 
+                       address['village'] ?? 
+                       "Región Desconocida";
+        
+        return region;
+      }
+    } catch (e) {
+      debugPrint('Error al identificar región: $e');
+    }
+    
+    return "Región Desconocida";
+  }
+
+  double _obtenerZoomParaRegion(String region) {
+    // Ajustar zoom según el tipo de área
+    if (region.toLowerCase().contains('santiago') || 
+        region.toLowerCase().contains('metropolitana')) {
+      return 12.0; // Ciudad grande
+    } else if (region.toLowerCase().contains('valparaíso') ||
+               region.toLowerCase().contains('concepción') ||
+               region.toLowerCase().contains('antofagasta')) {
+      return 13.0; // Ciudades medianas
+    } else if (region.toLowerCase().contains('región')) {
+      return 10.0; // Vista regional
+    } else {
+      return 14.0; // Zoom por defecto para ciudades pequeñas
+    }
+  }
+
+  Future<void> centrarEnMiUbicacion() async {
+    await _centrarEnMiUbicacionConRegion();
   }
 
   Future<GeoPoint?> buscarDireccionConNominatim(String direccion) async {
@@ -307,7 +451,16 @@ class _MapPageState extends State<MapPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Mapa de BioRuta"),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text("Mapa de BioRuta"),
+            Text(
+              _regionActual,
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
+            ),
+          ],
+        ),
         backgroundColor: Colors.deepPurple,
       ),
       body: Stack(
@@ -394,18 +547,34 @@ class _MapPageState extends State<MapPage> {
                       padding: EdgeInsets.zero,
                       itemCount: _sugerencias.length,
                       itemBuilder: (context, index) {
+                        // Etiqueta correcta basada en el tipo real de búsqueda
+                        String tipoSugerencia = _sugerencias[index].esRegional ? "🎯 Regional" : "🌍 General";
+                        
                         return ListTile(
                           title: Text(
                             _sugerencias[index].displayName,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          subtitle: Text(
-                            'Distancia: ${_sugerencias[index].distancia.toStringAsFixed(2)} km',
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: 12,
-                            ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Distancia: ${_sugerencias[index].distancia.toStringAsFixed(2)} km',
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 12,
+                                ),
+                              ),
+                              Text(
+                                tipoSugerencia,
+                                style: TextStyle(
+                                  color: _sugerencias[index].esRegional ? Colors.purple[600] : Colors.blue[600],
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
                           ),
                           onTap: () {
                             destinoController.text = _sugerencias[index].displayName;
