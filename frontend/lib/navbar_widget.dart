@@ -9,18 +9,20 @@ class CustomNavbar extends StatelessWidget {
     required this.currentIndex,
     required this.onTap,
   }) : super(key: key);
-
   @override
   Widget build(BuildContext context) {
     return BottomNavigationBar(
       currentIndex: currentIndex,
-      selectedItemColor: Colors.deepPurple,
-      unselectedItemColor: Colors.grey,
+      selectedItemColor: const Color(0xFF854937),
+      unselectedItemColor: const Color(0xFF070505).withOpacity(0.5),
+      backgroundColor: const Color(0xFFF2EEED),
+      type: BottomNavigationBarType.fixed,
+      elevation: 8,
       onTap: onTap,
       items: const [
-        BottomNavigationBarItem(icon: Icon(Icons.map), label: 'Buscar'),
+        BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Buscar'),
+        BottomNavigationBarItem(icon: Icon(Icons.map), label: 'Mapa'),
         BottomNavigationBarItem(icon: Icon(Icons.add), label: 'Publicar'),
-        BottomNavigationBarItem(icon: Icon(Icons.message), label: 'Chat'),
         BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
       ],
     );

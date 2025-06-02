@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'verificacion.dart';
-import '../viaje/mapa.dart';
+import '../screens/inicio.dart';
 import './recuperacion.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -42,10 +42,9 @@ class _LoginPageState extends State<LoginPage> {
     if (response.statusCode == 200) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("✅ Login exitoso")),
-      );
-      Navigator.pushReplacement(
+      );      Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const MapPage()),
+        MaterialPageRoute(builder: (_) => const InicioScreen()),
       );
     } else {
       final Map<String, dynamic> data = jsonDecode(response.body);
