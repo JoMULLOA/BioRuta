@@ -1,10 +1,12 @@
 import 'dart:convert';
+import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_osm_plugin/flutter_osm_plugin.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
-import '../navbar_widget.dart'; // Reemplaza "tu_app" con el nombre real de tu proyecto
+import '../navbar_widget.dart';
 
 class MapPage extends StatefulWidget {
   const MapPage({super.key});
@@ -17,11 +19,13 @@ class DireccionSugerida {
   final String displayName;
   final double lat;
   final double lon;
+  double distancia;
 
   DireccionSugerida({
     required this.displayName,
     required this.lat,
     required this.lon,
+    this.distancia = 0.0,
   });
 
   factory DireccionSugerida.fromJson(Map<String, dynamic> json) {
@@ -31,7 +35,7 @@ class DireccionSugerida {
       lon: double.parse(json['lon']),
     );
   }
-} 
+}
 
 class _MapPageState extends State<MapPage> {
   late MapController controller;
@@ -39,6 +43,7 @@ class _MapPageState extends State<MapPage> {
   int _selectedIndex = 0;
   List<DireccionSugerida> _sugerencias = [];
   bool _mostrandoSugerencias = false;
+  Timer? _debounceTimer;
 
   @override
   void initState() {
@@ -62,7 +67,7 @@ class _MapPageState extends State<MapPage> {
   }
 
   Future<void> buscarSugerencias(String query) async {
-    if (query.length < 3) {
+    if (query.length < 4) {
       setState(() {
         _sugerencias = [];
         _mostrandoSugerencias = false;
@@ -70,9 +75,22 @@ class _MapPageState extends State<MapPage> {
       return;
     }
 
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 300), () async {
+      await _ejecutarBusqueda(query);
+    });
+  }
+
+  // 1. MÉTODO PRINCIPAL - Ejecuta búsqueda y ordena por distancia
+  Future<void> _ejecutarBusqueda(String query) async {
     try {
       final url = Uri.parse(
-          'https://nominatim.openstreetmap.org/search?q=${Uri.encodeComponent(query)}&format=json&limit=5');
+        'https://nominatim.openstreetmap.org/search?'
+        'q=${Uri.encodeComponent(query)}&'
+        'format=json&'
+        'limit=15&'
+        'countrycodes=cl'
+      );
 
       final respuesta = await http.get(url, headers: {
         'User-Agent': 'flutter_bioruta_app',
@@ -80,16 +98,75 @@ class _MapPageState extends State<MapPage> {
 
       if (respuesta.statusCode == 200) {
         final List<dynamic> data = json.decode(respuesta.body);
-        setState(() {
-          _sugerencias = data
-              .map((item) => DireccionSugerida.fromJson(item))
-              .toList();
-          _mostrandoSugerencias = true;
-        });
+        List<DireccionSugerida> sugerenciasRaw = data
+            .map((item) => DireccionSugerida.fromJson(item))
+            .toList();
+
+        GeoPoint? ubicacionActual = await controller.myLocation();
+        
+        if (ubicacionActual != null && sugerenciasRaw.isNotEmpty) {
+          // AQUÍ SE CALCULA LA DISTANCIA
+          _calcularDistancias(sugerenciasRaw, ubicacionActual);
+          
+          // AQUÍ SE ORDENAN POR DISTANCIA (menor a mayor)
+          sugerenciasRaw.sort((a, b) => a.distancia.compareTo(b.distancia));
+          final mejoresSugerencias = sugerenciasRaw.take(5).toList();
+          
+          if (mounted) {
+            setState(() {
+              _sugerencias = mejoresSugerencias;
+              _mostrandoSugerencias = true;
+            });
+          }
+        } else {
+          if (mounted) {
+            setState(() {
+              _sugerencias = sugerenciasRaw.take(5).toList();
+              _mostrandoSugerencias = true;
+            });
+          }
+        }
       }
     } catch (e) {
       debugPrint('Error al buscar sugerencias: $e');
     }
+  }
+
+  // 2. MÉTODO DE CÁLCULO DE DISTANCIAS
+  void _calcularDistancias(List<DireccionSugerida> sugerencias, GeoPoint ubicacionUsuario) {
+    if (sugerencias.isEmpty) return;
+    
+    // Calcular distancias usando Haversine
+    for (var sugerencia in sugerencias) {
+      double distancia = _calcularDistanciaHaversine(
+        ubicacionUsuario.latitude,
+        ubicacionUsuario.longitude,
+        sugerencia.lat,
+        sugerencia.lon,
+      );
+      sugerencia.distancia = distancia;
+    }
+  }
+
+  // 3. MÉTODO HAVERSINE - Calcula distancia geográfica real
+  double _calcularDistanciaHaversine(double lat1, double lon1, double lat2, double lon2) {
+    const double R = 6371; // Radio de la Tierra en km
+    
+    double dLat = _gradosARadianes(lat2 - lat1);
+    double dLon = _gradosARadianes(lon2 - lon1);
+    
+    double a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+        math.cos(_gradosARadianes(lat1)) * math.cos(_gradosARadianes(lat2)) *
+        math.sin(dLon / 2) * math.sin(dLon / 2);
+    
+    double c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+    
+    return R * c; // Distancia en km
+  }
+
+  // 4. MÉTODO AUXILIAR - Convierte grados a radianes
+  double _gradosARadianes(double grados) {
+    return grados * (math.pi / 180);
   }
 
   Future<void> _solicitarPermisos() async {
@@ -125,10 +202,12 @@ class _MapPageState extends State<MapPage> {
     try {
       GeoPoint? miPosicion = await controller.myLocation();
       if (miPosicion == null) {
-        _mostrarDialogo("No se pudo obtener tu ubicación actual.");
+        if (mounted) {
+          _mostrarDialogo("No se pudo obtener tu ubicación actual.");
+        }
         return;
       }
-      await controller.goToLocation(miPosicion);
+      await controller.moveTo(miPosicion);
       debugPrint("📍 Mapa centrado en: ${miPosicion.latitude}, ${miPosicion.longitude}");
     } catch (e) {
       debugPrint("❌ Error al centrar en ubicación: $e");
@@ -137,7 +216,7 @@ class _MapPageState extends State<MapPage> {
 
   Future<GeoPoint?> buscarDireccionConNominatim(String direccion) async {
     final url = Uri.parse(
-        'https://nominatim.openstreetmap.org/search?q=${Uri.encodeComponent(direccion)}&format=json&limit=1');
+        'https://nominatim.openstreetmap.org/search?q=${Uri.encodeComponent(direccion)}&format=json&limit=1&countrycodes=cl');
 
     final respuesta = await http.get(url, headers: {
       'User-Agent': 'flutter_bioruta_app',
@@ -155,24 +234,30 @@ class _MapPageState extends State<MapPage> {
   }
 
   Future<void> buscarYDibujarRuta(String destinoTexto) async {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('🔍 Buscando dirección...')),
-    );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('🔍 Buscando dirección...')),
+      );
+    }
 
     final destinoPunto = await buscarDireccionConNominatim(destinoTexto);
     if (destinoPunto == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('❌ Dirección no encontrada')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('❌ Dirección no encontrada')),
+        );
+      }
       return;
     }
 
     try {
       final origen = await controller.myLocation();
       if (origen == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('⚠️ No se pudo obtener tu ubicación actual')),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('⚠️ No se pudo obtener tu ubicación actual')),
+          );
+        }
         return;
       }
 
@@ -187,7 +272,7 @@ class _MapPageState extends State<MapPage> {
         ),
       );
 
-      await controller.goToLocation(destinoPunto);
+      await controller.moveTo(destinoPunto);
 
       await controller.addMarker(
         destinoPunto,
@@ -196,20 +281,25 @@ class _MapPageState extends State<MapPage> {
         ),
       );
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('📍 Ruta trazada exitosamente')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('📍 Ruta trazada exitosamente')),
+        );
+      }
     } catch (e) {
       debugPrint("❌ Error al trazar ruta: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('❌ Ocurrió un error al trazar la ruta')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('❌ Ocurrió un error al trazar la ruta')),
+        );
+      }
     }
   }
 
   @override
   void dispose() {
     destinoController.dispose();
+    _debounceTimer?.cancel();
     super.dispose();
   }
 
@@ -261,7 +351,7 @@ class _MapPageState extends State<MapPage> {
                       controller: destinoController,
                       onChanged: (value) => buscarSugerencias(value),
                       decoration: InputDecoration(
-                        hintText: 'Escribe una dirección o lugar',
+                        hintText: 'Escribe una dirección o lugar (mín. 4 caracteres)',
                         suffixIcon: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -310,12 +400,15 @@ class _MapPageState extends State<MapPage> {
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
+                          subtitle: Text(
+                            'Distancia: ${_sugerencias[index].distancia.toStringAsFixed(2)} km',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 12,
+                            ),
+                          ),
                           onTap: () {
                             destinoController.text = _sugerencias[index].displayName;
-                            final punto = GeoPoint(
-                              latitude: _sugerencias[index].lat,
-                              longitude: _sugerencias[index].lon,
-                            );
                             buscarYDibujarRuta(_sugerencias[index].displayName);
                             setState(() {
                               _mostrandoSugerencias = false;
@@ -335,7 +428,6 @@ class _MapPageState extends State<MapPage> {
         onTap: (index) {
           setState(() {
             _selectedIndex = index;
-            // Aquí puedes agregar navegación condicional si quieres cambiar de pantalla
           });
         },
       ),
@@ -358,9 +450,11 @@ class _MapPageState extends State<MapPage> {
                   icon: Icon(Icons.place, color: Colors.green, size: 56),
                 ),
               );
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('📍 Marcador agregado en Santiago')),
-              );
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('📍 Marcador agregado en Santiago')),
+                );
+              }
             },
             tooltip: 'Agregar marcador',
             child: const Icon(Icons.add_location),
