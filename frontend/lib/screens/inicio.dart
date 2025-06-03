@@ -505,7 +505,7 @@ class _InicioScreenState extends State<InicioScreen> {
               break;
             case 2:
               // Publicar viaje (por implementar)
-              _mostrarMensajeFuncionalidad('Publicar Viaje');
+              Navigator.pushReplacementNamed(context, '/publicar');
               break;
             case 3:
               // Perfil (por implementar)
