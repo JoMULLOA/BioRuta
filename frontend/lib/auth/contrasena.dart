@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import './login.dart';
 
 class CambiarContrasenaPage extends StatefulWidget {
   final String email;
@@ -33,7 +34,10 @@ class _CambiarContrasenaPageState extends State<CambiarContrasenaPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("🎉 Contraseña cambiada con éxito")),
       );
-      Navigator.pushReplacementNamed(context, "/login");
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginPage()),
+      );
     } else {
       final Map<String, dynamic> data = jsonDecode(response.body);
       final error = data["error"] ?? data["message"] ?? response.body;
@@ -76,7 +80,7 @@ Widget build(BuildContext context) {
               const SizedBox(height: 100),
               const Text(
                   "Recuperar contraseña",
-                  style: TextStyle(color: Colors.white70, fontSize: 25),
+                  style: TextStyle(color: Colors.white, fontSize: 25),
                 ),
               const SizedBox(height: 40),
               const Text(

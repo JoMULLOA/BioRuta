@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import './login.dart';
 
 class RegistroPage extends StatefulWidget {
   final String email;
@@ -14,7 +15,6 @@ class RegistroPage extends StatefulWidget {
 class _RegistroPageState extends State<RegistroPage> {
   final _nombreController = TextEditingController();
   final _rutController = TextEditingController();
-  final _rolController = TextEditingController();
   final _passwordController = TextEditingController();
   bool cargando = false;
   bool verClave = false;
@@ -29,7 +29,7 @@ class _RegistroPageState extends State<RegistroPage> {
         "nombreCompleto": _nombreController.text.trim(),
         "rut": _rutController.text.trim().toUpperCase(),
         "email": widget.email.toLowerCase(),
-        "rol": _rolController.text.trim(),
+        "rol": "pasajero",
         "password": _passwordController.text.trim(),
       }),
     );
@@ -40,7 +40,10 @@ class _RegistroPageState extends State<RegistroPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("🎉 Usuario registrado con éxito")),
       );
-      Navigator.pushReplacementNamed(context, "/login");
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginPage()),
+      );
     } else {
       final Map<String, dynamic> data = jsonDecode(response.body);
       final error = data["error"] ?? data["message"] ?? response.body;
@@ -83,7 +86,7 @@ class _RegistroPageState extends State<RegistroPage> {
                 const SizedBox(height: 100),
                 const Text(
                     "Crear cuenta",
-                    style: TextStyle(color: Colors.white70, fontSize: 25),
+                    style: TextStyle(color: Colors.white, fontSize: 25),
                   ),
                 const SizedBox(height: 40),
                 const Text(
@@ -99,16 +102,6 @@ class _RegistroPageState extends State<RegistroPage> {
                 TextField(
                   controller: _rutController,
                   decoration: const InputDecoration(labelText: "RUT"),
-                ),
-                DropdownButtonFormField<String>(
-                  decoration: const InputDecoration(labelText: "Rol"),
-                  items: const [
-                    DropdownMenuItem(value: "pasajero", child: Text("Pasajero")),
-                    DropdownMenuItem(value: "conductor", child: Text("Conductor")),
-                  ],
-                  onChanged: (value) {
-                    _rolController.text = value!;
-                  },
                 ),
                 const SizedBox(height: 16),
                 TextField(

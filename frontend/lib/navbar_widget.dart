@@ -23,7 +23,6 @@ class CustomNavbar extends StatelessWidget {
         BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Buscar'),
         BottomNavigationBarItem(icon: Icon(Icons.map), label: 'Mapa'),
         BottomNavigationBarItem(icon: Icon(Icons.add), label: 'Publicar'),
-        BottomNavigationBarItem(icon: Icon(Icons.integration_instructions_outlined), label: 'Chat'),
         BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
       ],
     );

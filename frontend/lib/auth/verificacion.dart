@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'registro.dart';
+import './registro.dart';
 
 class VerificarCorreoPage extends StatefulWidget {
   const VerificarCorreoPage({super.key});
@@ -100,7 +100,7 @@ Widget build(BuildContext context) {
               const SizedBox(height: 100),
               const Text(
                   "Crear cuenta",
-                  style: TextStyle(color: Colors.white70, fontSize: 25),
+                  style: TextStyle(color: Colors.white, fontSize: 25),
                 ),
               const SizedBox(height: 40),
               const Text(

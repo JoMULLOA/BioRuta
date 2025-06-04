@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'auth/login.dart';
-import 'mapa.dart';
-import 'chat/chat.dart'; // Asegúrate de importar tu ChatPage
-
+import 'viaje/mapa.dart';
+import 'screens/inicio.dart';
+import 'screens/publicar.dart';
 void main() {
   runApp(const MyApp());
 }
@@ -15,12 +15,15 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'BioRuta',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.white70),
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF2E7D32)),
+        useMaterial3: true,
       ),
-      home: const LoginPage(), // 👈 Comienza en verificación simulada
+      home: const LoginPage(),
       routes: {
+        '/inicio': (context) => const InicioScreen(),
         '/mapa': (context) => const MapPage(),
-        '/chat': (context) => const ChatPage(), // Agrega la ruta para el chat
+        '/publicar': (context) => PublicarPage(),
+
       },
     );
   }
