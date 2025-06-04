@@ -23,7 +23,7 @@ class MyApp extends StatelessWidget {
         '/inicio': (context) => const InicioScreen(),
         '/mapa': (context) => const MapPage(),
         '/publicar': (context) => PublicarPage(),
-
+        
       },
     );
   }
