@@ -509,6 +509,10 @@ class _InicioScreenState extends State<InicioScreen> {
               break;
             case 3:
               // Perfil (por implementar)
+              _mostrarMensajeFuncionalidad('Chat');
+              break;
+            case 4:
+              // Perfil (por implementar)
               _mostrarMensajeFuncionalidad('Perfil');
               break;
           }
