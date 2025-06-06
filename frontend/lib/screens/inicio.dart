@@ -508,8 +508,8 @@ class _InicioScreenState extends State<InicioScreen> {
               Navigator.pushReplacementNamed(context, '/publicar');
               break;
             case 3:
-              // Perfil (por implementar)
-              _mostrarMensajeFuncionalidad('Chat');
+              // chat (por implementar)
+              Navigator.pushReplacementNamed(context, '/chat');
               break;
             case 4:
               // Perfil (por implementar)
