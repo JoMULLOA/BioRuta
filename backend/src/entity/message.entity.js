@@ -10,8 +10,12 @@ const MessageSchema = new EntitySchema({
       primary: true,
       generated: true,
     },
-    sender: {
-      type: "varchar",
+    senderId: {
+      type: "int",
+      nullable: false,
+    },
+    receiverId: {
+      type: "int",
       nullable: false,
     },
     text: {
