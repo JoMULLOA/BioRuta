@@ -300,11 +300,14 @@ class _MapPageState extends State<MapPage> {
               break;
             case 2:
               // Publicar viaje (por implementar)
-              _mostrarMensajeFuncionalidad('Publicar Viaje');
+              Navigator.pushReplacementNamed(context, '/publicar');
               break;
             case 3:
+              Navigator.pushReplacementNamed(context, '/chat');
+              break;
+            case 4:
               // Perfil (por implementar)
-              _mostrarMensajeFuncionalidad('Perfil');
+              Navigator.pushReplacementNamed(context, '/perfil');
               break;
           }
         },
@@ -349,13 +352,4 @@ class _MapPageState extends State<MapPage> {
     );
   }
 
-  void _mostrarMensajeFuncionalidad(String funcionalidad) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$funcionalidad estará disponible próximamente'),
-        backgroundColor: const Color(0xFF854937),
-        duration: const Duration(seconds: 2),
-      ),
-    );
-  }
 }

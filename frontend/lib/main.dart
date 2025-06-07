@@ -3,6 +3,8 @@ import 'auth/login.dart';
 import 'viaje/mapa.dart';
 import 'screens/inicio.dart';
 import 'screens/publicar.dart';
+import 'chat/chat.dart';
+import 'perfil/perfil.dart';
 void main() {
   runApp(const MyApp());
 }
@@ -23,7 +25,9 @@ class MyApp extends StatelessWidget {
         '/inicio': (context) => const InicioScreen(),
         '/mapa': (context) => const MapPage(),
         '/publicar': (context) => PublicarPage(),
-
+        '/chat': (context) => Chat(),
+        '/perfil': (context) => Perfil(),
+        
       },
     );
   }
