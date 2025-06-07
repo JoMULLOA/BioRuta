@@ -1,101 +1,103 @@
 import 'package:flutter/material.dart';
-import 'package:BioRuta/navbar_widget.dart';  // Importa tu navbar
-import 'package:BioRuta/services/socket_service.dart';  // Asegúrate de importar el SocketService
+import '../navbar_widget.dart'; // Asegúrate de importar tu navbar
 
-class ChatPage extends StatefulWidget {
-  const ChatPage({super.key});
-
+class Chat extends StatefulWidget {
   @override
-  _ChatPageState createState() => _ChatPageState();
+  ChatState createState() => ChatState();
 }
 
-class _ChatPageState extends State<ChatPage> {
-  final SocketService _socketService = SocketService();
-  final TextEditingController _messageController = TextEditingController();
-  List<String> messages = [];  // Lista de mensajes para mostrar
+class ChatState extends State<Chat> {
+  final List<Map<String, String>> chatsAmigos = [
+    {'nombre': 'Antonieta', 'mensaje': '¿Vamos al BioRuta hoy?'},
+    {'nombre': 'Esteban', 'mensaje': 'Bro revisa la app pls'},
+    {'nombre': 'Mateo', 'mensaje': 'Papá, ¿jugamos?'},
+    {'nombre': 'Luzmira', 'mensaje': 'Te hice pan amasado ❤️'},
+  ];
 
-  @override
-  void initState() {
-    super.initState();
-    _socketService.connect();  // Conectar al WebSocket al iniciar
-
-    // Escuchar los mensajes entrantes y actualizar la lista
-    _socketService.socket?.on('receive_message', (data) {
-      setState(() {
-        messages.add(data);
-      });
-    });
-  }
-
-  @override
-  void dispose() {
-    _socketService.disconnect();  // Desconectar al salir de la pantalla
-    super.dispose();
-  }
-
-  // Función para enviar el mensaje
-  void sendMessage() {
-    final message = _messageController.text.trim();
-    if (message.isNotEmpty) {
-      _socketService.sendMessage('Usuario', message);  // Enviar mensaje
-      setState(() {
-        messages.add('Tú: $message');
-        _messageController.clear();
-      });
-    }
-  }
+  int _selectedIndex = 3; // índice del chat en el navbar
 
   @override
   Widget build(BuildContext context) {
+    final Color fondo = Color(0xFFF8F2EF);
+    final Color principal = Color(0xFF6B3B2D);
+    final Color secundario = Color(0xFF8D4F3A);
+
     return Scaffold(
+      backgroundColor: fondo,
       appBar: AppBar(
-        title: const Text('Chat'),
+        backgroundColor: fondo,
+        elevation: 0,
+        title: Text('Chats', style: TextStyle(color: principal)),
+        iconTheme: IconThemeData(color: principal),
       ),
-      body: Column(
-        children: [
-          // Esta es la lista de mensajes en el chat
-          Expanded(
-            child: ListView.builder(
-              itemCount: messages.length,
-              itemBuilder: (context, index) {
-                return ListTile(
-                  title: Text(messages[index]),
-                );
-              },
+      body: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: ListView(
+          children: [
+            // Chat importante
+            Card(
+              color: Colors.brown.shade100.withOpacity(0.5),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              child: ListTile(
+                leading: Icon(Icons.star, color: secundario),
+                title: Text('Chat de Viaje', style: TextStyle(color: principal, fontWeight: FontWeight.bold)),
+                subtitle: Text('Donde estás que no te veo', style: TextStyle(color: secundario)),
+                onTap: () => Navigator.pushNamed(context, '/chatImportante'),
+              ),
             ),
-          ),
-          // Caja de texto y botón de enviar mensaje
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _messageController,
-                    decoration: InputDecoration(
-                      hintText: 'Escribe un mensaje...',
-                      border: OutlineInputBorder(),
-                    ),
+            SizedBox(height: 16),
+            Text(
+              'Amistades',
+              style: TextStyle(color: principal, fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 8),
+
+            ...chatsAmigos.map((chat) {
+              return Card(
+                color: Colors.white,
+                elevation: 2,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                margin: const EdgeInsets.symmetric(vertical: 6),
+                child: ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: principal.withOpacity(0.8),
+                    child: Text(chat['nombre']![0], style: TextStyle(color: Colors.white)),
                   ),
+                  title: Text(chat['nombre']!, style: TextStyle(color: principal)),
+                  subtitle: Text(chat['mensaje']!, style: TextStyle(color: secundario)),
+                  onTap: () => Navigator.pushNamed(context, '/chat', arguments: chat['nombre']),
                 ),
-                IconButton(
-                  icon: Icon(Icons.send),
-                  onPressed: sendMessage,  // Enviar mensaje
-                ),
-              ],
-            ),
-          ),
-        ],
+              );
+            }).toList(),
+          ],
+        ),
       ),
-      // Aquí es donde agregamos la CustomNavbar
       bottomNavigationBar: CustomNavbar(
-        currentIndex: 2,  // Si quieres que el ícono de "Chat" esté seleccionado
+        currentIndex: _selectedIndex,
         onTap: (index) {
-          // Aquí manejas la lógica cuando se cambia de ítem en la navbar
-          if (index == 0) {
-            Navigator.pushNamed(context, '/mapa');
+          if (index == _selectedIndex) return;
+
+          setState(() {
+            _selectedIndex = index;
+          });
+
+          switch (index) {
+            case 0:
+              Navigator.pushReplacementNamed(context, '/inicio');
+              break;
+            case 1:
+              Navigator.pushReplacementNamed(context, '/mapa');
+              break;
+            case 2:
+              Navigator.pushReplacementNamed(context, '/publicar');
+              break;
+            case 3:
+              // Ya estás en chat
+              break;
+            case 4:
+              Navigator.pushReplacementNamed(context, '/perfil');
+              break;
           }
-          // Puedes agregar lógica similar para otros índices de la navbar
         },
       ),
     );

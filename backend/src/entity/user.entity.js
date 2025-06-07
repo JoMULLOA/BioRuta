@@ -5,21 +5,17 @@ const UserSchema = new EntitySchema({
   name: "User",
   tableName: "users",
   columns: {
-    id: {
-      type: "int",
+    rut: {
+      type: "varchar",
+      length: 12,
       primary: true,
-      generated: true,
+      nullable: false,
+      unique: true,
     },
     nombreCompleto: {
       type: "varchar",
       length: 255,
       nullable: false,
-    },
-    rut: {
-      type: "varchar",
-      length: 12,
-      nullable: false,
-      unique: true,
     },
     email: {
       type: "varchar",
@@ -49,11 +45,6 @@ const UserSchema = new EntitySchema({
     },
   },
   indices: [
-    {
-      name: "IDX_USER",
-      columns: ["id"],
-      unique: true,
-    },
     {
       name: "IDX_USER_RUT",
       columns: ["rut"],

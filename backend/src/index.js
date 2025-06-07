@@ -6,13 +6,14 @@ import session from "express-session";
 import passport from "passport";
 import express, { json, urlencoded } from "express";
 import cron from "node-cron";
-import { Server as SocketServer } from "socket.io";
-import http from "http"; // 👈 Necesario para usar sockets
+import http from "http";
 import 'dotenv/config';
 
 import userRoutes from "./routes/user.routes.js";
+import chatRoutes from "./routes/chat.routes.js";
 import indexRoutes from "./routes/index.routes.js";
 
+import { initSocket } from "./socket.js"; 
 import { cookieKey, HOST, PORT } from "./config/configEnv.js";
 import { connectDB } from "./config/configDb.js";
 import { createInitialData } from "./config/initialSetup.js";
@@ -81,7 +82,11 @@ async function setupServer() {
 
     // Rutas API
     app.use("/api", indexRoutes);
-    app.use("/api/users", userRoutes);
+    app.use("/api/users", userRoutes); // Rutas de usuarios, que incluye /api/users/garzones
+    app.use("/api/chat", chatRoutes); // Rutas de chat
+
+    const server = http.createServer(app);
+    initSocket(server); // Inicializa Socket.IO con el servidor
 
     // Iniciar servidor + Socket.IO
     server.listen(PORT, () => {

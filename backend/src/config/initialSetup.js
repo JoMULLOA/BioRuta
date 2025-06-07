@@ -13,8 +13,8 @@ async function createInitialData() {
 
     if (userCount === 0) {
       user1 = userRepository.create({
-        nombreCompleto: "Usuario1",
         rut: "22.333.111-4",
+        nombreCompleto: "Usuario1",
         email: "usuario1@alumnos.ubiobio.cl",
         password: await encryptPassword("admin1234"),
         rol: "administrador",
