@@ -24,13 +24,21 @@ export default new EntitySchema({
     emisor: {
       type: "many-to-one",
       target: User,
-      joinColumn: { name: "rutEmisor" },
+      joinColumn: { 
+        name: "rutEmisor",
+        referencedColumnName: "rut",
+        foreignKeyConstraintName: "fk_mensaje_emisor"
+      },
       eager: true,
     },
     receptor: {
       type: "many-to-one",
       target: User,
-      joinColumn: { name: "rutReceptor" },
+      joinColumn: { 
+        name: "rutReceptor",
+        referencedColumnName: "rut",
+        foreignKeyConstraintName: "fk_mensaje_receptor"
+      },
       eager: true,
     },
   },

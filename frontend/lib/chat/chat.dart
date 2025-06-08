@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../navbar_widget.dart'; // Asegúrate de importar tu navbar
+import 'pagina_individual.dart'; // Importa la página individual
 
 class Chat extends StatefulWidget {
   @override
@@ -52,6 +53,7 @@ class ChatState extends State<Chat> {
             ),
             SizedBox(height: 8),
 
+            // Generar lista de chats con amigos
             ...chatsAmigos.map((chat) {
               return Card(
                 color: Colors.white,
@@ -65,7 +67,15 @@ class ChatState extends State<Chat> {
                   ),
                   title: Text(chat['nombre']!, style: TextStyle(color: principal)),
                   subtitle: Text(chat['mensaje']!, style: TextStyle(color: secundario)),
-                  onTap: () => Navigator.pushNamed(context, '/chat', arguments: chat['nombre']),
+                  onTap: () {
+                    // Aquí navegamos a la página individual del chat usando MaterialPageRoute
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => PaginaIndividual(nombre: chat['nombre']!),
+                      ),
+                    );
+                  },
                 ),
               );
             }).toList(),
