@@ -272,7 +272,7 @@ class Perfil_ extends State<Perfil> {
 
           switch (index) {
             case 0:
-              // Ya estamos en inicio, no hacer nada
+              Navigator.pushReplacementNamed(context, '/inicio');
               break;
             case 1:
               // Ir al mapa
