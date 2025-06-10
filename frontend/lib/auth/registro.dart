@@ -15,6 +15,7 @@ class RegistroPage extends StatefulWidget {
 class _RegistroPageState extends State<RegistroPage> {
   final _nombreController = TextEditingController();
   final _rutController = TextEditingController();
+  final _carreraController = TextEditingController();
   final _passwordController = TextEditingController();
   bool cargando = false;
   bool verClave = false;
@@ -23,13 +24,14 @@ class _RegistroPageState extends State<RegistroPage> {
     setState(() => cargando = true);
 
     final response = await http.post(
-       Uri.parse("http://10.0.2.2:3000/api/auth/register"),
-      //Uri.parse("http://localhost:3000/api/auth/register"),
+      //Uri.parse("http://10.0.2.2:3000/api/auth/register"),
+      Uri.parse("http://localhost:3000/api/auth/register"),
       headers: {"Content-Type": "application/json"},
       body: jsonEncode({
         "nombreCompleto": _nombreController.text.trim(),
         "rut": _rutController.text.trim().toUpperCase(),
         "email": widget.email.toLowerCase(),
+        "carrera": _carreraController.text.trim(),
         "rol": "pasajero",
         "password": _passwordController.text.trim(),
       }),
@@ -103,6 +105,10 @@ class _RegistroPageState extends State<RegistroPage> {
                 TextField(
                   controller: _rutController,
                   decoration: const InputDecoration(labelText: "RUT"),
+                ),
+                TextField(
+                  controller: _carreraController,
+                  decoration: const InputDecoration(labelText: "Carrera"),
                 ),
                 const SizedBox(height: 16),
                 TextField(
