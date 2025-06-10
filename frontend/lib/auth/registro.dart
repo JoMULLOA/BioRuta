@@ -24,8 +24,8 @@ class _RegistroPageState extends State<RegistroPage> {
     setState(() => cargando = true);
 
     final response = await http.post(
-      //Uri.parse("http://10.0.2.2:3000/api/auth/register"),
-      Uri.parse("http://localhost:3000/api/auth/register"),
+      Uri.parse("http://10.0.2.2:3000/api/auth/register"),
+      //Uri.parse("http://localhost:3000/api/auth/register"),
       headers: {"Content-Type": "application/json"},
       body: jsonEncode({
         "nombreCompleto": _nombreController.text.trim(),

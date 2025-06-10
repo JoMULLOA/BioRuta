@@ -43,7 +43,8 @@ class Perfil_ extends State<Perfil> {
 
       // Llamada al backend
       final response = await http.get(
-        Uri.parse('http://localhost:3000/api/user/busqueda?email=$email'), 
+        //Uri.parse('http://localhost:3000/api/user/busqueda?email=$email'),
+        Uri.parse("http://10.0.2.2:3000/api/auth/register/user/busqueda?email=$email"),
         headers: {
           'Content-Type': 'application/json',
           'Cache-Control': 'no-cache',
