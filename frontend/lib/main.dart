@@ -1,3 +1,4 @@
+import 'package:BioRuta/Ranking/ranking.dart';
 import 'package:flutter/material.dart';
 import 'auth/login.dart';
 import 'viaje/mapa.dart';
@@ -26,6 +27,7 @@ class MyApp extends StatelessWidget {
         '/mapa': (context) => const MapPage(),
         '/publicar': (context) => PublicarPage(),
         '/chat': (context) => Chat(),
+        '/ranking': (context) => ranking(),
         '/perfil': (context) => Perfil(),
       },
     );

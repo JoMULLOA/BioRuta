@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../navbar_widget.dart';
+import '../chat/Chatsoporte.dart';
 
 class Perfil extends StatefulWidget {
   @override
@@ -10,7 +11,7 @@ class Perfil extends StatefulWidget {
 }
 
 class Perfil_ extends State<Perfil> {
-  int _selectedIndex = 4;
+  int _selectedIndex = 5;
 
   // Variables para almacenar datos del usuario
   String _userEmail = 'Cargando...';
@@ -121,6 +122,16 @@ class Perfil_ extends State<Perfil> {
         title: Text('Perfil', style: TextStyle(color: primario)),
         iconTheme: IconThemeData(color: primario),
         actions: [
+          IconButton(
+            icon: Icon(Icons.support_agent),
+            tooltip: 'Soporte',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => ChatSoporte()),
+              );
+            },
+          ),
           IconButton(
             icon: Icon(Icons.refresh),
             onPressed: () {
@@ -261,18 +272,24 @@ class Perfil_ extends State<Perfil> {
 
           switch (index) {
             case 0:
-              Navigator.pushReplacementNamed(context, '/inicio');
+              // Ya estamos en inicio, no hacer nada
               break;
             case 1:
+              // Ir al mapa
               Navigator.pushReplacementNamed(context, '/mapa');
               break;
             case 2:
+              // Publicar viaje (por implementar)
               Navigator.pushReplacementNamed(context, '/publicar');
               break;
             case 3:
               Navigator.pushReplacementNamed(context, '/chat');
               break;
             case 4:
+              // Perfil (por implementar)
+              Navigator.pushReplacementNamed(context, '/ranking');
+              break;
+            case 5:
               Navigator.pushReplacementNamed(context, '/perfil');
               break;
           }
