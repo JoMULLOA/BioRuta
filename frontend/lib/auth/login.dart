@@ -44,17 +44,12 @@ class _LoginPageState extends State<LoginPage> {
        //Uri.parse("http://localhost:3000/api/auth/login"),
       headers: {"Content-Type": "application/json"},
       body: jsonEncode({"email": email, "password": password}),
-    );
-
-    setState(() => cargando = false);
+    );    setState(() => cargando = false);
 
     if (response.statusCode == 200) {
       // Guardar el email del usuario en SharedPreferences
       await _saveUserEmail(email);
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("✅ Login exitoso")),
-      );      
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const InicioScreen()),
