@@ -21,8 +21,8 @@ class _CambiarContrasenaPageState extends State<CambiarContrasenaPage> {
     setState(() => cargando = true);
 
     final response = await http.post(
-      Uri.parse("http://146.83.198.35:1245/api/user/actualizar?email=${widget.email.toLowerCase()}"),
-      //Uri.parse("http://10.0.2.2:3000/api/user/actualizar?email=${widget.email.toLowerCase()}"),
+      //Uri.parse("http://146.83.198.35:1245/api/user/actualizar?email=${widget.email.toLowerCase()}"),
+      Uri.parse("http://10.0.2.2:3000/api/user/actualizar?email=${widget.email.toLowerCase()}"),
       //Uri.parse("http://localhost:3000/api/user/actualizar?email=${widget.email.toLowerCase()}"),
       headers: {"Content-Type": "application/json"},
       body: jsonEncode({
