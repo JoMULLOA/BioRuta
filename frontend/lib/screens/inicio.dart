@@ -512,6 +512,9 @@ class _InicioScreenState extends State<InicioScreen> {
               break;
             case 4:
               // Perfil (por implementar)
+              Navigator.pushReplacementNamed(context, '/ranking');
+              break;
+            case 5:
               Navigator.pushReplacementNamed(context, '/perfil');
               break;
           }

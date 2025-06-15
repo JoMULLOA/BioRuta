@@ -62,6 +62,27 @@ export async function getUsersService() {
   }
 }
 
+export async function searchUserService(query) {
+  try {
+    const { email } = query;
+
+    const userRepository = AppDataSource.getRepository(User);
+
+    const userFound = await userRepository.findOne({
+      where: [{ email: email }],
+    });
+
+    if (!userFound) return [null, "Usuario no encontrado"];
+
+    const { password, ...userData } = userFound;
+
+    return [userData, null];
+  } catch (error) {
+    console.error("Error al buscar el usuario:", error);
+    return [null, "Error interno del servidor"];
+  }
+}
+
 export async function updateUserService(query, body) {
   try {
     const { rut, email } = query;

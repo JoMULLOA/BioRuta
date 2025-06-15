@@ -1,8 +1,9 @@
+import 'package:BioRuta/Ranking/ranking.dart';
 import 'package:flutter/material.dart';
 import 'auth/login.dart';
 import 'viaje/mapa.dart';
 import 'screens/inicio.dart';
-import 'screens/publicar.dart';
+import 'publicar/publicar.dart';
 import 'chat/chat.dart';
 import 'perfil/perfil.dart';
 void main() {
@@ -20,12 +21,12 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF2E7D32)),
         useMaterial3: true,
       ),
-      home: const LoginPage(),
-      routes: {
+      home: const LoginPage(),      routes: {
         '/inicio': (context) => const InicioScreen(),
         '/mapa': (context) => const MapPage(),
-        '/publicar': (context) => PublicarPage(),
+        '/publicar': (context) => const PublicarPage(),
         '/chat': (context) => Chat(),
+        '/ranking': (context) => ranking(),
         '/perfil': (context) => Perfil(),
       },
     );

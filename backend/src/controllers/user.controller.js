@@ -5,6 +5,7 @@ import {
   getUserGService,
   getUsersService,
   updateUserService,
+  searchUserService,
 } from "../services/user.service.js";
 import {
   userBodyValidation,
@@ -53,9 +54,34 @@ export async function getUsers(req, res) {
   }
 }
 
+export async function searchUser(req, res) {
+  try {
+    const { email } = req.query;
+
+    const { error: queryError } = userQueryValidation.validate({ email });
+
+    if (queryError) {
+      return handleErrorClient(
+        res,
+        400,
+        "Error de validación en la consulta",
+        queryError.message,
+      );
+    }
+
+    const [user, errorUser] = await searchUserService({ email });
+
+    if (errorUser) return handleErrorClient(res, 404, errorUser);
+    console.log("user", user);
+    handleSuccess(res, 200, "Usuario encontrado", user);
+  } catch (error) {
+    handleErrorServer(res, 500, error.message);
+  }
+}
+
 export async function updateUser(req, res) {
   try {
-    const { rut, id, email } = req.query;
+    const { rut, email } = req.query;
     const { body } = req;
 
     const { error: queryError } = userQueryValidation.validate({

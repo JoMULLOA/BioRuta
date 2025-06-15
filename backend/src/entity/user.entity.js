@@ -17,6 +17,27 @@ const UserSchema = new EntitySchema({
       length: 255,
       nullable: false,
     },
+    fechaNacimiento: {
+      type: "date",
+      nullable: true,
+    },
+    carrera: {
+      type: "varchar",
+      length: 100,
+      nullable: true,
+    },
+    altura: {
+      type: "int",
+      nullable: true,
+    },
+    Peso: {
+      type: "int",
+      nullable: true,
+    },
+    descripcion: {
+      type: "text",
+      nullable: true,
+    },
     email: {
       type: "varchar",
       length: 255,

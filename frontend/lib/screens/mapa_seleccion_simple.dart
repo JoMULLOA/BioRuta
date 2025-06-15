@@ -114,12 +114,10 @@ class _MapaSeleccionPageState extends State<MapaSeleccionPage> {
       await _ejecutarBusqueda(query);
     });
   }
-
   Future<void> _ejecutarBusqueda(String query) async {
     try {
       List<DireccionSugerida> todasLasSugerencias = [];
       
-      GeoPoint? ubicacionActual = await controller.myLocation();
       String regionActual = _regionActual;
 
       final sugerenciasRegionales = await BusquedaService.buscarConRegion(query, regionActual);
@@ -189,20 +187,9 @@ class _MapaSeleccionPageState extends State<MapaSeleccionPage> {
             size: 56,
           ),
         ),
-      );
-
-      setState(() {
+      );      setState(() {
         _marcadorColocado = true;
       });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('📍 $descripcion seleccionada'),
-            backgroundColor: const Color(0xFF854937),
-          ),
-        );
-      }
     } catch (e) {
       debugPrint("❌ Error al colocar marcador: $e");
     }
@@ -290,12 +277,23 @@ class _MapaSeleccionPageState extends State<MapaSeleccionPage> {
               mostrandoSugerencias: _mostrandoSugerencias,
               onSugerenciaTap: _seleccionarSugerencia,
             ),
+          ),          // Botón de centrar en mi ubicación
+          Positioned(
+            top: 80,
+            right: 12,
+            child: FloatingActionButton.small(
+              heroTag: 'centrar',
+              onPressed: _centrarEnMiUbicacion,
+              tooltip: 'Centrar en mi ubicación',
+              backgroundColor: const Color(0xFF854937),
+              foregroundColor: Colors.white,
+              child: const Icon(Icons.my_location),
+            ),
           ),
 
           // Botón de confirmación flotante
-          if (_ubicacionSeleccionada != null)
-            Positioned(
-              bottom: 20,
+          if (_ubicacionSeleccionada != null)            Positioned(
+              bottom: 20, // Más espacio desde el fondo
               left: 20,
               right: 20,
               child: Container(
@@ -349,32 +347,7 @@ class _MapaSeleccionPageState extends State<MapaSeleccionPage> {
                   ],
                 ),
               ),
-            ),
-        ],
-      ),
-      floatingActionButton: Column(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          FloatingActionButton(
-            heroTag: 'centrar',
-            onPressed: _centrarEnMiUbicacion,
-            tooltip: 'Centrar en mi ubicación',
-            backgroundColor: const Color(0xFF854937),
-            foregroundColor: Colors.white,
-            child: const Icon(Icons.my_location),
-          ),
-          if (widget.esOrigen) ...[
-            const SizedBox(height: 12),
-            FloatingActionButton(
-              heroTag: 'ubicacion_actual',
-              onPressed: _seleccionarUbicacionActual,
-              tooltip: 'Usar ubicación actual',
-              backgroundColor: const Color(0xFFEDCAB6),
-              foregroundColor: const Color(0xFF070505),
-              child: const Icon(Icons.gps_fixed),
-            ),
-          ],
-        ],
+            ),        ],
       ),
     );
   }

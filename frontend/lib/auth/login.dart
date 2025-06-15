@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'verificacion.dart';
 import '../screens/inicio.dart';
 import './recuperacion.dart';
@@ -18,6 +19,12 @@ class _LoginPageState extends State<LoginPage> {
   bool cargando = false;
   bool verClave = false;
 
+  // Método para guardar el email del usuario
+  Future<void> _saveUserEmail(String email) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('user_email', email);
+  }
+
   Future<void> login() async {
     final email = _emailController.text.trim().toLowerCase();
     final password = _passwordController.text.trim();
@@ -32,18 +39,18 @@ class _LoginPageState extends State<LoginPage> {
     setState(() => cargando = true);
 
     final response = await http.post(
-       Uri.parse("http://10.0.2.2:3000/api/auth/login"),
+      //Uri.parse("http://146.83.198.35:1245/api/auth/login"),
+      Uri.parse("http://10.0.2.2:3000/api/auth/login"),
       //Uri.parse("http://localhost:3000/api/auth/login"),
       headers: {"Content-Type": "application/json"},
       body: jsonEncode({"email": email, "password": password}),
-    );
-
-    setState(() => cargando = false);
+    );    setState(() => cargando = false);
 
     if (response.statusCode == 200) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("✅ Login exitoso")),
-      );      Navigator.pushReplacement(
+      // Guardar el email del usuario en SharedPreferences
+      await _saveUserEmail(email);
+      
+      Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const InicioScreen()),
       );

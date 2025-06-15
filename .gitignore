@@ -45,3 +45,4 @@ app.*.map.json
 /android/app/release
 /frontend/build
 backend/src/config/configDb.js
+backend/src/config/.envlo

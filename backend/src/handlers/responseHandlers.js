@@ -1,12 +1,17 @@
 "use strict";
 
-export function handleSuccess(res, statusCode, message, data = {}) {
-  return res.status(statusCode).json({
-    status: "Success",
-    message,
-    data,
-  });
-}
+export const handleSuccess = (res, statusCode, message, data = null) => {
+  const response = {
+    success: true,
+    message: message
+  };
+  
+  if (data !== null && data !== undefined) {
+    response.data = data;
+  }
+  
+  return res.status(statusCode).json(response);
+};
 
 export function handleErrorClient(res, statusCode, message, details= {}) {
   return res.status(statusCode).json({

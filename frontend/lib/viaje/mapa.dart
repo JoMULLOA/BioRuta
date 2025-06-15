@@ -292,21 +292,21 @@ class _MapPageState extends State<MapPage> {
           // Navegación según el índice seleccionado
           switch (index) {
             case 0:
-              // Ir a inicio
               Navigator.pushReplacementNamed(context, '/inicio');
               break;
             case 1:
-              // Ya estamos en el mapa, no hacer nada
+              Navigator.pushReplacementNamed(context, '/mapa');
               break;
             case 2:
-              // Publicar viaje (por implementar)
               Navigator.pushReplacementNamed(context, '/publicar');
               break;
             case 3:
               Navigator.pushReplacementNamed(context, '/chat');
               break;
             case 4:
-              // Perfil (por implementar)
+              Navigator.pushReplacementNamed(context, '/ranking');
+              break;
+            case 5:
               Navigator.pushReplacementNamed(context, '/perfil');
               break;
           }
