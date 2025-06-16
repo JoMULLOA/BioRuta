@@ -6,8 +6,8 @@ import '../navbar_widget.dart';
 import '../models/direccion_sugerida.dart';
 import '../services/ubicacion_service.dart';
 import '../services/busqueda_service.dart';
-import '../widgets/mapa_widget.dart';
-import '../widgets/barra_busqueda_widget.dart';
+import 'mapa_widget.dart';
+import '../buscar/barra_busqueda_widget.dart';
 
 class MapPage extends StatefulWidget {
   const MapPage({super.key});
@@ -276,10 +276,58 @@ class _MapPageState extends State<MapPage> {
                   _mostrandoSugerencias = false;
                 });
               },
-            ),
+            ),          ),
+        ],
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,        children: [
+          FloatingActionButton(
+            heroTag: "searchTrips",
+            onPressed: () {
+              Navigator.pushNamed(context, '/viajes');
+            },
+            tooltip: 'Buscar viajes disponibles',
+            backgroundColor: const Color(0xFF854937),
+            foregroundColor: Colors.white,
+            child: const Icon(Icons.directions_car),
+          ),
+          const SizedBox(height: 12),
+          FloatingActionButton(
+            heroTag: "centerLocation",
+            onPressed: _centrarEnMiUbicacionConRegion,
+            tooltip: 'Centrar en mi ubicación',
+            backgroundColor: const Color(0xFF854937),
+            foregroundColor: Colors.white,
+            child: const Icon(Icons.my_location),
+          ),
+          const SizedBox(height: 12),
+          FloatingActionButton(
+            heroTag: "addMarker",
+            onPressed: () async {
+              await controller.addMarker(
+                GeoPoint(latitude: -33.4489, longitude: -70.6693),
+                markerIcon: const MarkerIcon(
+                  icon: Icon(Icons.place, color: Color(0xFFEDCAB6), size: 56),
+                ),
+              );
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('📍 Marcador agregado en Concepcion'),
+                    backgroundColor: Color(0xFF854937),
+                  ),
+                );
+              }
+            },
+            tooltip: 'Agregar marcador',
+            backgroundColor: const Color(0xFFEDCAB6),
+            foregroundColor: const Color(0xFF070505),
+            child: const Icon(Icons.add_location),
           ),
         ],
-      ),      bottomNavigationBar: CustomNavbar(
+      ),
+      bottomNavigationBar: CustomNavbar(
         currentIndex: _selectedIndex,
         onTap: (index) {
           // Evitar navegación innecesaria si ya estamos en la pantalla actual
@@ -309,45 +357,7 @@ class _MapPageState extends State<MapPage> {
             case 5:
               Navigator.pushReplacementNamed(context, '/perfil');
               break;
-          }
-        },
-      ),
-      floatingActionButton: Column(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          FloatingActionButton(
-            heroTag: 'centrar',
-            onPressed: _centrarEnMiUbicacionConRegion,
-            tooltip: 'Centrar en mi ubicación',
-            backgroundColor: const Color(0xFF854937),
-            foregroundColor: Colors.white,
-            child: const Icon(Icons.my_location),
-          ),
-          const SizedBox(height: 12),
-          FloatingActionButton(
-            heroTag: 'marcador',
-            onPressed: () async {
-              await controller.addMarker(
-                GeoPoint(latitude: -33.4489, longitude: -70.6693),
-                markerIcon: const MarkerIcon(
-                  icon: Icon(Icons.place, color: Color(0xFFEDCAB6), size: 56),
-                ),
-              );
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('📍 Marcador agregado en Santiago'),
-                    backgroundColor: Color(0xFF854937),
-                  ),
-                );
-              }
-            },
-            tooltip: 'Agregar marcador',
-            backgroundColor: const Color(0xFFEDCAB6),
-            foregroundColor: const Color(0xFF070505),
-            child: const Icon(Icons.add_location),
-          ),
-        ],
+          }        },
       ),
     );
   }

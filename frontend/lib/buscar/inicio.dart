@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../navbar_widget.dart';
 import '../models/direccion_sugerida.dart';
-import 'mapa_seleccion_simple.dart';
+import '../mapa/mapa_seleccion_simple.dart';
 
 class InicioScreen extends StatefulWidget {
   const InicioScreen({super.key});
