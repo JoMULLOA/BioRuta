@@ -148,3 +148,44 @@ export async function deleteUser(req, res) {
     handleErrorServer(res, 500, error.message);
   }
 }
+
+export async function getMisVehiculos(req, res) {
+  try {
+    const userRut = req.user.rut;
+
+    // Importar el repositorio dentro de la función para evitar problemas de importación circular
+    const { AppDataSource } = await import("../config/configDb.js");
+    const vehiculoRepository = AppDataSource.getRepository("Vehiculo");
+
+    const vehiculos = await vehiculoRepository.find({
+      where: { 
+        propietario: { rut: userRut }
+      },
+      relations: ["propietario"]
+    });
+
+    // Formatear datos para el frontend
+    const vehiculosFormateados = vehiculos.map(vehiculo => {
+      // Extraer marca del modelo (asumiendo formato "Marca Modelo")
+      const modeloCompleto = vehiculo.modelo || '';
+      const partesModelo = modeloCompleto.split(' ');
+      const marca = partesModelo[0] || 'Desconocida';
+      const modelo = partesModelo.slice(1).join(' ') || modeloCompleto;
+
+      return {
+        patente: vehiculo.patente,
+        marca: marca,
+        modelo: modelo,
+        modeloCompleto: vehiculo.modelo,
+        color: vehiculo.color,
+        nro_asientos: vehiculo.nro_asientos,
+        documentacion: vehiculo.documentacion
+      };
+    });
+
+    handleSuccess(res, 200, "Vehículos encontrados", vehiculosFormateados);
+  } catch (error) {
+    console.error("Error al obtener vehículos del usuario:", error);
+    handleErrorServer(res, 500, error.message);
+  }
+}

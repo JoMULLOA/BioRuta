@@ -1,8 +1,10 @@
 import 'package:BioRuta/Ranking/ranking.dart';
 import 'package:flutter/material.dart';
 import 'auth/login.dart';
-import 'viaje/mapa.dart';
-import 'screens/inicio.dart';
+import 'mapa/mapa.dart';
+import 'viajes/mapa_viajes_screen.dart';
+import 'mis_viajes/mis_viajes_screen.dart';
+import 'buscar/inicio.dart';
 import 'publicar/publicar.dart';
 import 'chat/chat.dart';
 import 'perfil/perfil.dart';
@@ -24,6 +26,8 @@ class MyApp extends StatelessWidget {
       home: const LoginPage(),      routes: {
         '/inicio': (context) => const InicioScreen(),
         '/mapa': (context) => const MapPage(),
+        '/viajes': (context) => const MapaViajesScreen(),
+        '/mis-viajes': (context) => const MisViajesScreen(),
         '/publicar': (context) => const PublicarPage(),
         '/chat': (context) => Chat(),
         '/ranking': (context) => ranking(),

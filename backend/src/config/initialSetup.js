@@ -1,6 +1,7 @@
 "use strict";
 import User from "../entity/user.entity.js";
 import Vehiculo from "../entity/vehiculo.entity.js";
+import Viaje from "../entity/viaje.entity.js";
 import { AppDataSource } from "./configDb.js";
 import { encryptPassword } from "../helpers/bcrypt.helper.js";
 
@@ -52,12 +53,49 @@ async function createInitialData() {
             propietario: user1,
           })
         ),
-      ]);
-      console.log("* => Vehículos creados exitosamente");
+      ]);      console.log("* => Vehículos creados exitosamente");
     }
+
+    // Crear índices geoespaciales para MongoDB
+    await createMongoIndexes();
 
   } catch (error) {
     console.error("❌ Error al crear datos iniciales:", error);
+  }
+}
+
+async function createMongoIndexes() {
+  try {
+    // Verificar si los índices ya existen
+    const collection = Viaje.collection;
+    const indexes = await collection.listIndexes().toArray();
+    
+    const hasGeoIndexOrigen = indexes.some(index => 
+      index.name === 'origen.ubicacion_2dsphere'
+    );
+    const hasGeoIndexDestino = indexes.some(index => 
+      index.name === 'destino.ubicacion_2dsphere'
+    );
+
+    if (!hasGeoIndexOrigen) {
+      await collection.createIndex({ "origen.ubicacion": "2dsphere" });
+      console.log("* => Índice geoespacial de origen creado");
+    }
+
+    if (!hasGeoIndexDestino) {
+      await collection.createIndex({ "destino.ubicacion": "2dsphere" });
+      console.log("* => Índice geoespacial de destino creado");
+    }
+
+    // Crear otros índices importantes
+    await collection.createIndex({ "fecha_ida": 1 });
+    await collection.createIndex({ "estado": 1 });
+    await collection.createIndex({ "usuario_rut": 1 });
+    await collection.createIndex({ "vehiculo_patente": 1 });
+    
+    console.log("* => Índices de MongoDB creados exitosamente");
+  } catch (error) {
+    console.error("❌ Error al crear índices de MongoDB:", error);
   }
 }
 

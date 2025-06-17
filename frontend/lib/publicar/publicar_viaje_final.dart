@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import '../models/direccion_sugerida.dart';
+import '../services/viaje_service.dart';
+import '../services/user_service.dart';
+import '../models/viaje_model.dart';
 
 class PublicarViajeFinal extends StatefulWidget {
   final List<DireccionSugerida> ubicaciones;
@@ -31,11 +34,76 @@ class _PublicarViajeFinalState extends State<PublicarViajeFinal> {
   final TextEditingController _comentariosController = TextEditingController();
   double precio = 0.0;
   int plazasDisponibles = 3;
+  VehiculoViaje? vehiculoSeleccionado;
+  List<VehiculoViaje> vehiculosDisponibles = [];
+  bool cargandoVehiculos = true;
 
   @override
   void initState() {
     super.initState();
     _calcularPrecioEstimado();
+    _cargarVehiculos();
+  }
+
+  Future<void> _cargarVehiculos() async {
+    try {
+      setState(() {
+        cargandoVehiculos = true;
+      });
+
+      print('🚗 Cargando vehículos del usuario...');
+      final vehiculosData = await UserService.obtenerMisVehiculos();
+      final vehiculos = vehiculosData.map((v) => VehiculoViaje.fromJson(v)).toList();
+      
+      print('✅ Vehículos cargados: ${vehiculos.length}');
+      
+      setState(() {
+        vehiculosDisponibles = vehiculos;
+        if (vehiculos.isNotEmpty) {
+          vehiculoSeleccionado = vehiculos.first;
+          plazasDisponibles = vehiculos.first.nroAsientos - 1; // Conductor no cuenta
+        }
+        cargandoVehiculos = false;
+      });
+      
+      if (vehiculos.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('⚠️ No tienes vehículos registrados. Agrega uno en tu perfil.'),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 4),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print('❌ Error cargando vehículos: $e');
+      
+      setState(() {
+        cargandoVehiculos = false;
+      });
+      
+      if (mounted) {
+        String mensajeError = 'Error al cargar vehículos';
+        
+        if (e.toString().contains('Connection refused')) {
+          mensajeError = 'No se puede conectar al servidor';
+        } else if (e.toString().contains('401') || e.toString().contains('No autorizado')) {
+          mensajeError = 'Error de autenticación. Reinicia sesión';
+        } else {
+          mensajeError = 'Error: ${e.toString()}';
+        }
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ $mensajeError'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    }
   }
 
   void _calcularPrecioEstimado() {
@@ -74,54 +142,87 @@ class _PublicarViajeFinalState extends State<PublicarViajeFinal> {
     return '${fecha.day}/${fecha.month}/${fecha.year}';
   }
 
-  void _publicarViaje() {
-    // Los comentarios ahora son opcionales, se eliminó la validación
-
-    // Aquí irían las variables que enviarías al backend
-    Map<String, dynamic> datosViaje = {
-      'ubicaciones': widget.ubicaciones.map((u) => {
-        'nombre': u.displayName,
-        'latitud': u.lat,
-        'longitud': u.lon,
-      }).toList(),
-      'fechaIda': widget.fechaIda.toIso8601String(),
-      'horaIda': '${widget.horaIda.hour}:${widget.horaIda.minute}',
-      'fechaVuelta': widget.fechaVuelta?.toIso8601String(),
-      'horaVuelta': widget.horaVuelta != null 
-          ? '${widget.horaVuelta!.hour}:${widget.horaVuelta!.minute}' 
-          : null,
-      'viajeIdaYVuelta': widget.viajeIdaYVuelta,
-      'soloMujeres': widget.soloMujeres,
-      'flexibilidadSalida': widget.flexibilidadSalida,
-      'precio': precio,
-      'plazasDisponibles': plazasDisponibles,
-      'comentarios': _comentariosController.text.trim(),
-    };
-
-    // Mostrar los datos en consola para debugging
-    debugPrint('=== DATOS DEL VIAJE PARA BACKEND ===');
-    debugPrint(datosViaje.toString());
-    debugPrint('==================================');
-
-    // Aquí harías la llamada al backend
-    // Por ahora, mostrar confirmación
-    if (mounted) {
+  Future<void> _publicarViaje() async {
+    if (vehiculoSeleccionado == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('🎉 ¡Viaje publicado exitosamente!'),
-          backgroundColor: Color(0xFF854937),
-          duration: Duration(seconds: 3),
-        ),
+        const SnackBar(content: Text('Debes seleccionar un vehículo')),
       );
+      return;
     }
 
-    // Regresar a la pantalla principal después de un delay
-    Future.delayed(const Duration(seconds: 2), () {
+    if (widget.ubicaciones.length < 2) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Debes especificar origen y destino')),
+      );
+      return;
+    }
+
+    try {
+      // Preparar ubicaciones - usar los nombres exactos que espera el backend
+      final ubicaciones = widget.ubicaciones.map((u) => {
+        'displayName': u.displayName,  // Cambiar de 'nombre' a 'displayName'
+        'lat': u.lat,                  // Cambiar de 'latitud' a 'lat'
+        'lon': u.lon,                  // Cambiar de 'longitud' a 'lon'
+        'esOrigen': u.esOrigen,
+      }).toList();
+
+      print('📍 Ubicaciones a enviar: $ubicaciones');
+      print('📅 Fecha ida: ${widget.fechaIda}');
+      print('🕐 Hora ida: ${widget.horaIda}');
+
+      final resultado = await ViajeService.crearViaje(
+        ubicaciones: ubicaciones,
+        fechaIda: widget.fechaIda.toIso8601String().split('T')[0], // Solo la fecha sin hora
+        horaIda: '${widget.horaIda.hour.toString().padLeft(2, '0')}:${widget.horaIda.minute.toString().padLeft(2, '0')}',
+        fechaVuelta: widget.fechaVuelta?.toIso8601String().split('T')[0],
+        horaVuelta: widget.horaVuelta != null 
+            ? '${widget.horaVuelta!.hour.toString().padLeft(2, '0')}:${widget.horaVuelta!.minute.toString().padLeft(2, '0')}' 
+            : null,
+        viajeIdaYVuelta: widget.viajeIdaYVuelta,
+        maxPasajeros: vehiculoSeleccionado!.nroAsientos - 1, // Sin contar conductor
+        soloMujeres: widget.soloMujeres,
+        flexibilidadSalida: widget.flexibilidadSalida,
+        precio: precio,
+        plazasDisponibles: plazasDisponibles,
+        comentarios: _comentariosController.text.trim(), // Enviar string vacío en lugar de null
+        vehiculoPatente: vehiculoSeleccionado!.patente,
+      );
+
       if (mounted) {
-        Navigator.of(context).popUntil((route) => route.isFirst);
-        Navigator.pushReplacementNamed(context, '/inicio');
+        if (resultado['success'] == true) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('¡Viaje publicado exitosamente!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          
+          // Volver al inicio o mapa
+          Navigator.of(context).pushNamedAndRemoveUntil(
+            '/mapa', 
+            (Route<dynamic> route) => false,
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('❌ ${resultado['message'] ?? 'Error al publicar viaje'}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
-    });
+    } catch (e) {
+      print('❌ Error publicando viaje: $e');
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -237,6 +338,119 @@ class _PublicarViajeFinalState extends State<PublicarViajeFinal> {
             
             const SizedBox(height: 20),
             
+            // Selector de vehículo
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFEDCAB6)),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF070505).withValues(alpha: 0.05),
+                    spreadRadius: 1,
+                    blurRadius: 3,
+                    offset: const Offset(0, 1),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Seleccionar vehículo',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF070505),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  if (cargandoVehiculos)
+                    const Center(
+                      child: CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF854937)),
+                      ),
+                    )
+                  else if (vehiculosDisponibles.isEmpty)
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.warning, color: Colors.orange, size: 20),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'No tienes vehículos registrados. Ve a tu perfil para agregar uno.',
+                              style: TextStyle(color: Colors.orange, fontSize: 14),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    DropdownButtonFormField<VehiculoViaje>(
+                      value: vehiculoSeleccionado,
+                      decoration: InputDecoration(
+                        hintText: 'Selecciona un vehículo',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: Color(0xFFEDCAB6)),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: Color(0xFFEDCAB6)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: Color(0xFF854937)),
+                        ),
+                      ),
+                      items: vehiculosDisponibles.map((vehiculo) {
+                        return DropdownMenuItem<VehiculoViaje>(
+                          value: vehiculo,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                vehiculo.modelo,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              Text(
+                                '${vehiculo.patente} • ${vehiculo.color} • ${vehiculo.nroAsientos} asientos',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (VehiculoViaje? newValue) {
+                        setState(() {
+                          vehiculoSeleccionado = newValue;
+                          if (newValue != null) {
+                            plazasDisponibles = newValue.nroAsientos - 1; // Sin contar conductor
+                          }
+                        });
+                      },
+                    ),
+                ],
+              ),
+            ),
+            
+            const SizedBox(height: 20),
+            
             // Selector de plazas disponibles
             Container(
               padding: const EdgeInsets.all(16),
@@ -293,7 +507,7 @@ class _PublicarViajeFinalState extends State<PublicarViajeFinal> {
                       ),
                       const SizedBox(width: 20),
                       IconButton(
-                        onPressed: plazasDisponibles < 5 
+                        onPressed: (vehiculoSeleccionado != null && plazasDisponibles < (vehiculoSeleccionado!.nroAsientos - 1))
                             ? () => setState(() => plazasDisponibles++)
                             : null,
                         icon: const Icon(Icons.add_circle_outline),
@@ -366,7 +580,7 @@ class _PublicarViajeFinalState extends State<PublicarViajeFinal> {
           ],
         ),
         child: ElevatedButton(
-          onPressed: _publicarViaje,
+          onPressed: (vehiculoSeleccionado != null && !cargandoVehiculos) ? _publicarViaje : null,
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFF854937),
             foregroundColor: Colors.white,

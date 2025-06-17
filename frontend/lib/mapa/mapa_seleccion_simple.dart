@@ -5,8 +5,8 @@ import 'package:permission_handler/permission_handler.dart';
 import '../models/direccion_sugerida.dart';
 import '../services/ubicacion_service.dart';
 import '../services/busqueda_service.dart';
-import '../widgets/mapa_widget.dart';
-import '../widgets/barra_busqueda_widget.dart';
+import '../mapa/mapa_widget.dart';
+import '../buscar/barra_busqueda_widget.dart';
 
 class MapaSeleccionPage extends StatefulWidget {
   final String tituloSeleccion;

@@ -8,9 +8,9 @@ export const AppDataSource = new DataSource({
   port: 5432,
   username: `${DB_USERNAME}`,
   password: `${PASSWORD}`,
-  database: `${DATABASE}`,
-  entities: ["src/entity/**/*.js"],
-  synchronize: true,
+  database: `${DATABASE}`,  entities: ["src/entity/**/*.js"],
+  synchronize: true, // Activado para crear las tablas automáticamente
+  dropSchema: true, // Elimina el esquema antes de crear las tablas
   logging: false,
 });
 

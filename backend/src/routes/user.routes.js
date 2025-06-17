@@ -2,7 +2,7 @@
 import express from "express";
 import { isAdmin } from "../middlewares/authorization.middleware.js";
 import { authenticateJwt } from "../middlewares/authentication.middleware.js";
-import { deleteUser, getUser, getUsers, updateUser, searchUser } from "../controllers/user.controller.js";
+import { deleteUser, getUser, getUsers, updateUser, searchUser, getMisVehiculos } from "../controllers/user.controller.js";
 import { AppDataSource } from "../config/configDb.js";
 import User from "../entity/user.entity.js";
 
@@ -15,6 +15,7 @@ router.use(authenticateJwt);
 // Rutas de usuario
 router.get("/", getUsers);
 router.get("/detail/", getUser);
+router.get("/mis-vehiculos", getMisVehiculos); // Nueva ruta para obtener vehículos del usuario
 router.patch("/actualizar", updateUser);
 router.delete("/detail/", deleteUser);
 

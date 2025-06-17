@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'verificacion.dart';
-import '../screens/inicio.dart';
+import '../buscar/inicio.dart';
 import './recuperacion.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -18,11 +19,18 @@ class _LoginPageState extends State<LoginPage> {
   final _passwordController = TextEditingController();
   bool cargando = false;
   bool verClave = false;
+  static const FlutterSecureStorage _storage = FlutterSecureStorage();
 
   // Método para guardar el email del usuario
   Future<void> _saveUserEmail(String email) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('user_email', email);
+  }
+
+  // Método para guardar el token de autenticación
+  Future<void> _saveAuthToken(String token) async {
+    await _storage.write(key: 'auth_token', value: token);
+    print('✅ Token guardado correctamente');
   }
 
   Future<void> login() async {
@@ -44,9 +52,21 @@ class _LoginPageState extends State<LoginPage> {
       //Uri.parse("http://localhost:3000/api/auth/login"),
       headers: {"Content-Type": "application/json"},
       body: jsonEncode({"email": email, "password": password}),
-    );    setState(() => cargando = false);
-
-    if (response.statusCode == 200) {
+    );    setState(() => cargando = false);    if (response.statusCode == 200) {
+      final Map<String, dynamic> data = jsonDecode(response.body);
+      print('🔑 Respuesta del login: $data');
+      
+      // Extraer el token de la respuesta
+      final String? token = data['data']?['token'];
+      if (token != null) {
+        // Guardar el token de autenticación
+        await _saveAuthToken(token);
+        print('✅ Token guardado: ${token.substring(0, 20)}...');
+      } else {
+        print('⚠️ No se encontró token en la respuesta');
+        print('📋 Estructura de data: ${data['data']}');
+      }
+      
       // Guardar el email del usuario en SharedPreferences
       await _saveUserEmail(email);
       

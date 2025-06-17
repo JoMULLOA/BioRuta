@@ -8,11 +8,13 @@ import express, { json, urlencoded } from "express";
 import cron from "node-cron";
 import http from "http";
 import 'dotenv/config';
-
+import mongoose from "mongoose";
 import userRoutes from "./routes/user.routes.js";
 import chatRoutes from "./routes/chat.routes.js";
+import viajeRoutes from "./routes/viaje.routes.js";
 import indexRoutes from "./routes/index.routes.js";
-
+import pingRoutes from "./routes/ping.routes.js";
+import { connectMongoDB } from "./config/mongooseClient.js";
 import { initSocket } from "./socket.js"; 
 import { cookieKey, HOST, PORT } from "./config/configEnv.js";
 import { connectDB } from "./config/configDb.js";
@@ -57,19 +59,18 @@ async function setupServer() {
     // Inicialización de Passport para autenticación
     app.use(passport.initialize());
     app.use(passport.session());
-    passportJwtSetup();
-
-    // Registro de rutas
+    passportJwtSetup();    // Registro de rutas
     app.use("/api", indexRoutes);
     app.use("/api/users", userRoutes); // Rutas de usuarios, que incluye /api/users/garzones
     app.use("/api/chat", chatRoutes); // Rutas de chat
+    app.use("/api/viajes", viajeRoutes); // Rutas de viajes
+    app.use("/api", pingRoutes);  // Rutas de MongoDB
 
     const server = http.createServer(app);
-    initSocket(server); // Inicializa Socket.IO con el servidor
-
-    // Inicio del servidor
-    app.listen(PORT, () => {
+    initSocket(server); // Inicializa Socket.IO con el servidor    // Inicio del servidor
+    app.listen(PORT, '0.0.0.0', () => {
       console.log(`✅ Servidor corriendo en ${HOST}:${PORT}/api`);
+      console.log(`🌐 Accesible desde emulador Android en 10.0.2.2:${PORT}/api`);
     });
   } catch (error) {
     console.error("Error en index.js -> setupServer():", error);
@@ -82,7 +83,8 @@ cron.schedule("* * * * *", async () => {
 
 async function setupAPI() {
   try {
-    await connectDB();
+    await connectDB();            // Postgres 
+    await connectMongoDB();      // Mongo Atlas
     await setupServer();
     await createInitialData();
   } catch (error) {

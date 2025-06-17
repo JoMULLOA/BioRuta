@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/direccion_sugerida.dart';
-import '../screens/mapa_seleccion_simple.dart';
+import '../mapa/mapa_seleccion_simple.dart';
 import 'publicar_viaje_paso2.dart';
 
 class PublicarViajePaso1 extends StatefulWidget {
