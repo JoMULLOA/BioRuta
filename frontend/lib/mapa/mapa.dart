@@ -8,6 +8,8 @@ import '../services/ubicacion_service.dart';
 import '../services/busqueda_service.dart';
 import 'mapa_widget.dart';
 import '../buscar/barra_busqueda_widget.dart';
+import '../mis_viajes/mis_viajes_screen.dart';
+
 
 class MapPage extends StatefulWidget {
   const MapPage({super.key});
@@ -282,6 +284,21 @@ class _MapPageState extends State<MapPage> {
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       floatingActionButton: Column(
         mainAxisSize: MainAxisSize.min,        children: [
+          FloatingActionButton(
+            heroTag: "myTrips",
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const MisViajesScreen()),
+              );
+            },
+            tooltip: 'Mis viajes',
+            backgroundColor: const Color(0xFF854937),
+            foregroundColor: Colors.white,
+            child: const Icon(Icons.list_alt),
+          ),
+          const SizedBox(height: 12),
+          
           FloatingActionButton(
             heroTag: "searchTrips",
             onPressed: () {
