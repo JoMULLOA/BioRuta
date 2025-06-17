@@ -19,6 +19,8 @@ class Perfil_ extends State<Perfil> {
   String _userAge = 'Cargando...';
   String _userCareer = 'Cargando...';
   String _userDescription = 'Cargando...';
+  //El de valoracion
+  String _userclasificacion = 'Cargando...';
   bool _isLoading = true;
 
   @override
@@ -44,8 +46,7 @@ class Perfil_ extends State<Perfil> {
       // Llamada al backend
       final response = await http.get(
         //Uri.parse("http://146.83.198.35:1245/api/user/busqueda?email=$email"),
-        Uri.parse("http://10.0.2.2:3000/api/auth/register/user/busqueda?email=$email"),
-        //Uri.parse('http://localhost:3000/api/user/busqueda?email=$email'),
+        Uri.parse('http://localhost:3000/api/user/busqueda?email=$email'),
         headers: {
           'Content-Type': 'application/json',
           'Cache-Control': 'no-cache',
@@ -81,6 +82,10 @@ class Perfil_ extends State<Perfil> {
             _userAge = userAge;
             _userCareer = userData['carrera'] ?? 'Carrera no especificada';
             _userDescription = userData['descripcion'] ?? 'Sin descripción';
+            //para que use un solo decimal
+            _userclasificacion = userData['clasificacion'] != null
+                ? double.parse(userData['clasificacion'].toString()).toStringAsFixed(1)
+                : 'Sin clasificacion';
             _isLoading = false;
           });
         } else {
@@ -195,7 +200,29 @@ class Perfil_ extends State<Perfil> {
                               style: TextStyle(color: secundario, fontSize: 12),
                             ),
                           ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(Icons.star, color: secundario, size: 16), // Ícono de estrella
+                            SizedBox(width: 8), // Espaciado entre el ícono y el texto
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Clasificación',
+                                  style: TextStyle(color: secundario, fontSize: 12, fontWeight: FontWeight.bold),
+                                ),
+                                Text(
+                                  '$_userclasificacion/5',
+                                  style: TextStyle(color: secundario, fontSize: 12),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ],
+
                     ),
                   ),
 

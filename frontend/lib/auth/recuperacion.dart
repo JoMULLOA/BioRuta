@@ -21,7 +21,7 @@ class _RecuperarContrasenaPageState extends State<RecuperarContrasenaPage> {
 
     final response = await http.post(
       //Uri.parse("http://146.83.198.35:1245/api/auth/send-coder"),
-      Uri.parse("http://10.0.2.2:3000/api/auth/send-coder"),
+      Uri.parse("http://localhost:3000/api/auth/send-coder"),
       //Uri.parse("http://localhost:3000/api/auth/send-coder"),
       headers: {"Content-Type": "application/json"},
       body: jsonEncode({"email": _emailController.text.trim().toLowerCase()}),
@@ -45,7 +45,7 @@ class _RecuperarContrasenaPageState extends State<RecuperarContrasenaPage> {
     setState(() => cargando = true);
 
     final response = await http.post(
-       Uri.parse("http://10.0.2.2:3000/api/auth/verify-code"),
+       Uri.parse("http://localhost:3000/api/auth/verify-code"),
       //Uri.parse("http://localhost:3000/api/auth/verify-code"),
       headers: {"Content-Type": "application/json"},
       body: jsonEncode({

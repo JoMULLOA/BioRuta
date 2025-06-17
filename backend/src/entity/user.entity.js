@@ -38,6 +38,10 @@ const UserSchema = new EntitySchema({
       type: "text",
       nullable: true,
     },
+    clasificacion: {
+      type: "float",
+      nullable: true,
+    },
     email: {
       type: "varchar",
       length: 255,
