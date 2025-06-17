@@ -6,6 +6,7 @@ import {
   getUsersService,
   updateUserService,
   searchUserService,
+  buscarRutService,
 } from "../services/user.service.js";
 import {
   userBodyValidation,
@@ -73,6 +74,27 @@ export async function searchUser(req, res) {
 
     if (errorUser) return handleErrorClient(res, 404, errorUser);
     console.log("user", user);
+    handleSuccess(res, 200, "Usuario encontrado", user);
+  } catch (error) {
+    handleErrorServer(res, 500, error.message);
+  }
+}
+
+export async function buscarRut(req, res) {
+  try {
+    const { rut } = req.query;
+
+    const { error: queryError } = userQueryValidation.validate({ rut });
+    if (queryError) {
+      return handleErrorClient(
+        res,
+        400,  
+        "Error de validación en la consulta",
+        queryError.message,
+      );
+    }
+    const [user, errorUser] = await buscarRutService({ rut });
+    if (errorUser) return handleErrorClient(res, 404, errorUser);
     handleSuccess(res, 200, "Usuario encontrado", user);
   } catch (error) {
     handleErrorServer(res, 500, error.message);

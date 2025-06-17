@@ -1,0 +1,14 @@
+# Configuración de la base de datos
+HOST= 146.83.198.35
+PORT= 80
+DB_USERNAME= jmaureira
+PASSWORD= jmaureira1245
+DATABASE= bioruta_bd
+ACCESS_TOKEN_SECRET= a2a78f111daf61a83360043c92bf0f7b6534e849d919cc3bf494f39efd8dca291f32f627841da25f32116d13627f6260fa4822c087eed0ed31339c3210e993c9
+cookieKey= 0603c005c10a0e813ac00c56e85b714ca3e1a45adff9f729505b9cc6844ebc524bbda01439c2400e67de07d78c929e2ac0331137feea49c7415b1ce0842caa1e
+
+#GMAIL PARA ENVIAR CÓDIGO
+GMAIL_USER= biorutaoficial@gmail.com
+GMAIL_APP_PASS= bvoc lidy sdua wgqe
+
+MONGO_URI=mongodb+srv://admin:root@biorutamongo.tphgmlc.mongodb.net/bioruta?retryWrites=true&w=majority

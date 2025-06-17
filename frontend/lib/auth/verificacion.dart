@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import './registro.dart';
+import '../config/confGlobal.dart';
 
 class VerificarCorreoPage extends StatefulWidget {
   const VerificarCorreoPage({super.key});
@@ -20,9 +21,7 @@ class _VerificarCorreoPageState extends State<VerificarCorreoPage> {
     setState(() => cargando = true);
 
     final response = await http.post(
-      //Uri.parse("http://146.83.198.35:1245/api/auth/send-code"),
-      Uri.parse("http://10.0.2.2:3000/api/auth/send-code"),
-      //Uri.parse("http://localhost:3000/api/auth/send-code"),
+      Uri.parse("${confGlobal.baseUrl}/auth/send-code"),
       headers: {"Content-Type": "application/json"},
       body: jsonEncode({"email": _emailController.text.trim().toLowerCase()}),
     );
@@ -45,8 +44,7 @@ class _VerificarCorreoPageState extends State<VerificarCorreoPage> {
     setState(() => cargando = true);
 
     final response = await http.post(
-      //Uri.parse("http://localhost:3000/api/auth/verify-code"),
-      Uri.parse("http://10.0.2.2:3000/api/auth/verify-code"),
+      Uri.parse("${confGlobal.baseUrl}/auth/verify-code"),
       headers: {"Content-Type": "application/json"},
       body: jsonEncode({
         "email": _emailController.text.trim().toLowerCase(),

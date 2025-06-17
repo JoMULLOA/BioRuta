@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import './login.dart';
+import '../config/confGlobal.dart';
 
 class CambiarContrasenaPage extends StatefulWidget {
   final String email;
@@ -21,9 +22,7 @@ class _CambiarContrasenaPageState extends State<CambiarContrasenaPage> {
     setState(() => cargando = true);
 
     final response = await http.post(
-      //Uri.parse("http://146.83.198.35:1245/api/user/actualizar?email=${widget.email.toLowerCase()}"),
-      //Uri.parse("http://localhost:3000/api/user/actualizar?email=${widget.email.toLowerCase()}"),
-      Uri.parse("http://10.0.2.2:3000/api/user/actualizar?email=${widget.email.toLowerCase()}"),
+      Uri.parse("${confGlobal.baseUrl}/user/actualizar?email=${widget.email.toLowerCase()}"),
       headers: {"Content-Type": "application/json"},
       body: jsonEncode({
         "password": _passwordController.text.trim(),

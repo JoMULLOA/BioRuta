@@ -6,6 +6,7 @@ import '../buscar/inicio.dart';
 import './recuperacion.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import '../config/confGlobal.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -47,9 +48,7 @@ class _LoginPageState extends State<LoginPage> {
     setState(() => cargando = true);
 
     final response = await http.post(
-      //Uri.parse("http://146.83.198.35:1245/api/auth/login"),
-      Uri.parse("http://10.0.2.2:3000/api/auth/login"),
-      //Uri.parse("http://localhost:3000/api/auth/login"),
+      Uri.parse("${confGlobal.baseUrl}/auth/login"),
       headers: {"Content-Type": "application/json"},
       body: jsonEncode({"email": email, "password": password}),
     );    setState(() => cargando = false);    if (response.statusCode == 200) {

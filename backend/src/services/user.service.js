@@ -83,6 +83,22 @@ export async function searchUserService(query) {
   }
 }
 
+export async function buscarRutService(query) {
+  try {
+    const { rut } = query;
+    const userRepository = AppDataSource.getRepository(User);
+    const userFound = await userRepository.findOne({
+      where: { rut: rut },
+    });
+    if (!userFound) return [null, "Usuario no encontrado"];
+    const { password, ...userData } = userFound;
+    return [userData, null];
+  } catch (error) {
+    console.error("Error al buscar el usuario por RUT:", error);
+    return [null, "Error interno del servidor"];
+  }
+}
+
 export async function updateUserService(query, body) {
   try {
     const { rut, email } = query;
