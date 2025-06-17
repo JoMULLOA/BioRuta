@@ -232,7 +232,7 @@ class ViajeService {
   static Future<List<Map<String, dynamic>>> obtenerViajesUsuario() async {
     try {
       final response = await http.get(
-        Uri.parse('$baseUrl/viajes/usuario'),
+        Uri.parse('$baseUrl/viajes/mis-viajes'),
         headers: await _getHeaders(),
       );
 
