@@ -22,33 +22,32 @@ class _MisViajesScreenState extends State<MisViajesScreen> {
     _cargarViajes();
   }
 
-  Future<void> _cargarViajes() async {
-    try {
-      setState(() {
-        cargando = true;
-      });
+Future<void> _cargarViajes() async {
+  try {
+    setState(() {
+      cargando = true;
+    });
 
-      // Cargar viajes creados por el usuario y viajes a los que se ha unido
-      final viajesData = await ViajeService.obtenerViajesUsuario();
-      final List<Viaje> viajes = viajesData.map((v) => Viaje.fromJson(v)).toList();
+    // Cargar viajes usando el método obtenerMisViajes
+    final List<Viaje> viajes = await ViajeService.obtenerMisViajes();
 
-      setState(() {
-        // Separar viajes creados de viajes a los que se unió
-        viajesCreados = viajes.where((v) => v.estado == 'activo').toList();
-        viajesUnidos = viajes.where((v) => v.pasajeros.isNotEmpty).toList();
-        cargando = false;
-      });
-    } catch (e) {
-      setState(() {
-        cargando = false;
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al cargar viajes: $e')),
-        );
-      }
+    setState(() {
+      // Separar viajes creados de viajes a los que se unió
+      viajesCreados = viajes.where((v) => v.estado == 'activo').toList();
+      viajesUnidos = viajes.where((v) => v.pasajeros.isNotEmpty).toList();
+      cargando = false;
+    });
+  } catch (e) {
+    setState(() {
+      cargando = false;
+    });
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al cargar viajes: $e')),
+      );
     }
   }
+}
 
   void _onItemTapped(int index) {
     setState(() {
@@ -407,53 +406,106 @@ class _MisViajesScreenState extends State<MisViajesScreen> {
     );
   }
 
-  Future<void> _mostrarDialogoCancelar(Viaje viaje) async {
-    final confirmado = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Cancelar Viaje'),
-          content: const Text(
-            '¿Estás seguro de que quieres cancelar este viaje? Esta acción no se puede deshacer.'
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('No'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              style: TextButton.styleFrom(foregroundColor: Colors.red),
-              child: const Text('Sí, cancelar'),
-            ),
-          ],
-        );
-      },
-    );
+// ...existing code...
 
-    if (confirmado == true) {
-      try {
-        // TODO: Implementar cancelación en el servicio
-        // await ViajeService.cancelarViaje(viaje.id);
-        await _cargarViajes(); // Recargar lista
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Viaje cancelado exitosamente'),
-              backgroundColor: Colors.green,
+Future<void> _mostrarDialogoCancelar(Viaje viaje) async {
+  final confirmado = await showDialog<bool>(
+    context: context,
+    builder: (BuildContext context) {
+      return AlertDialog(
+        title: const Text('Cancelar Viaje'),
+        content: const Text(
+          '¿Estás seguro de que quieres cancelar este viaje? Esta acción no se puede deshacer.'
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('No'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Sí, cancelar'),
+          ),
+        ],
+      );
+    },
+  );
+
+  if (confirmado == true) {
+    try {
+      // Mostrar indicador de carga
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                ),
+                SizedBox(width: 16),
+                Text('Eliminando viaje...'),
+              ],
             ),
-          );
-        }
-      } catch (e) {
+            duration: Duration(seconds: 10),
+          ),
+        );
+      }
+
+      // Llamar al servicio para eliminar el viaje
+      final resultado = await ViajeService.eliminarViaje(viaje.id);
+      
+      // Ocultar el snackbar de carga
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      }
+
+      if (resultado['success']) {
+        // Recargar la lista de viajes
+        await _cargarViajes();
+        
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Error al cancelar viaje: $e'),
+              content: Text(resultado['message']),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(resultado['message']),
               backgroundColor: Colors.red,
+              duration: const Duration(seconds: 4),
             ),
           );
         }
       }
+    } catch (e) {
+      // Ocultar el snackbar de carga en caso de error
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      }
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al eliminar viaje: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
     }
   }
+}
+
 }

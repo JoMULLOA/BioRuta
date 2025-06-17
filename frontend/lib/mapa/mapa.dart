@@ -319,29 +319,6 @@ class _MapPageState extends State<MapPage> {
             child: const Icon(Icons.my_location),
           ),
           const SizedBox(height: 12),
-          FloatingActionButton(
-            heroTag: "addMarker",
-            onPressed: () async {
-              await controller.addMarker(
-                GeoPoint(latitude: -33.4489, longitude: -70.6693),
-                markerIcon: const MarkerIcon(
-                  icon: Icon(Icons.place, color: Color(0xFFEDCAB6), size: 56),
-                ),
-              );
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('📍 Marcador agregado en Concepcion'),
-                    backgroundColor: Color(0xFF854937),
-                  ),
-                );
-              }
-            },
-            tooltip: 'Agregar marcador',
-            backgroundColor: const Color(0xFFEDCAB6),
-            foregroundColor: const Color(0xFF070505),
-            child: const Icon(Icons.add_location),
-          ),
         ],
       ),
       bottomNavigationBar: CustomNavbar(

@@ -1,11 +1,13 @@
 "use strict";
 import { Router } from "express";
 import { 
-  crearViaje,
-  buscarViajesPorProximidad,
+  crearViaje, 
+  buscarViajesPorProximidad, 
   obtenerViajesParaMapa,
   unirseAViaje,
-  obtenerViajesUsuario
+  obtenerViajesUsuario,
+  cancelarViaje,
+  eliminarViaje // Agregar esta importación
 } from "../controllers/viaje.controller.js";
 import { 
   viajeBodyValidation,
@@ -56,5 +58,7 @@ router.get(
   authenticateJwt,
   obtenerViajesUsuario
 );
+
+router.delete("/:viajeId/eliminar", authenticateJwt, eliminarViaje);
 
 export default router;

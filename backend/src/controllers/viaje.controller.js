@@ -514,3 +514,71 @@ async function obtenerViajeConDatos(viajeId) {
     pasajeros: pasajerosConDatos
   };
 }
+
+/**
+ * Función para cancelar un viaje
+ */
+export async function cancelarViaje(req, res) {
+  try {
+    const { viajeId } = req.params;
+    const usuarioRut = req.user.rut;
+
+    // Buscar el viaje
+    const viaje = await Viaje.findById(viajeId);
+
+    if (!viaje) {
+      return handleErrorServer(res, "Viaje no encontrado");
+    }
+
+    // Validaciones
+    if (viaje.usuario_rut !== usuarioRut) {
+      return handleErrorServer(res, "Solo el creador del viaje puede cancelarlo");
+    }
+
+    if (viaje.estado !== 'activo') {
+      return handleErrorServer(res, "Este viaje ya no está activo");
+    }
+
+    // Cambiar estado a cancelado
+    viaje.estado = 'cancelado';
+    viaje.plazas_disponibles = 0; // Todas las plazas quedan disponibles
+
+    await viaje.save();
+
+    handleSuccess(res, 200, "Viaje cancelado exitosamente");
+
+  } catch (error) {
+    console.error("Error al cancelar viaje:", error);
+    handleErrorServer(res, "Error interno del servidor");
+  }
+}
+/**
+ * Función para eliminar un viaje
+ */
+export async function eliminarViaje(req, res) {
+  try {
+    const { viajeId } = req.params;
+    const usuarioRut = req.user.rut;
+
+    // Buscar el viaje
+    const viaje = await Viaje.findById(viajeId);
+
+    if (!viaje) {
+      return handleErrorServer(res, "Viaje no encontrado");
+    }
+
+    // Validaciones
+    if (viaje.usuario_rut !== usuarioRut) {
+      return handleErrorServer(res, "Solo el creador del viaje puede eliminarlo");
+    }
+
+    // Eliminar el viaje
+    await Viaje.deleteOne({ _id: viajeId });
+
+    handleSuccess(res, 200, "Viaje eliminado exitosamente");
+
+  } catch (error) {
+    console.error("Error al eliminar viaje:", error);
+    handleErrorServer(res, "Error interno del servidor");
+  }
+}
