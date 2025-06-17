@@ -51,12 +51,13 @@ class _LoginPageState extends State<LoginPage> {
       Uri.parse("${confGlobal.baseUrl}/auth/login"),
       headers: {"Content-Type": "application/json"},
       body: jsonEncode({"email": email, "password": password}),
-    );    setState(() => cargando = false);    if (response.statusCode == 200) {
+    );    
+    setState(() => cargando = false);    
+    if (response.statusCode == 200) {
       final Map<String, dynamic> data = jsonDecode(response.body);
-      print('🔑 Respuesta del login: $data');
-      
       // Extraer el token de la respuesta
       final String? token = data['data']?['token'];
+      print ('🔑 Token recibido: $token');
       if (token != null) {
         // Guardar el token de autenticación
         await _saveAuthToken(token);
@@ -65,15 +66,15 @@ class _LoginPageState extends State<LoginPage> {
         print('⚠️ No se encontró token en la respuesta');
         print('📋 Estructura de data: ${data['data']}');
       }
-      
       // Guardar el email del usuario en SharedPreferences
       await _saveUserEmail(email);
-      
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const InicioScreen()),
       );
     } else {
+      print ('❌ Error al iniciar sesión: ${response.statusCode}');
+      print ('📋 Respuesta: ${response.body}');
       final Map<String, dynamic> data = jsonDecode(response.body);
       final error = data["error"] ?? data["message"] ?? response.body;
       ScaffoldMessenger.of(context).showSnackBar(
