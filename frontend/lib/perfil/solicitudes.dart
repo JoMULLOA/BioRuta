@@ -95,18 +95,6 @@ class _SolicitudState extends State<Solicitud> {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        print('=== RESPUESTA COMPLETA ===');
-      print('Status: ${response.statusCode}');
-      print('Body: ${response.body}');
-      print('Data parseada: $data');
-      print('Tipo de data: ${data.runtimeType}');
-      if (data is Map) {
-        print('Keys disponibles: ${data.keys.toList()}');
-        data.forEach((key, value) {
-          print('$key: $value (${value.runtimeType})');
-        });
-      }
-      print('=========================');
         setState(() {
           _usuarioEncontrado = data;
           _isLoading = false;
