@@ -45,7 +45,8 @@ class _VerificarCorreoPageState extends State<VerificarCorreoPage> {
     setState(() => cargando = true);
 
     final response = await http.post(
-      Uri.parse("http://localhost:3000/api/auth/verify-code"),
+      //Uri.parse("http://localhost:3000/api/auth/verify-code"),
+      Uri.parse("http://10.0.2.2:3000/api/auth/verify-code"),
       headers: {"Content-Type": "application/json"},
       body: jsonEncode({
         "email": _emailController.text.trim().toLowerCase(),

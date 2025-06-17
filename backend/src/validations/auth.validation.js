@@ -105,6 +105,17 @@ export const registerValidation = Joi.object({
       "string.max": "La contraseña debe tener como máximo 26 caracteres.",
       "string.pattern.base": "La contraseña solo puede contener letras y números.",
     }),
+    carrera: Joi.string()
+    .min(5)
+    .max(50)
+    .required()
+    .messages({
+      "string.empty": "La carrera no puede estar vacía.",
+      "any.required": "La carrera es obligatoria.",
+      "string.base": "La carrera debe ser de tipo texto.",
+      "string.min": "La carrera debe tener al menos 5 caracteres.",
+      "string.max": "La carrera debe tener como máximo 50 caracteres.",
+    }),
 }).unknown(false).messages({
   "object.unknown": "No se permiten propiedades adicionales.",
 });

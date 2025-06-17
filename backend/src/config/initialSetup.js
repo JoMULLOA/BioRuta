@@ -11,8 +11,9 @@ async function createInitialData() {
     const userRepository = AppDataSource.getRepository(User);
     const userCount = await userRepository.count();
     let user1 = null;
-
+    
     if (userCount === 0) {
+      
       user1 = userRepository.create({
         rut: "22.333.111-4",
         nombreCompleto: "Usuario1",

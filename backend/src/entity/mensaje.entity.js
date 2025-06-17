@@ -27,7 +27,6 @@ export default new EntitySchema({
       joinColumn: { 
         name: "rutEmisor",
         referencedColumnName: "rut",
-        foreignKeyConstraintName: "fk_mensaje_emisor"
       },
       eager: true,
     },
@@ -37,7 +36,6 @@ export default new EntitySchema({
       joinColumn: { 
         name: "rutReceptor",
         referencedColumnName: "rut",
-        foreignKeyConstraintName: "fk_mensaje_receptor"
       },
       eager: true,
     },
