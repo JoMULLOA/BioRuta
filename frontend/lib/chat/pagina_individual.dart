@@ -1,16 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart'; // Asegúrate de agregar 'intl' a pubspec.yaml
 
 class PaginaIndividual extends StatelessWidget {
-  // Recibimos el nombre del amigo a través del constructor
   final String nombre;
 
-  // Constructor para inicializar el nombre del amigo
   const PaginaIndividual({Key? key, required this.nombre}) : super(key: key);
 
-  // Función para obtener la hora de conexión (puedes reemplazarla por una real)
   String getHoraConexion() {
     final now = DateTime.now();
-    return "${now.hour}:${now.minute < 10 ? '0' : ''}${now.minute}"; // Formato HH:mm
+    final formatter = DateFormat('hh:mm a'); // Formato AM/PM
+    return formatter.format(now);
   }
 
   @override
@@ -32,34 +31,68 @@ class PaginaIndividual extends StatelessWidget {
               ),
               CircleAvatar(
                 radius: 20,
-                backgroundColor: Colors.brown,
+              
               ),
             ],
           ),
         ),
         title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start, // Alinea todo a la izquierda
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '$nombre', // Nombre del amigo
+              '$nombre',
               style: TextStyle(
                 fontSize: 20,
-                fontWeight: FontWeight.bold, // Nombre en negrita
+                fontWeight: FontWeight.bold,
               ),
             ),
-            SizedBox(height: 4), // Espacio entre el nombre y la hora
+            SizedBox(height: 4),
             Text(
-              'Última conexión: ${getHoraConexion()}', // Hora de conexión
+              'Última conexión: ${getHoraConexion()}',
               style: TextStyle(
-                fontSize: 14, // Más pequeño para que sea como un subtítulo
-                color: Colors.grey, // Color gris para hacerlo sutil
+                fontSize: 14,
+                color: Colors.grey,
               ),
             ),
           ],
         ),
       ),
-      body: Center(
-        child: Text('Aquí va el contenido del chat con $nombre'),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: ListView.builder(
+                itemCount: 9, // Cantidad de mensajes
+                itemBuilder: (context, index) {
+                  return ListTile(
+                    title: Text('Mensaje ${index + 1}'),
+                  );
+                },
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      decoration: InputDecoration(
+                        hintText: 'Escribe un mensaje...',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.send),
+                    onPressed: () {
+                      // Lógica para enviar el mensaje
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
