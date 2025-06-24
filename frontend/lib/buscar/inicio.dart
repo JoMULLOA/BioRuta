@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../navbar_widget.dart';
 import '../models/direccion_sugerida.dart';
 import '../mapa/mapa_seleccion_simple.dart';
+import 'resultados_busqueda.dart';
 
 class InicioScreen extends StatefulWidget {
   const InicioScreen({super.key});
@@ -12,10 +13,13 @@ class InicioScreen extends StatefulWidget {
 
 class _InicioScreenState extends State<InicioScreen> {
   int _selectedIndex = 0;
-  
-  // Variables para almacenar los datos del viaje
+    // Variables para almacenar los datos del viaje
   String? direccionOrigen;
   String? direccionDestino;
+  double? origenLat;
+  double? origenLng;
+  double? destinoLat;
+  double? destinoLng;
   int pasajeros = 1;
   DateTime? fechaSeleccionada;
   
@@ -27,13 +31,15 @@ class _InicioScreenState extends State<InicioScreen> {
     super.initState();
     // Obtener ubicación actual para el origen
     _obtenerUbicacionActual();
-  }
-  Future<void> _obtenerUbicacionActual() async {
+  }  Future<void> _obtenerUbicacionActual() async {
     try {
-      // Aquí podrías integrar con el servicio de ubicación real
+      // Por ahora usamos coordenadas fijas precisas de Concepción
+      // En el futuro esto debería usar GPS real
       setState(() {
-        direccionOrigen = "Mi ubicación actual";
-        _origenController.text = "Mi ubicación actual";
+        direccionOrigen = "Mi ubicación actual (Concepción)";
+        origenLat = -36.8270698; // Coordenadas más precisas de Concepción
+        origenLng = -73.0502064;
+        _origenController.text = "Mi ubicación actual (Concepción)";
       });
     } catch (e) {
       debugPrint("Error al obtener ubicación: $e");
@@ -79,25 +85,30 @@ class _InicioScreenState extends State<InicioScreen> {
           esOrigen: esOrigen,
         ),
       ),
-    );
-
-    if (result != null && result is DireccionSugerida) {
+    );    if (result != null && result is DireccionSugerida) {
       setState(() {
         if (esOrigen) {
           direccionOrigen = result.displayName;
+          origenLat = result.lat;
+          origenLng = result.lon;
           _origenController.text = result.displayName;
         } else {
           direccionDestino = result.displayName;
+          destinoLat = result.lat;
+          destinoLng = result.lon;
           _destinoController.text = result.displayName;
         }
       });
     }
   }
-
   void _limpiarFormulario() {
     setState(() {
       direccionOrigen = null;
       direccionDestino = null;
+      origenLat = null;
+      origenLng = null;
+      destinoLat = null;
+      destinoLng = null;
       pasajeros = 1;
       fechaSeleccionada = null;
       _origenController.clear();
@@ -105,7 +116,6 @@ class _InicioScreenState extends State<InicioScreen> {
     });
     _obtenerUbicacionActual();
   }
-
   void _buscarViaje() {
     if (direccionOrigen == null || direccionDestino == null || fechaSeleccionada == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -115,17 +125,44 @@ class _InicioScreenState extends State<InicioScreen> {
         ),
       );
       return;
-    }    // Aquí puedes procesar los datos del viaje
-    debugPrint('Datos del viaje:');
-    debugPrint('Origen: $direccionOrigen');
-    debugPrint('Destino: $direccionDestino');
-    debugPrint('Pasajeros: $pasajeros');
-    debugPrint('Fecha: ${fechaSeleccionada?.toString()}');
+    }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('🔍 Buscando viajes disponibles...'),
-        backgroundColor: Color(0xFF854937),
+    // Verificar que tenemos las coordenadas
+    if (origenLat == null || origenLng == null || destinoLat == null || destinoLng == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Por favor selecciona las ubicaciones desde el mapa'),
+          backgroundColor: Color(0xFF070505),
+        ),
+      );
+      return;
+    }
+    
+    // Formatear fecha para el backend
+    final String fechaFormateada = "${fechaSeleccionada!.year}-"
+        "${fechaSeleccionada!.month.toString().padLeft(2, '0')}-"
+        "${fechaSeleccionada!.day.toString().padLeft(2, '0')}";
+
+    debugPrint('🔍 Navegando a resultados de búsqueda:');
+    debugPrint('Origen: $direccionOrigen ($origenLat, $origenLng)');
+    debugPrint('Destino: $direccionDestino ($destinoLat, $destinoLng)');
+    debugPrint('Pasajeros: $pasajeros');
+    debugPrint('Fecha: $fechaFormateada');
+
+    // Navegar a la pantalla de resultados
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ResultadosBusquedaScreen(
+          origenLat: origenLat!,
+          origenLng: origenLng!,
+          destinoLat: destinoLat!,
+          destinoLng: destinoLng!,
+          fechaViaje: fechaFormateada,
+          pasajeros: pasajeros,
+          origenTexto: direccionOrigen!,
+          destinoTexto: direccionDestino!,
+        ),
       ),
     );
   }

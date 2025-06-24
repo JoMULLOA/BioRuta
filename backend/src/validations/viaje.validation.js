@@ -85,13 +85,13 @@ export const viajeBodyValidation = Joi.object({
 
 // Validación para búsqueda por proximidad
 export const busquedaProximidadValidation = Joi.object({
-  origen_lat: Joi.number().min(-90).max(90).required(),
-  origen_lon: Joi.number().min(-180).max(180).required(),
-  destino_lat: Joi.number().min(-90).max(90).required(),
-  destino_lon: Joi.number().min(-180).max(180).required(),
-  fecha: Joi.date().required(),
+  origenLat: Joi.number().min(-90).max(90).required(),
+  origenLng: Joi.number().min(-180).max(180).required(),
+  destinoLat: Joi.number().min(-90).max(90).required(),
+  destinoLng: Joi.number().min(-180).max(180).required(),
+  fechaViaje: Joi.string().required(),
   pasajeros: Joi.number().integer().min(1).max(8).default(1),
-  radio: Joi.number().min(0.1).max(50).default(0.5) // 0.5 km = 500 metros
+  radio: Joi.number().min(0.1).max(50).default(2.0) // 2.0 km = 2000 metros por defecto
 });
 
 // Validación para unirse a viaje

@@ -121,72 +121,202 @@ export async function crearViaje(req, res) {
 export async function buscarViajesPorProximidad(req, res) {
   try {
     const {
-      origen_lat,
-      origen_lon,
-      destino_lat,
-      destino_lon,
-      fecha,
+      origenLat,
+      origenLng,
+      destinoLat,
+      destinoLng,
+      fechaViaje,
       pasajeros = 1,
-      radio = 0.5 // 500 metros en kilómetros
+      radio = 2.0 // 2000 metros en kilómetros por defecto
     } = req.query;
 
     // Validar parámetros requeridos
-    if (!origen_lat || !origen_lon || !destino_lat || !destino_lon || !fecha) {
-      return handleErrorServer(res, "Parámetros requeridos: origen_lat, origen_lon, destino_lat, destino_lon, fecha");
-    }
-
-    // Convertir radio de kilómetros a metros
+    if (!origenLat || !origenLng || !destinoLat || !destinoLng || !fechaViaje) {
+      return handleErrorServer(res, "Parámetros requeridos: origenLat, origenLng, destinoLat, destinoLng, fechaViaje");
+    }    // Convertir radio de kilómetros a metros (500 metros = 0.5 km)
     const radioEnMetros = parseFloat(radio) * 1000;
 
+    console.log('🔍 Parámetros de búsqueda:');
+    console.log('Origen:', { lat: origenLat, lng: origenLng });
+    console.log('Destino:', { lat: destinoLat, lng: destinoLng });
+    console.log('Fecha:', fechaViaje);
+    console.log('Radio (metros):', radioEnMetros);
+
     // Fecha de búsqueda
-    const fechaBusqueda = new Date(fecha);
+    const fechaBusqueda = new Date(fechaViaje);
     const fechaInicio = new Date(fechaBusqueda);
     fechaInicio.setHours(0, 0, 0, 0);
     const fechaFin = new Date(fechaBusqueda);
     fechaFin.setHours(23, 59, 59, 999);
 
-    // Búsqueda con agregación para filtrar por proximidad de origen Y destino
-    const viajes = await Viaje.aggregate([
+    console.log('Rango de fechas:', { inicio: fechaInicio, fin: fechaFin });
+
+    // Primero verificar si hay viajes activos en la fecha
+    const viajesEnFecha = await Viaje.find({
+      estado: 'activo',
+      fecha_ida: { $gte: fechaInicio, $lte: fechaFin },
+      plazas_disponibles: { $gte: parseInt(pasajeros) }
+    }).select('_id origen.ubicacion.coordinates destino.ubicacion.coordinates fecha_ida plazas_disponibles');    console.log('Viajes activos en la fecha:', viajesEnFecha.length);
+    if (viajesEnFecha.length > 0) {
+      console.log('Ejemplos de viajes en fecha:', viajesEnFecha.slice(0, 2).map(v => ({
+        id: v._id,
+        origen: v.origen?.ubicacion?.coordinates,
+        destino: v.destino?.ubicacion?.coordinates,
+        fecha: v.fecha_ida,
+        plazas: v.plazas_disponibles
+      })));
+      
+      // Calcular distancia manual para verificar
+      const viajeEjemplo = viajesEnFecha[0];
+      if (viajeEjemplo.origen?.ubicacion?.coordinates) {
+        const viajeOrigenLng = viajeEjemplo.origen.ubicacion.coordinates[0];
+        const viajeOrigenLat = viajeEjemplo.origen.ubicacion.coordinates[1];
+        
+        // Calcular distancia usando fórmula de Haversine
+        const R = 6371000; // Radio de la Tierra en metros
+        const dLat = (parseFloat(origenLat) - viajeOrigenLat) * Math.PI / 180;
+        const dLng = (parseFloat(origenLng) - viajeOrigenLng) * Math.PI / 180;
+        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                  Math.cos(parseFloat(origenLat) * Math.PI / 180) * Math.cos(viajeOrigenLat * Math.PI / 180) *
+                  Math.sin(dLng/2) * Math.sin(dLng/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        const distancia = R * c;
+        
+        console.log('Distancia al viaje más cercano:', Math.round(distancia), 'metros');
+        console.log('¿Está dentro del radio?', distancia <= radioEnMetros ? 'SÍ' : 'NO');
+      }
+    }    try {
+      // Búsqueda con agregación para filtrar por proximidad de origen Y destino
+      // Usamos fórmula de Haversine más robusta para evitar errores con coordenadas cercanas
+      const viajes = await Viaje.aggregate([
       {
-        $geoNear: {
-          near: {
-            type: 'Point',
-            coordinates: [parseFloat(origen_lon), parseFloat(origen_lat)]
-          },
-          distanceField: 'distancia_origen',
-          maxDistance: radioEnMetros,
-          spherical: true
+        $match: {
+          estado: 'activo',
+          fecha_ida: { $gte: fechaInicio, $lte: fechaFin },
+          plazas_disponibles: { $gte: parseInt(pasajeros) }
         }
       },
       {
         $addFields: {
-          distancia_destino: {
+          // Calcular distancia al origen usando fórmula de Haversine
+          distancia_origen: {
             $let: {
               vars: {
-                dlat: { $subtract: [{ $toDouble: destino_lat }, { $arrayElemAt: ['$destino.ubicacion.coordinates', 1] }] },
-                dlon: { $subtract: [{ $toDouble: destino_lon }, { $arrayElemAt: ['$destino.ubicacion.coordinates', 0] }] }
+                lat1: { $degreesToRadians: { $toDouble: origenLat } },
+                lat2: { $degreesToRadians: { $arrayElemAt: ['$origen.ubicacion.coordinates', 1] } },
+                dlat: { $degreesToRadians: { $subtract: [{ $toDouble: origenLat }, { $arrayElemAt: ['$origen.ubicacion.coordinates', 1] }] } },
+                dlon: { $degreesToRadians: { $subtract: [{ $toDouble: origenLng }, { $arrayElemAt: ['$origen.ubicacion.coordinates', 0] }] } }
               },
               in: {
                 $multiply: [
                   6371000, // Radio de la Tierra en metros
                   {
-                    $acos: {
-                      $add: [
-                        {
-                          $multiply: [
-                            { $cos: { $degreesToRadians: { $toDouble: destino_lat } } },
-                            { $cos: { $degreesToRadians: { $arrayElemAt: ['$destino.ubicacion.coordinates', 1] } } },
-                            { $cos: { $degreesToRadians: '$$dlon' } }
-                          ]
-                        },
-                        {
-                          $multiply: [
-                            { $sin: { $degreesToRadians: { $toDouble: destino_lat } } },
-                            { $sin: { $degreesToRadians: { $arrayElemAt: ['$destino.ubicacion.coordinates', 1] } } }
-                          ]
-                        }
-                      ]
-                    }
+                    $multiply: [
+                      2,
+                      {
+                        $atan2: [
+                          {
+                            $sqrt: {
+                              $add: [
+                                {
+                                  $pow: [{ $sin: { $divide: ['$$dlat', 2] } }, 2]
+                                },
+                                {
+                                  $multiply: [
+                                    { $cos: '$$lat1' },
+                                    { $cos: '$$lat2' },
+                                    { $pow: [{ $sin: { $divide: ['$$dlon', 2] } }, 2] }
+                                  ]
+                                }
+                              ]
+                            }
+                          },
+                          {
+                            $sqrt: {
+                              $subtract: [
+                                1,
+                                {
+                                  $add: [
+                                    {
+                                      $pow: [{ $sin: { $divide: ['$$dlat', 2] } }, 2]
+                                    },
+                                    {
+                                      $multiply: [
+                                        { $cos: '$$lat1' },
+                                        { $cos: '$$lat2' },
+                                        { $pow: [{ $sin: { $divide: ['$$dlon', 2] } }, 2] }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          // Calcular distancia al destino usando fórmula de Haversine
+          distancia_destino: {
+            $let: {
+              vars: {
+                lat1: { $degreesToRadians: { $toDouble: destinoLat } },
+                lat2: { $degreesToRadians: { $arrayElemAt: ['$destino.ubicacion.coordinates', 1] } },
+                dlat: { $degreesToRadians: { $subtract: [{ $toDouble: destinoLat }, { $arrayElemAt: ['$destino.ubicacion.coordinates', 1] }] } },
+                dlon: { $degreesToRadians: { $subtract: [{ $toDouble: destinoLng }, { $arrayElemAt: ['$destino.ubicacion.coordinates', 0] }] } }
+              },
+              in: {
+                $multiply: [
+                  6371000, // Radio de la Tierra en metros
+                  {
+                    $multiply: [
+                      2,
+                      {
+                        $atan2: [
+                          {
+                            $sqrt: {
+                              $add: [
+                                {
+                                  $pow: [{ $sin: { $divide: ['$$dlat', 2] } }, 2]
+                                },
+                                {
+                                  $multiply: [
+                                    { $cos: '$$lat1' },
+                                    { $cos: '$$lat2' },
+                                    { $pow: [{ $sin: { $divide: ['$$dlon', 2] } }, 2] }
+                                  ]
+                                }
+                              ]
+                            }
+                          },
+                          {
+                            $sqrt: {
+                              $subtract: [
+                                1,
+                                {
+                                  $add: [
+                                    {
+                                      $pow: [{ $sin: { $divide: ['$$dlat', 2] } }, 2]
+                                    },
+                                    {
+                                      $multiply: [
+                                        { $cos: '$$lat1' },
+                                        { $cos: '$$lat2' },
+                                        { $pow: [{ $sin: { $divide: ['$$dlon', 2] } }, 2] }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    ]
                   }
                 ]
               }
@@ -195,12 +325,32 @@ export async function buscarViajesPorProximidad(req, res) {
         }
       },
       {
+        $addFields: {
+          // Calcular distancia total de caminata
+          distancia_total: { $add: ['$distancia_origen', '$distancia_destino'] }
+        }
+      },      {
         $match: {
-          estado: 'activo',
-          fecha_ida: { $gte: fechaInicio, $lte: fechaFin },
-          plazas_disponibles: { $gte: parseInt(pasajeros) },
-          distancia_destino: { $lte: radioEnMetros },
-          usuario_rut: { $ne: req.user.rut } // Excluir viajes propios
+          // Filtrar viajes donde la distancia total de caminata sea razonable
+          // O donde al menos una de las distancias esté muy cerca (dentro del radio original)
+          $or: [
+            // Opción 1: Distancia total de caminata menor a 4km
+            { distancia_total: { $lte: radioEnMetros * 2 } },
+            // Opción 2: Al menos una distancia está muy cerca (dentro del radio original)
+            {
+              $and: [
+                { distancia_origen: { $lte: radioEnMetros } },
+                { distancia_destino: { $lte: radioEnMetros * 1.5 } }
+              ]
+            },
+            // Opción 3: Al menos una distancia está muy cerca (dentro del radio original)
+            {
+              $and: [
+                { distancia_origen: { $lte: radioEnMetros * 1.5 } },
+                { distancia_destino: { $lte: radioEnMetros } }
+              ]
+            }
+          ]
         }
       },
       {
@@ -219,13 +369,31 @@ export async function buscarViajesPorProximidad(req, res) {
           flexibilidad_salida: 1,
           solo_mujeres: 1,
           distancia_origen: { $round: ['$distancia_origen', 0] },
-          distancia_destino: { $round: ['$distancia_destino', 0] }
+          distancia_destino: { $round: ['$distancia_destino', 0] },
+          distancia_total: { $round: ['$distancia_total', 0] }
         }
       },
       {
-        $sort: { fecha_ida: 1, hora_ida: 1 }
+        $sort: { 
+          distancia_total: 1, // Ordenar por distancia total ascendente
+          fecha_ida: 1, 
+          hora_ida: 1 
+        }
       }
-    ]);
+    ]);    console.log('📊 Resultados de agregación:');
+    console.log('Viajes encontrados:', viajes.length);
+    
+    if (viajes.length > 0) {
+      console.log('✅ Primer viaje encontrado:');
+      const primerViaje = viajes[0];
+      console.log('- ID:', primerViaje._id);
+      console.log('- Distancia origen:', primerViaje.distancia_origen, 'metros');
+      console.log('- Distancia destino:', primerViaje.distancia_destino, 'metros');
+      console.log('- Distancia total:', primerViaje.distancia_total, 'metros');
+      console.log('- ¿Dentro del radio?', primerViaje.distancia_total <= radioEnMetros ? 'SÍ' : 'NO');
+    } else {
+      console.log('❌ No se encontraron viajes que cumplan los criterios de proximidad');
+    }
 
     // Enriquecer con datos de PostgreSQL
     const viajesConDatos = await Promise.all(
@@ -237,9 +405,7 @@ export async function buscarViajesPorProximidad(req, res) {
         const vehiculo = await vehiculoRepository.findOne({
           where: { patente: viaje.vehiculo_patente },
           relations: ["propietario"]
-        });
-
-        return {
+        });        return {
           ...viaje,
           conductor: conductor ? {
             rut: conductor.rut,
@@ -251,21 +417,33 @@ export async function buscarViajesPorProximidad(req, res) {
             modelo: vehiculo.modelo,
             color: vehiculo.color,
             nro_asientos: vehiculo.nro_asientos
-          } : null
+          } : null,
+          // Agregar información de distancias para mostrar al usuario
+          distancias: {
+            origenMetros: viaje.distancia_origen,
+            destinoMetros: viaje.distancia_destino,
+            totalMetros: viaje.distancia_total,
+            origenTexto: `${Math.round(viaje.distancia_origen)}m caminando`,
+            destinoTexto: `${Math.round(viaje.distancia_destino)}m caminando`,
+            totalTexto: `${Math.round(viaje.distancia_total)}m total caminando`
+          }
         };
       })
-    );
+    );      handleSuccess(res, 200, `Se encontraron ${viajesConDatos.length} viajes disponibles`, {
+        viajes: viajesConDatos,
+        criterios_busqueda: {
+          radio_metros: radioEnMetros,
+          fecha: fechaViaje,
+          pasajeros: pasajeros,
+          origen: { lat: origenLat, lng: origenLng },
+          destino: { lat: destinoLat, lng: destinoLng }
+        }
+      });
 
-    handleSuccess(res, 200, `Se encontraron ${viajesConDatos.length} viajes disponibles`, {
-      viajes: viajesConDatos,
-      criterios_busqueda: {
-        radio_metros: radioEnMetros,
-        fecha: fecha,
-        pasajeros: pasajeros,
-        origen: { lat: origen_lat, lon: origen_lon },
-        destino: { lat: destino_lat, lon: destino_lon }
-      }
-    });
+    } catch (aggregationError) {
+      console.error('❌ Error en el pipeline de agregación:', aggregationError);
+      return handleErrorServer(res, "Error al procesar la búsqueda de viajes: " + aggregationError.message);
+    }
 
   } catch (error) {
     console.error("Error en búsqueda por proximidad:", error);

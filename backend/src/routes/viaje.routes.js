@@ -28,10 +28,9 @@ router.post(
   crearViaje
 );
 
-// Buscar viajes por proximidad - GET /api/viajes/buscar-proximidad
+// Buscar viajes por proximidad - GET /api/viajes/buscar
 router.get(
-  "/buscar-proximidad", 
-  authenticateJwt,
+  "/buscar", 
   validateQuery(busquedaProximidadValidation),
   buscarViajesPorProximidad
 );
