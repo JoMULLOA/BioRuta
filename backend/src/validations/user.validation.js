@@ -40,7 +40,7 @@ export const userQueryValidation = Joi.object({
     })
     .custom(domainEmailValidator, "Validación dominio email"),
 })
-  .or("rut", "email")
+  .or("rut", "email","carrera")
   .unknown(false)
   .messages({
     "object.unknown": "No se permiten propiedades adicionales.",
@@ -126,7 +126,8 @@ export const userBodyValidation = Joi.object({
     "password",
     "newPassword",
     "rut",
-    "rol"
+    "rol",
+    "carrera"
   )
   .unknown(false)
   .messages({

@@ -11,6 +11,7 @@ async function createInitialData() {
     const userRepository = AppDataSource.getRepository(User);
     const userCount = await userRepository.count();
     let user1 = null;
+    let user2 = null;
 
     if (userCount === 0) {
       user1 = userRepository.create({
@@ -21,19 +22,32 @@ async function createInitialData() {
         rol: "administrador",
       });
       await userRepository.save(user1);
-      console.log("* => Usuario creado exitosamente");
+      console.log("* => Usuario 1 creado exitosamente");
+
+      user2 = userRepository.create({
+        rut: "11.222.333-5",
+        nombreCompleto: "Usuario2",
+        email: "usuario2@alumnos.ubiobio.cl",
+        password: await encryptPassword("user2345"),
+        rol: "usuario",
+      });
+      await userRepository.save(user2);
+      console.log("* => Usuario 2 creado exitosamente");
     } else {
       user1 = await userRepository.findOneBy({
         email: "usuario1@alumnos.ubiobio.cl",
+      });
+      user2 = await userRepository.findOneBy({
+        email: "usuario2@alumnos.ubiobio.cl",
       });
     }
 
     // Crear Vehículos
     const vehiculoRepository = AppDataSource.getRepository(Vehiculo);
     const vehiculoCount = await vehiculoRepository.count();
-    if (vehiculoCount === 0 && user1) {
-      await Promise.all([
-        vehiculoRepository.save(
+    if (vehiculoCount === 0) {
+      if (user1) {
+        await vehiculoRepository.save(
           vehiculoRepository.create({
             patente: "ABCD12",
             modelo: "Toyota Corolla",
@@ -42,8 +56,8 @@ async function createInitialData() {
             documentacion: "Permiso de circulación vigente",
             propietario: user1,
           })
-        ),
-        vehiculoRepository.save(
+        );
+        await vehiculoRepository.save(
           vehiculoRepository.create({
             patente: "EFGH34",
             modelo: "Hyundai Accent",
@@ -52,8 +66,21 @@ async function createInitialData() {
             documentacion: "Seguro obligatorio al día",
             propietario: user1,
           })
-        ),
-      ]);      console.log("* => Vehículos creados exitosamente");
+        );
+      }
+      if (user2) {
+        await vehiculoRepository.save(
+          vehiculoRepository.create({
+            patente: "IJKL56",
+            modelo: "Ford Fiesta",
+            color: "Azul",
+            nro_asientos: 4,
+            documentacion: "Permiso de circulación vigente",
+            propietario: user2,
+          })
+        );
+      }
+      console.log("* => Vehículos creados exitosamente");
     }
 
     // Crear índices geoespaciales para MongoDB
@@ -69,12 +96,12 @@ async function createMongoIndexes() {
     // Verificar si los índices ya existen
     const collection = Viaje.collection;
     const indexes = await collection.listIndexes().toArray();
-    
-    const hasGeoIndexOrigen = indexes.some(index => 
-      index.name === 'origen.ubicacion_2dsphere'
+
+    const hasGeoIndexOrigen = indexes.some(
+      (index) => index.name === "origen.ubicacion_2dsphere"
     );
-    const hasGeoIndexDestino = indexes.some(index => 
-      index.name === 'destino.ubicacion_2dsphere'
+    const hasGeoIndexDestino = indexes.some(
+      (index) => index.name === "destino.ubicacion_2dsphere"
     );
 
     if (!hasGeoIndexOrigen) {
@@ -88,11 +115,11 @@ async function createMongoIndexes() {
     }
 
     // Crear otros índices importantes
-    await collection.createIndex({ "fecha_ida": 1 });
-    await collection.createIndex({ "estado": 1 });
-    await collection.createIndex({ "usuario_rut": 1 });
-    await collection.createIndex({ "vehiculo_patente": 1 });
-    
+    await collection.createIndex({ fecha_ida: 1 });
+    await collection.createIndex({ estado: 1 });
+    await collection.createIndex({ usuario_rut: 1 });
+    await collection.createIndex({ vehiculo_patente: 1 });
+
     console.log("* => Índices de MongoDB creados exitosamente");
   } catch (error) {
     console.error("❌ Error al crear índices de MongoDB:", error);

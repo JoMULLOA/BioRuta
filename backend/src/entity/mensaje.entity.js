@@ -19,6 +19,14 @@ export default new EntitySchema({
       type: "timestamp",
       default: () => "CURRENT_TIMESTAMP",
     },
+    eliminado: {
+      type: "boolean",
+      default: false,  // Por defecto, el mensaje no está eliminado
+    },
+    editado: {
+      type: "boolean",
+      default: false,  // Indica si el mensaje fue editado
+    },
   },
   relations: {
     emisor: {

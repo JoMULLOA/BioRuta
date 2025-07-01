@@ -27,7 +27,7 @@
     "joi": "^17.13.3",
     "jsonwebtoken": "^9.0.2",
     "mongodb": "^6.17.0",
-    "mongoose": "^8.15.2",
+    "mongoose": "^8.16.0",
     "node-cron": "^3.0.3",
     "nodemailer": "^6.9.9",
     "passport": "^0.7.0",
