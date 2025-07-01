@@ -42,6 +42,10 @@ const UserSchema = new EntitySchema({
       type: "float",
       nullable: true,
     },
+    puntuacion: {
+      type: "int",
+      nullable: true,
+    },
     email: {
       type: "varchar",
       length: 255,

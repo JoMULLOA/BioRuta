@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import '../navbar_widget.dart'; // Asegúrate de importar tu navbar
+import 'package:http/http.dart' as http;
+import 'dart:convert'; // Para parsear JSON
+import '../config/confGlobal.dart';
 
 class ranking extends StatefulWidget {
   @override
@@ -8,6 +11,37 @@ class ranking extends StatefulWidget {
 
 class _RankingState extends State<ranking> {
   int _selectedIndex = 4; // índice para Ranking
+  List<dynamic> _rankingData = []; // Lista para almacenar los datos del ranking
+
+  void initState() {
+    super.initState();
+    _fetchRanking();
+  }
+
+  Future<void> _fetchRanking() async {
+    try {
+      final response = await http.get(Uri.parse('${confGlobal.baseUrl}/ranking/'));
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body); // Parsear el JSON
+        setState(() {
+          _rankingData = data['ranking']; // Acceder a la clave 'ranking'
+          _rankingData.sort((a, b) {
+            if (a['puntuacion'] == 0) return 1; // Mover usuarios con puntuación 0 al final
+            if (b['puntuacion'] == 0) return -1;
+            return b['puntuacion'].compareTo(a['puntuacion']); // Orden descendente
+          });
+        });
+      } else {
+        setState(() {
+          _rankingData = []; // Vaciar la lista en caso de error
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _rankingData = []; // Vaciar la lista en caso de error
+      });
+    }
+  }
 
   final Color fondo = const Color(0xFFF8F2EF);
   final Color principal = const Color(0xFF6B3B2D);
@@ -34,13 +68,12 @@ class _RankingState extends State<ranking> {
             ),
             const SizedBox(height: 12),
             Expanded(
-              child: ListView(
-                children: [
-                  _buildRankingItem('Miguelito', 120, 1),
-                  _buildRankingItem('Antonieta', 105, 2),
-                  _buildRankingItem('Mateo', 88, 3),
-                  _buildRankingItem('Esteban', 70, 4),
-                ],
+              child: ListView.builder(
+                itemCount: _rankingData.length,
+                itemBuilder: (context, index) {
+                  final user = _rankingData[index];
+                  return _buildRankingItem(user['nombreCompleto'], user['puntuacion'], index + 1);
+                },
               ),
             ),
           ],
