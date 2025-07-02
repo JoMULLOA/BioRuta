@@ -43,7 +43,7 @@ export default new EntitySchema({
       joinColumn: {
         name: "rutEmisor",
         referencedColumnName: "rut",
-        foreignKeyConstraintName: "fk_mensaje_emisor", // Nombre de la FK
+
       },
       eager: true, // Cargar el emisor automáticamente al buscar mensajes
     },
@@ -55,7 +55,7 @@ export default new EntitySchema({
       joinColumn: {
         name: "rutReceptor",
         referencedColumnName: "rut",
-        foreignKeyConstraintName: "fk_mensaje_receptor", // Nombre de la FK
+
       },
       nullable: true, // Es nulo para mensajes de viaje, no nulo para mensajes 1 a 1
       eager: true, // Cargar el receptor automáticamente al buscar mensajes
