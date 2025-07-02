@@ -1,16 +1,12 @@
 "use strict";
 import { AppDataSource } from "../config/configDb.js";
 import user from "../entity/user.entity.js";
-import { Not } from "typeorm";
 
 export async function getRankingService() {
   try {
     const userRepository = AppDataSource.getRepository(user);
 
     const ranking = await userRepository.find({
-      where: {
-        puntuacion: Not(0), // Excluir usuarios con puntuación igual a 0
-      },
       order: {
         puntuacion: "DESC",
       },
