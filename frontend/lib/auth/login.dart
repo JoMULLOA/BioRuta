@@ -8,6 +8,7 @@ import './recuperacion.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../config/confGlobal.dart';
+import '../utils/token_manager.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -22,6 +23,108 @@ class _LoginPageState extends State<LoginPage> {
   bool cargando = false;
   bool verClave = false;
   static const FlutterSecureStorage _storage = FlutterSecureStorage();
+  
+  // Configuración: cambiar a true para habilitar auto-login
+  static const bool AUTO_LOGIN_ENABLED = false;
+
+  @override
+  void initState() {
+    super.initState();
+    
+    if (AUTO_LOGIN_ENABLED) {
+      _checkAndRedirectIfAuthenticated();
+    } else {
+      // Solo limpiar tokens expirados sin redireccionar automáticamente
+      _cleanExpiredTokenOnly();
+    }
+  }
+
+  // Verificar autenticación y redireccionar si es válida (solo si AUTO_LOGIN_ENABLED = true)
+  Future<void> _checkAndRedirectIfAuthenticated() async {
+    try {
+      final token = await _storage.read(key: 'jwt_token');
+      
+      if (token == null) {
+        print('🔒 No hay token almacenado');
+        return;
+      }
+
+      // Verificar si el token ha expirado según el cliente
+      if (JwtDecoder.isExpired(token)) {
+        print('⏰ Token JWT expirado (verificación cliente)');
+        await TokenManager.clearAuthData();
+        if (mounted) {
+          TokenManager.showSessionExpiredMessage(context);
+        }
+        return;
+      }
+
+      // Verificar con el backend
+      print('🔍 Verificando token con el backend...');
+      final isValidInBackend = await _verifyTokenWithBackend(token);
+      
+      if (isValidInBackend) {
+        print('✅ Token válido en backend, redirigiendo a inicio');
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const InicioScreen()),
+          );
+        }
+      } else {
+        print('❌ Token rechazado por el backend');
+        await TokenManager.clearAuthData();
+        if (mounted) {
+          TokenManager.showSessionExpiredMessage(context);
+        }
+      }
+    } catch (e) {
+      print('❌ Error verificando token: $e');
+      await TokenManager.clearAuthData();
+    }
+  }
+
+  // Verificar token con el backend
+  Future<bool> _verifyTokenWithBackend(String token) async {
+    try {
+      final response = await http.get(
+        Uri.parse("${confGlobal.baseUrl}/users/detail/"),
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer $token",
+        },
+      );
+
+      return response.statusCode == 200;
+    } catch (e) {
+      print('❌ Error verificando token con backend: $e');
+      return false;
+    }
+  }
+
+  // Solo limpiar tokens expirados sin redireccionar
+  Future<void> _cleanExpiredTokenOnly() async {
+    try {
+      final token = await _storage.read(key: 'jwt_token');
+      
+      if (token != null && JwtDecoder.isExpired(token)) {
+        print('⏰ Token JWT expirado, limpiando...');
+        await TokenManager.clearAuthData();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Tu sesión anterior ha expirado.'),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print('❌ Error verificando token: $e');
+      await TokenManager.clearAuthData();
+    }
+  }
 
   // Método para guardar el email del usuario (usando SharedPreferences)
   Future<void> _saveUserEmail(String email) async {

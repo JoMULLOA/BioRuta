@@ -133,6 +133,9 @@ export async function updateUserService(query, body) {
       rut: body.rut,
       email: body.email,
       rol: body.rol,
+      carrera: body.carrera,
+      descripcion: body.descripcion,
+      fechaNacimiento: body.fechaNacimiento,
       updatedAt: new Date(),
     };
 

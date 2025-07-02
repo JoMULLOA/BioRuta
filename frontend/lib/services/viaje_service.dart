@@ -1,26 +1,16 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../models/viaje_model.dart';
 import '../models/marcador_viaje_model.dart';
 import '../config/api_config.dart';
+import '../utils/token_manager.dart';
 
 class ViajeService {
   static String get baseUrl => ApiConfig.baseUrl;
-  static const FlutterSecureStorage _storage = FlutterSecureStorage();
-  
-  // Obtener token de autenticación
-  static Future<String?> _getToken() async {
-    return await _storage.read(key: 'auth_token');
-  }
   
   // Headers por defecto con autenticación
-  static Future<Map<String, String>> _getHeaders() async {
-    final token = await _getToken();
-    return {
-      'Content-Type': 'application/json',
-      if (token != null) 'Authorization': 'Bearer $token',
-    };
+  static Future<Map<String, String>?> _getHeaders() async {
+    return await TokenManager.getAuthHeaders(); // Usar TokenManager
   }
   
   /// Crear un nuevo viaje
@@ -40,9 +30,25 @@ class ViajeService {
     required String vehiculoPatente,
   }) async {
     try {
+      // Verificar autenticación antes de crear viaje
+      if (await TokenManager.needsLogin()) {
+        return {
+          'success': false,
+          'message': 'Sesión expirada. Por favor, inicia sesión nuevamente.'
+        };
+      }
+
+      final headers = await _getHeaders();
+      if (headers == null) {
+        return {
+          'success': false,
+          'message': 'No se pudo obtener el token de autenticación'
+        };
+      }
+
       final response = await http.post(
         Uri.parse('$baseUrl/viajes/crear'),
-        headers: await _getHeaders(),
+        headers: headers,
         body: json.encode({
           'ubicaciones': ubicaciones,
           'fechaIda': fechaIda,
@@ -67,6 +73,13 @@ class ViajeService {
           'success': true,
           'viaje': data['data'],
           'message': data['message'] ?? 'Viaje creado exitosamente'
+        };
+      } else if (response.statusCode == 401) {
+        // Token expirado
+        await TokenManager.clearAuthData();
+        return {
+          'success': false,
+          'message': 'Sesión expirada. Por favor, inicia sesión nuevamente.'
         };
       } else {
         return {
@@ -191,15 +204,29 @@ class ViajeService {
   /// Obtener viajes del usuario actual
   static Future<List<Viaje>> obtenerMisViajes() async {
     try {
+      // Verificar si necesitamos login antes de hacer la petición
+      if (await TokenManager.needsLogin()) {
+        throw Exception('Sesión expirada. Por favor, inicia sesión nuevamente.');
+      }
+
+      final headers = await _getHeaders();
+      if (headers == null) {
+        throw Exception('No se pudo obtener el token de autenticación');
+      }
+
       final response = await http.get(
         Uri.parse('$baseUrl/viajes/mis-viajes'),
-        headers: await _getHeaders(),
+        headers: headers,
       );
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final viajesData = data['data'] as List;
         return viajesData.map((viaje) => Viaje.fromJson(viaje)).toList();
+      } else if (response.statusCode == 401) {
+        // Token expirado o inválido
+        await TokenManager.clearAuthData();
+        throw Exception('Sesión expirada. Por favor, inicia sesión nuevamente.');
       } else {
         throw Exception('Error al obtener mis viajes: ${response.statusCode}');
       }

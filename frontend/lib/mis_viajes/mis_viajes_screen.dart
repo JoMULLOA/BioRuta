@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../services/viaje_service.dart';
 import '../models/viaje_model.dart';
 import '../navbar_widget.dart';
+import '../utils/token_manager.dart';
+import '../auth/login.dart';
 
 class MisViajesScreen extends StatefulWidget {
   const MisViajesScreen({super.key});
@@ -28,6 +30,17 @@ Future<void> _cargarViajes() async {
       cargando = true;
     });
 
+    // Verificar autenticación antes de cargar viajes
+    if (await TokenManager.needsLogin()) {
+      if (mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const LoginPage()),
+          (route) => false,
+        );
+      }
+      return;
+    }
+
     // Cargar viajes usando el método obtenerMisViajes
     final List<Viaje> viajes = await ViajeService.obtenerMisViajes();
 
@@ -41,10 +54,22 @@ Future<void> _cargarViajes() async {
     setState(() {
       cargando = false;
     });
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al cargar viajes: $e')),
-      );
+    
+    // Verificar si el error es de autenticación
+    if (e.toString().contains('Sesión expirada') || e.toString().contains('Token')) {
+      if (mounted) {
+        TokenManager.showSessionExpiredMessage(context);
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const LoginPage()),
+          (route) => false,
+        );
+      }
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al cargar viajes: $e')),
+        );
+      }
     }
   }
 }

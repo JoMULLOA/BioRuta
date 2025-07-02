@@ -53,9 +53,34 @@ export async function register(req, res) {
 
 export async function logout(req, res) {
   try {
-    res.clearCookie("jwt", { httpOnly: true });
-    handleSuccess(res, 200, "Sesión cerrada exitosamente");
+    // Obtener información del usuario autenticado si está disponible
+    const userInfo = req.user ? {
+      email: req.user.email,
+      rut: req.user.rut,
+      nombreCompleto: req.user.nombreCompleto
+    } : 'Usuario anónimo';
+
+    // Log de seguridad para auditoría
+    console.log(`🔐 LOGOUT: Usuario ${userInfo.email || 'anónimo'} cerró sesión en ${new Date().toISOString()}`);
+
+    // Limpiar la cookie JWT
+    res.clearCookie("jwt", { 
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production', // Solo HTTPS en producción
+      sameSite: 'strict'
+    });
+
+    // En el futuro aquí se podría:
+    // 1. Agregar el token a una blacklist
+    // 2. Limpiar datos de sesión en Redis/caché
+    // 3. Notificar a otros servicios
+
+    handleSuccess(res, 200, "Sesión cerrada exitosamente", {
+      message: "Logout completado",
+      timestamp: new Date().toISOString()
+    });
   } catch (error) {
-    handleErrorServer(res, 500, error.message);
+    console.error("Error durante el logout:", error);
+    handleErrorServer(res, 500, "Error al cerrar sesión");
   }
 }

@@ -6,6 +6,7 @@ import '../navbar_widget.dart';
 import '../chat/Chatsoporte.dart';
 import './solicitudes.dart';
 import '../config/confGlobal.dart';
+import 'ajustes.dart';
 
 class Perfil extends StatefulWidget {
   @override
@@ -31,8 +32,21 @@ class Perfil_ extends State<Perfil> {
     _loadUserData();
   }
 
-  // Método para cargar datos del usuario desde backend
+  // Método específico para el refresh (pull to refresh)
+  Future<void> _refreshUserData() async {
+    await _loadUserDataInternal();
+  }
+
+  // Método público para cargar datos (inicial)
   Future<void> _loadUserData() async {
+    setState(() {
+      _isLoading = true;
+    });
+    await _loadUserDataInternal();
+  }
+
+  // Método interno que hace la carga real de datos
+  Future<void> _loadUserDataInternal() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final email = prefs.getString('user_email');
@@ -152,18 +166,13 @@ class Perfil_ extends State<Perfil> {
             },
           ),
           IconButton(
-            icon: Icon(Icons.refresh),
-            onPressed: () {
-              setState(() {
-                _isLoading = true;
-              });
-              _loadUserData();
-            },
-          ),
-          IconButton(
             icon: Icon(Icons.settings),
+            tooltip: 'Configuración y Cerrar Sesión',
             onPressed: () {
-              // Configuraciones futuras
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const LogoutPage()),
+              );
             },
           )
         ],
@@ -174,11 +183,16 @@ class Perfil_ extends State<Perfil> {
                 valueColor: AlwaysStoppedAnimation<Color>(primario),
               ),
             )
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  // Tarjeta de perfil
+          : RefreshIndicator(
+              onRefresh: _refreshUserData,
+              color: primario,
+              backgroundColor: fondo,
+              child: SingleChildScrollView(
+                physics: AlwaysScrollableScrollPhysics(), // Permite scroll incluso si el contenido no es largo
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    // Tarjeta de perfil
                   Container(
                     decoration: BoxDecoration(
                       color: Color(0xFFF3D5C0),
@@ -302,6 +316,7 @@ class Perfil_ extends State<Perfil> {
                 ],
               ),
             ),
+          ),
       bottomNavigationBar: CustomNavbar(
         currentIndex: _selectedIndex,
         onTap: (index) {
