@@ -6,6 +6,7 @@ import '../utils/token_manager.dart';
 import '../config/confGlobal.dart';
 import '../auth/login.dart';
 import 'editar_perfil.dart';
+import 'mis_vehiculos.dart';
 
 class LogoutPage extends StatelessWidget {
   const LogoutPage({super.key});
@@ -47,6 +48,33 @@ class LogoutPage extends StatelessWidget {
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: primario,
+                  foregroundColor: Colors.white,
+                  padding: EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 2,
+                ),
+              ),
+            ),
+
+            // Botón de mis vehículos
+            Container(
+              width: double.infinity,
+              margin: EdgeInsets.only(bottom: 16),
+              child: ElevatedButton.icon(
+                onPressed: () => _navigateToVehiculos(context),
+                icon: Icon(Icons.directions_car, color: Colors.white),
+                label: Text(
+                  'Mis Vehículos',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: secundario,
                   foregroundColor: Colors.white,
                   padding: EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
@@ -121,6 +149,14 @@ class LogoutPage extends StatelessWidget {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const EditarPerfilPage()),
+    );
+  }
+
+  // Navegar a la página de mis vehículos
+  void _navigateToVehiculos(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const MisVehiculosPage()),
     );
   }
 

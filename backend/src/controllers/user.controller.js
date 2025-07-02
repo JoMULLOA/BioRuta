@@ -188,37 +188,16 @@ export async function getMisVehiculos(req, res) {
   try {
     const userRut = req.user.rut;
 
-    // Importar el repositorio dentro de la función para evitar problemas de importación circular
-    const { AppDataSource } = await import("../config/configDb.js");
-    const vehiculoRepository = AppDataSource.getRepository("Vehiculo");
+    // Importar el servicio dentro de la función
+    const { getVehiculosByUserService } = await import("../services/vehiculo.service.js");
 
-    const vehiculos = await vehiculoRepository.find({
-      where: { 
-        propietario: { rut: userRut }
-      },
-      relations: ["propietario"]
-    });
+    const [vehiculos, vehiculosError] = await getVehiculosByUserService(userRut);
 
-    // Formatear datos para el frontend
-    const vehiculosFormateados = vehiculos.map(vehiculo => {
-      // Extraer marca del modelo (asumiendo formato "Marca Modelo")
-      const modeloCompleto = vehiculo.modelo || '';
-      const partesModelo = modeloCompleto.split(' ');
-      const marca = partesModelo[0] || 'Desconocida';
-      const modelo = partesModelo.slice(1).join(' ') || modeloCompleto;
+    if (vehiculosError) {
+      return handleErrorClient(res, 404, vehiculosError);
+    }
 
-      return {
-        patente: vehiculo.patente,
-        marca: marca,
-        modelo: modelo,
-        modeloCompleto: vehiculo.modelo,
-        color: vehiculo.color,
-        nro_asientos: vehiculo.nro_asientos,
-        documentacion: vehiculo.documentacion
-      };
-    });
-
-    handleSuccess(res, 200, "Vehículos encontrados", vehiculosFormateados);
+    handleSuccess(res, 200, "Vehículos encontrados", vehiculos);
   } catch (error) {
     console.error("Error al obtener vehículos del usuario:", error);
     handleErrorServer(res, 500, error.message);

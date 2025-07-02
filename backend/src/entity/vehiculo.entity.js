@@ -30,7 +30,7 @@ const VehiculoSchema = new EntitySchema({
   relations: {
     propietario: {
       type: "many-to-one",
-      target: "User", // debe coincidir con el "name" de la entidad User
+      target: "User",
       joinColumn: {
         name: "id_usuario",
       },
