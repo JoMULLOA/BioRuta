@@ -1,10 +1,11 @@
-// pagina_individual.dart (Contenido completo para reemplazar)
+// pagina_individual.dart
 
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import '../models/mensaje_model.dart'; // Asegúrate de que esta ruta sea correcta
+import '../models/mensaje_model.dart';
+import '../config/confGlobal.dart'; // ¡Importa tu clase de configuración global!
 
 class PaginaIndividual extends StatefulWidget {
   final String nombre;
@@ -30,7 +31,7 @@ class _PaginaIndividualState extends State<PaginaIndividual> {
   
   String? _jwtToken;
 
-  final String _baseUrl = 'http://10.0.2.2:3000'; // Asegúrate de que esta URL base coincida con la de tu backend
+  // ¡Elimina la declaración _baseUrl aquí! Ahora se usa confGlobal.baseUrl
 
   @override
   void initState() {
@@ -38,10 +39,9 @@ class _PaginaIndividualState extends State<PaginaIndividual> {
     print('DEBUG PaginaIndividual: RUT del usuario autenticado: ${widget.rutUsuarioAutenticado}');
     print('DEBUG PaginaIndividual: RUT del amigo: ${widget.rutAmigo}');
 
-    _loadTokenAndFetchMessages(); // Cambiado de _loadTokenAndMessages
+    _loadTokenAndFetchMessages();
   }
 
-  // --- NUEVA FUNCIÓN: Obtener los mensajes históricos ---
   Future<void> _fetchMessages() async {
     if (_jwtToken == null) {
       print('ERROR: No hay token JWT para obtener mensajes históricos.');
@@ -49,8 +49,8 @@ class _PaginaIndividualState extends State<PaginaIndividual> {
     }
 
     try {
-      // Usa el RUT del amigo como rutUsuario2 en la URL
-      final Uri requestUri = Uri.parse('$_baseUrl/api/chat/conversacion/${widget.rutAmigo}');
+      // Usando confGlobal.baseUrl directamente
+      final Uri requestUri = Uri.parse('${confGlobal.baseUrl}/chat/conversacion/${widget.rutAmigo}');
       print('DEBUG: Intentando GET historial de mensajes de: $requestUri');
 
       final response = await http.get(
@@ -65,31 +65,24 @@ class _PaginaIndividualState extends State<PaginaIndividual> {
       print('DEBUG: Cuerpo de la respuesta del historial: ${response.body}');
 
       if (response.statusCode == 200) {
-        // --- CAMBIO CLAVE AQUÍ: Esperar directamente una LISTA, no un MAPA con 'data' ---
-        final List<dynamic> responseData = json.decode(response.body); // Ahora se decodifica directamente a una List
+        final List<dynamic> responseData = json.decode(response.body);
 
-        // Ya que la respuesta es directamente la lista, no necesitamos verificar 'success' o 'data'
-        final List<dynamic> messagesJson = responseData; // 'responseData' ya es la lista de mensajes
+        final List<dynamic> messagesJson = responseData;
 
         setState(() {
-          _messages.clear(); // Limpiar mensajes de ejemplo
-          // Mapea los JSON de mensaje a objetos Message
+          _messages.clear();
           _messages.addAll(messagesJson.map((json) {
-            // Ajusta los nombres de las claves según lo que tu backend devuelva realmente
-            // Según tu log: "emisor":{"rut":"22.333.111-4"}, "contenido":"wena po", "fecha":"2025-07-02T..."
             return Message(
-              senderRut: json['emisor']['rut'], // Accede a .emisor.rut
+              senderRut: json['emisor']['rut'],
               text: json['contenido'],
-              timestamp: DateTime.parse(json['fecha']), // Usa 'fecha'
+              timestamp: DateTime.parse(json['fecha']),
             );
           }).toList());
 
-          // Ordena los mensajes por fecha, si no vienen ordenados del backend
           _messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
         });
         print('✅ Historial de mensajes cargado correctamente: ${_messages.length} mensajes.');
 
-        // Desplazarse al final después de cargar los mensajes
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (_scrollController.hasClients) {
             _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
@@ -97,7 +90,6 @@ class _PaginaIndividualState extends State<PaginaIndividual> {
         });
 
       } else {
-        // Si el código de estado no es 200, muestra el error del cuerpo de la respuesta
         print('ERROR: Fallo al obtener historial: ${response.statusCode} - ${response.body}');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error al cargar historial: ${response.body}')),
@@ -111,13 +103,12 @@ class _PaginaIndividualState extends State<PaginaIndividual> {
     }
   }
 
-  // Modificado para cargar token y luego el historial
   Future<void> _loadTokenAndFetchMessages() async {
     _jwtToken = await _storage.read(key: 'jwt_token');
     print('DEBUG PaginaIndividual: Token cargado para envíos y lectura: ${_jwtToken != null ? _jwtToken!.substring(0, _jwtToken!.length > 10 ? 10 : _jwtToken!.length) : "Nulo"}...');
     
     if (_jwtToken != null) {
-      await _fetchMessages(); // Llama a la nueva función para obtener historial
+      await _fetchMessages();
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Error: No se pudo cargar el token de autenticación.')),
@@ -132,7 +123,6 @@ class _PaginaIndividualState extends State<PaginaIndividual> {
     final String messageText = _messageController.text.trim();
     _messageController.clear();
 
-    // Añadir el mensaje a la lista local para que se muestre al instante
     setState(() {
       _messages.add(Message(
         senderRut: widget.rutUsuarioAutenticado,
@@ -156,8 +146,9 @@ class _PaginaIndividualState extends State<PaginaIndividual> {
     }
 
     try {
+      // Usando confGlobal.baseUrl directamente
       final response = await http.post(
-        Uri.parse('$_baseUrl/api/chat/mensaje'),
+        Uri.parse('${confGlobal.baseUrl}/chat/mensaje'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $_jwtToken',
@@ -170,10 +161,6 @@ class _PaginaIndividualState extends State<PaginaIndividual> {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         print('✅ Mensaje enviado al backend correctamente.');
-        // Opcional: Si quieres ser absolutamente seguro de que el mensaje
-        // guardado es el que se muestra, puedes hacer un _fetchMessages() aquí,
-        // pero esto causa una recarga de todos los mensajes.
-        // await _fetchMessages(); 
       } else {
         print('❌ Error al enviar mensaje al backend: ${response.statusCode} - ${response.body}');
         ScaffoldMessenger.of(context).showSnackBar(

@@ -6,7 +6,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart'; // Importa 
 import '../../navbar_widget.dart';
 import 'pagina_individual.dart';
 import '../models/user_models.dart';
-
+import '../config/confGlobal.dart'; // ¡Importa tu clase de configuración global!
 class Chat extends StatefulWidget {
   @override
   ChatState createState() => ChatState();
@@ -20,7 +20,6 @@ class ChatState extends State<Chat> {
   int _selectedIndex = 3;
 
   // --- Configuraciones de la API ---
-  final String _baseUrl = 'http://10.0.2.2:3000';
 
   // --- Variables para el token y RUT (ahora NO hardcodeadas) ---
   String? _jwtToken; // Será nulo hasta que se cargue
@@ -85,7 +84,7 @@ class ChatState extends State<Chat> {
     });
 
     try {
-      final Uri requestUri = Uri.parse('$_baseUrl/api/users');
+      final Uri requestUri = Uri.parse('${confGlobal.baseUrl}/users');
       
       print('DEBUG: Intentando hacer GET a: $requestUri');
       print('DEBUG: Con token (primeros 10 chars): ${_jwtToken!.substring(0, _jwtToken!.length > 10 ? 10 : _jwtToken!.length)}...');
