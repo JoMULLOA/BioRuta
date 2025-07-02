@@ -261,3 +261,108 @@ class VehiculoViaje {
     };
   }
 }
+
+/// Modelo para viajes encontrados por proximidad geográfica
+class ViajeProximidad {
+  final String id;
+  final UbicacionViaje origen;
+  final UbicacionViaje destino;
+  final String fechaIda;
+  final String horaIda;
+  final double precio;
+  final int plazasDisponibles;
+  final int maxPasajeros;
+  final bool soloMujeres;
+  final String vehiculoPatente;
+  final String usuarioRut;
+  final DistanciasViaje distancias;
+  final Conductor? conductor; // Agregamos información del conductor
+
+  ViajeProximidad({
+    required this.id,
+    required this.origen,
+    required this.destino,
+    required this.fechaIda,
+    required this.horaIda,
+    required this.precio,
+    required this.plazasDisponibles,
+    required this.maxPasajeros,
+    required this.soloMujeres,
+    required this.vehiculoPatente,
+    required this.usuarioRut,
+    required this.distancias,
+    this.conductor,
+  });
+
+  factory ViajeProximidad.fromJson(Map<String, dynamic> json) {
+    return ViajeProximidad(
+      id: json['id'] ?? '',
+      origen: UbicacionViaje.fromJson(json['origen'] ?? {}),
+      destino: UbicacionViaje.fromJson(json['destino'] ?? {}),
+      fechaIda: json['fecha_ida'] ?? '',
+      horaIda: json['hora_ida'] ?? '',
+      precio: (json['precio'] ?? 0).toDouble(),
+      plazasDisponibles: json['plazas_disponibles'] ?? 0,
+      maxPasajeros: json['max_pasajeros'] ?? 0,
+      soloMujeres: json['solo_mujeres'] ?? false,
+      vehiculoPatente: json['vehiculo_patente'] ?? '',
+      usuarioRut: json['usuario_rut'] ?? '',
+      distancias: DistanciasViaje.fromJson(json['distancias'] ?? {}),
+      conductor: json['conductor'] != null ? Conductor.fromJson(json['conductor']) : null,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'origen': origen.toJson(),
+      'destino': destino.toJson(),
+      'fecha_ida': fechaIda,
+      'hora_ida': horaIda,
+      'precio': precio,
+      'plazas_disponibles': plazasDisponibles,
+      'max_pasajeros': maxPasajeros,
+      'solo_mujeres': soloMujeres,
+      'vehiculo_patente': vehiculoPatente,
+      'usuario_rut': usuarioRut,
+      'distancias': distancias.toJson(),
+    };
+  }
+}
+
+/// Modelo para las distancias calculadas en la búsqueda por proximidad
+class DistanciasViaje {
+  final int origenMetros;
+  final int destinoMetros;
+  final int totalCaminataMetros;
+  final double origenKm;
+  final double destinoKm;
+
+  DistanciasViaje({
+    required this.origenMetros,
+    required this.destinoMetros,
+    required this.totalCaminataMetros,
+    required this.origenKm,
+    required this.destinoKm,
+  });
+
+  factory DistanciasViaje.fromJson(Map<String, dynamic> json) {
+    return DistanciasViaje(
+      origenMetros: json['origenMetros'] ?? 0,
+      destinoMetros: json['destinoMetros'] ?? 0,
+      totalCaminataMetros: json['totalCaminataMetros'] ?? 0,
+      origenKm: (json['origenKm'] ?? 0.0).toDouble(),
+      destinoKm: (json['destinoKm'] ?? 0.0).toDouble(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'origenMetros': origenMetros,
+      'destinoMetros': destinoMetros,
+      'totalCaminataMetros': totalCaminataMetros,
+      'origenKm': origenKm,
+      'destinoKm': destinoKm,
+    };
+  }
+}

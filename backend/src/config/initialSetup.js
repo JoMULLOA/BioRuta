@@ -14,6 +14,7 @@ async function createInitialData() {
     let user2 = null;
 
     if (userCount === 0) {
+      
       user1 = userRepository.create({
         rut: "22.333.111-4",
         nombreCompleto: "Usuario1",
@@ -96,22 +97,37 @@ async function createMongoIndexes() {
     // Verificar si los índices ya existen
     const collection = Viaje.collection;
     const indexes = await collection.listIndexes().toArray();
-
-    const hasGeoIndexOrigen = indexes.some(
-      (index) => index.name === "origen.ubicacion_2dsphere"
-    );
-    const hasGeoIndexDestino = indexes.some(
-      (index) => index.name === "destino.ubicacion_2dsphere"
+    
+    // Verificar y crear el índice de origen
+    const hasGeoIndexOrigen = indexes.some(index => 
+      Object.keys(index.key).includes('origen.ubicacion') && 
+      Object.values(index.key).includes('2dsphere')
     );
 
     if (!hasGeoIndexOrigen) {
-      await collection.createIndex({ "origen.ubicacion": "2dsphere" });
+      await collection.createIndex(
+        { "origen.ubicacion": "2dsphere" },
+        { name: "origen_ubicacion_2dsphere", background: true }
+      );
       console.log("* => Índice geoespacial de origen creado");
+    } else {
+      console.log("* => Índice geoespacial de origen ya existe");
     }
 
+    // Verificar y crear el índice de destino (necesario para publicar viajes)
+    const hasGeoIndexDestino = indexes.some(index => 
+      Object.keys(index.key).includes('destino.ubicacion') && 
+      Object.values(index.key).includes('2dsphere')
+    );
+
     if (!hasGeoIndexDestino) {
-      await collection.createIndex({ "destino.ubicacion": "2dsphere" });
+      await collection.createIndex(
+        { "destino.ubicacion": "2dsphere" },
+        { name: "destino_ubicacion_2dsphere", background: true }
+      );
       console.log("* => Índice geoespacial de destino creado");
+    } else {
+      console.log("* => Índice geoespacial de destino ya existe");
     }
 
     // Crear otros índices importantes

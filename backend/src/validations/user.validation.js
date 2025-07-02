@@ -50,13 +50,13 @@ export const userQueryValidation = Joi.object({
 
 export const userBodyValidation = Joi.object({
   nombreCompleto: Joi.string()
-    .min(15)
+    .min(10)
     .max(50)
     .pattern(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/)
     .messages({
       "string.empty": "El nombre completo no puede estar vacío.",
       "string.base": "El nombre completo debe ser de tipo string.",
-      "string.min": "El nombre completo debe tener como mínimo 15 caracteres.",
+      "string.min": "El nombre completo debe tener como mínimo 10 caracteres.",
       "string.max": "El nombre completo debe tener como máximo 50 caracteres.",
       "string.pattern.base":
         "El nombre completo solo puede contener letras y espacios.",
@@ -133,5 +133,5 @@ export const userBodyValidation = Joi.object({
   .messages({
     "object.unknown": "No se permiten propiedades adicionales.",
     "object.missing":
-      "Debes proporcionar al menos un campo: nombreCompleto, email, password, newPassword, rut o rol.",
+      "Debes proporcionar al menos un campo: nombreCompleto, email, password, newPassword, rut, rol.",
   });

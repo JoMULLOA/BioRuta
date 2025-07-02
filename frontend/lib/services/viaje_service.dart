@@ -246,4 +246,32 @@ class ViajeService {
       throw Exception('Error de conexión: $e');
     }
   }
+  /// Eliminar un viaje por ID
+  static Future<Map<String, dynamic>> eliminarViaje(String viajeId) async {
+    try {
+      final response = await http.delete(
+        Uri.parse('$baseUrl/viajes/$viajeId/eliminar'),
+        headers: await _getHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return {
+          'success': true,
+          'message': data['message'] ?? 'Viaje eliminado exitosamente'
+        };
+      } else {
+        final data = json.decode(response.body);
+        return {
+          'success': false,
+          'message': data['message'] ?? 'Error al eliminar el viaje'
+        };
+      }
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Error de conexión: $e'
+      };
+    }
+  }
 }

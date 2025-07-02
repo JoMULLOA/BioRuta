@@ -4,6 +4,8 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../navbar_widget.dart';
 import '../chat/Chatsoporte.dart';
+import './solicitudes.dart';
+import '../config/confGlobal.dart';
 
 class Perfil extends StatefulWidget {
   @override
@@ -45,9 +47,7 @@ class Perfil_ extends State<Perfil> {
 
       // Llamada al backend
       final response = await http.get(
-        //Uri.parse("http://146.83.198.35:1245/api/user/busqueda?email=$email"),
-        //Uri.parse('http://localhost:3000/api/user/busqueda?email=$email'),
-        Uri.parse('http://10.0.2.2:3000/api/user/busqueda?email=$email'),
+        Uri.parse('${confGlobal.baseUrl}/user/busqueda?email=$email'),
         headers: {
           'Content-Type': 'application/json',
           'Cache-Control': 'no-cache',
@@ -130,6 +130,17 @@ class Perfil_ extends State<Perfil> {
         title: Text('Perfil', style: TextStyle(color: primario)),
         iconTheme: IconThemeData(color: primario),
         actions: [
+          //Agregar icono de solicitud de amistad
+          IconButton(
+            icon: Icon(Icons.person_add),
+            tooltip: 'Solicitudes de amistad',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => Solicitud()),
+              );
+            },
+          ),
           IconButton(
             icon: Icon(Icons.support_agent),
             tooltip: 'Soporte',

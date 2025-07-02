@@ -1,11 +1,13 @@
 "use strict";
 import { Router } from "express";
 import { 
-  crearViaje,
-  buscarViajesPorProximidad,
+  crearViaje, 
+  buscarViajesPorProximidad, 
   obtenerViajesParaMapa,
   unirseAViaje,
-  obtenerViajesUsuario
+  obtenerViajesUsuario,
+  cancelarViaje,
+  eliminarViaje // Agregar esta importación
 } from "../controllers/viaje.controller.js";
 import { 
   viajeBodyValidation,
@@ -26,10 +28,9 @@ router.post(
   crearViaje
 );
 
-// Buscar viajes por proximidad - GET /api/viajes/buscar-proximidad
+// Buscar viajes por proximidad - GET /api/viajes/buscar
 router.get(
-  "/buscar-proximidad", 
-  authenticateJwt,
+  "/buscar", 
   validateQuery(busquedaProximidadValidation),
   buscarViajesPorProximidad
 );
@@ -56,5 +57,7 @@ router.get(
   authenticateJwt,
   obtenerViajesUsuario
 );
+
+router.delete("/:viajeId/eliminar", authenticateJwt, eliminarViaje);
 
 export default router;

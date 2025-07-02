@@ -7,6 +7,7 @@ import '../buscar/inicio.dart';
 import './recuperacion.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import '../config/confGlobal.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});

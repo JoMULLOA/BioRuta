@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import './login.dart';
+import '../config/confGlobal.dart';
 
 class RegistroPage extends StatefulWidget {
   final String email;
@@ -24,9 +25,7 @@ class _RegistroPageState extends State<RegistroPage> {
     setState(() => cargando = true);
 
     final response = await http.post(
-      //Uri.parse("http://146.83.198.35:1245/api/auth/register"),
-      Uri.parse("http://10.0.2.2:3000/api/auth/register"),
-      //Uri.parse("http://localhost:3000/api/auth/register"),
+      Uri.parse("${confGlobal.baseUrl}/auth/register"),
       headers: {"Content-Type": "application/json"},
       body: jsonEncode({
         "nombreCompleto": _nombreController.text.trim(),
