@@ -1,6 +1,6 @@
 // src/entity/mensaje.entity.js
 import { EntitySchema } from "typeorm";
-import User from "./user.entity.js";
+import User from "./user.entity.js"; // Asegúrate de que esta ruta a tu entidad User sea correcta
 
 export default new EntitySchema({
   name: "Mensaje",
@@ -21,33 +21,44 @@ export default new EntitySchema({
     },
     eliminado: {
       type: "boolean",
-      default: false,  // Por defecto, el mensaje no está eliminado
+      default: false,
     },
     editado: {
       type: "boolean",
-      default: false,  // Indica si el mensaje fue editado
+      default: false,
+    },
+    // NUEVA COLUMNA: Para vincular el mensaje a un chat de viaje (MongoDB)
+    // Será nulo si el mensaje es para un chat 1 a 1
+    idViajeMongo: {
+      type: "varchar", // Los IDs de MongoDB (ObjectId) se almacenan como cadenas
+      length: 24,      // Un ObjectId tiene 24 caracteres hexadecimales
+      nullable: true,  // Es nulo para mensajes 1 a 1, no nulo para mensajes de viaje
     },
   },
   relations: {
+    // Relación con el emisor del mensaje (siempre presente)
     emisor: {
       type: "many-to-one",
       target: User,
-      joinColumn: { 
+      joinColumn: {
         name: "rutEmisor",
         referencedColumnName: "rut",
-        foreignKeyConstraintName: "fk_mensaje_emisor"
+        foreignKeyConstraintName: "fk_mensaje_emisor", // Nombre de la FK
       },
-      eager: true,
+      eager: true, // Cargar el emisor automáticamente al buscar mensajes
     },
+    // Relación con el receptor del mensaje (solo para chat 1 a 1)
+    // Será nulo si el mensaje es para un chat de viaje
     receptor: {
       type: "many-to-one",
       target: User,
-      joinColumn: { 
+      joinColumn: {
         name: "rutReceptor",
         referencedColumnName: "rut",
-        foreignKeyConstraintName: "fk_mensaje_receptor"
+        foreignKeyConstraintName: "fk_mensaje_receptor", // Nombre de la FK
       },
-      eager: true,
+      nullable: true, // Es nulo para mensajes de viaje, no nulo para mensajes 1 a 1
+      eager: true, // Cargar el receptor automáticamente al buscar mensajes
     },
   },
 });
