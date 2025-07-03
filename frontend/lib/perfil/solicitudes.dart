@@ -104,6 +104,11 @@ class _SolicitudState extends State<Solicitud> {
           _errorMessage = 'Usuario no encontrado';
           _isLoading = false;
         });
+      } else if (response.statusCode == 400) {
+        setState(() {
+          _errorMessage = 'RUT inválido';
+          _isLoading = false;
+        });
       } else {
         setState(() {
           _errorMessage = 'Error en la búsqueda';

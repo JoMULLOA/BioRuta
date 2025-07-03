@@ -4,7 +4,8 @@ import Vehiculo from "../entity/vehiculo.entity.js";
 import Viaje from "../entity/viaje.entity.js";
 import { AppDataSource } from "./configDb.js";
 import { encryptPassword } from "../helpers/bcrypt.helper.js";
-
+//Los ruts estan hasta un maximo de 29.999.999-9, por lo que no se pueden crear usuarios con ruts mayores a ese valor, se creara, 
+//pero no se podra buscar como un amigo.
 async function createInitialData() {
   try {
     // Crear Usuarios
@@ -12,6 +13,7 @@ async function createInitialData() {
     const userCount = await userRepository.count();
     let user1 = null;
     let user2 = null;
+    let user3 = null;
 
     if (userCount === 0) {
       
@@ -38,12 +40,28 @@ async function createInitialData() {
       });
       await userRepository.save(user2);
       console.log("* => Usuario 2 creado exitosamente");
+
+      user3 = userRepository.create({
+        rut: "23.444.555-6",
+        nombreCompleto: "Usuario3",
+        email: "usuario3@alumnos.ubiobio.cl",
+        password: await encryptPassword("user3456"),
+        rol: "usuario",
+        puntuacion: 4,
+        clasificacion : 2,
+      });
+      await userRepository.save(user3);
+      console.log("* => Usuario 3 creado exitosamente");
+
     } else {
       user1 = await userRepository.findOneBy({
         email: "usuario1@alumnos.ubiobio.cl",
       });
       user2 = await userRepository.findOneBy({
         email: "usuario2@alumnos.ubiobio.cl",
+      });
+      user3 = await userRepository.findOneBy({
+        email: "usuario3@alumnos.ubiobio.cl",
       });
     }
 
