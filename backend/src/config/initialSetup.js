@@ -21,6 +21,8 @@ async function createInitialData() {
         email: "usuario1@alumnos.ubiobio.cl",
         password: await encryptPassword("admin1234"),
         rol: "administrador",
+        puntuacion: 5,
+        clasificacion : 2,
       });
       await userRepository.save(user1);
       console.log("* => Usuario 1 creado exitosamente");
@@ -31,6 +33,8 @@ async function createInitialData() {
         email: "usuario2@alumnos.ubiobio.cl",
         password: await encryptPassword("user2345"),
         rol: "usuario",
+        puntuacion: 3,
+        clasificacion : 1,
       });
       await userRepository.save(user2);
       console.log("* => Usuario 2 creado exitosamente");

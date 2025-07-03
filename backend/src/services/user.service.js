@@ -188,3 +188,67 @@ export async function deleteUserService(query) {
     return [null, "Error interno del servidor"];
   }
 }
+
+
+export function calcularCalificacionBayesiana(promedioUsuario, cantidadValoraciones, promedioGlobal, minimoValoraciones) {
+  try {
+    // Fórmula bayesiana
+    const calificacionAjustada = 
+      ((cantidadValoraciones * promedioUsuario) + (minimoValoraciones * promedioGlobal)) / 
+      (cantidadValoraciones + minimoValoraciones);
+
+    return calificacionAjustada;
+  } catch (error) {
+    console.error("Error al calcular la calificación bayesiana:", error);
+    return null;
+  }
+}
+
+// Nueva función para calcular el promedio global de clasificaciones
+export async function obtenerPromedioGlobalService() {
+  try {
+    const userRepository = AppDataSource.getRepository(User);
+
+    // Obtener todos los usuarios que tienen clasificación
+    const usuarios = await userRepository.find({
+      where: {
+        clasificacion: {
+          $ne: null // No es null
+        }
+      },
+      select: ['clasificacion', 'cantidadValoraciones']
+    });
+
+    if (!usuarios || usuarios.length === 0) {
+      // Si no hay usuarios con clasificación, retornar promedio por defecto
+      return [3.0, null];
+    }
+
+    // Filtrar usuarios que realmente tengan clasificación válida
+    const usuariosConClasificacion = usuarios.filter(user => 
+      user.clasificacion !== null && 
+      user.clasificacion !== undefined && 
+      !isNaN(user.clasificacion)
+    );
+
+    if (usuariosConClasificacion.length === 0) {
+      return [3.0, null];
+    }
+
+    // Calcular la suma de todas las clasificaciones
+    const sumaClasificaciones = usuariosConClasificacion.reduce((suma, user) => {
+      return suma + parseFloat(user.clasificacion);
+    }, 0);
+
+    // Calcular el promedio
+    const promedioGlobal = sumaClasificaciones / usuariosConClasificacion.length;
+
+    console.log(`Promedio global calculado: ${promedioGlobal} de ${usuariosConClasificacion.length} usuarios`);
+
+    return [promedioGlobal, null];
+  } catch (error) {
+    console.error("Error al calcular el promedio global:", error);
+    // En caso de error, retornar promedio por defecto
+    return [3.0, "Error al calcular promedio global, usando valor por defecto"];
+  }
+}

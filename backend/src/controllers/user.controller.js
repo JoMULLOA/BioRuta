@@ -7,6 +7,8 @@ import {
   updateUserService,
   searchUserService,
   buscarRutService,
+  calcularCalificacionBayesiana,
+  obtenerPromedioGlobalService,
 } from "../services/user.service.js";
 import {
   userBodyValidation,
@@ -200,6 +202,53 @@ export async function getMisVehiculos(req, res) {
     handleSuccess(res, 200, "Vehículos encontrados", vehiculos);
   } catch (error) {
     console.error("Error al obtener vehículos del usuario:", error);
+    handleErrorServer(res, 500, error.message);
+  }
+}
+
+//Bayesiano
+
+export async function calcularCalificacion(req, res) {
+  try {
+    const { promedioUsuario, cantidadValoraciones, promedioGlobal, minimoValoraciones } = req.body;
+
+    if (typeof promedioUsuario !== 'number' || typeof cantidadValoraciones !== 'number' ||
+        typeof promedioGlobal !== 'number' || typeof minimoValoraciones !== 'number') {
+      return handleErrorClient(res, 400, "Todos los campos deben ser números");
+    }
+
+    const calificacionAjustada = calcularCalificacionBayesiana(
+      promedioUsuario,
+      cantidadValoraciones,
+      promedioGlobal,
+      minimoValoraciones
+    );
+
+    if (calificacionAjustada === null) {
+      return handleErrorServer(res, 500, "Error al calcular la calificación");
+    }
+
+    handleSuccess(res, 200, "Calificación calculada correctamente", { calificacionAjustada });
+  } catch (error) {
+    handleErrorServer(res, 500, error.message);
+  }
+}
+
+export async function obtenerPromedioGlobal(req, res) {
+  try {
+    const [promedioGlobal, error] = await obtenerPromedioGlobalService();
+
+    if (error) {
+      console.warn("Advertencia al calcular promedio global:", error);
+      // Aún así retornamos el promedio por defecto
+    }
+
+    handleSuccess(res, 200, "Promedio global obtenido correctamente", { 
+      promedioGlobal: promedioGlobal,
+      mensaje: error || "Cálculo exitoso"
+    });
+  } catch (error) {
+    console.error("Error en obtenerPromedioGlobal controller:", error);
     handleErrorServer(res, 500, error.message);
   }
 }

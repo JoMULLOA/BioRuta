@@ -91,16 +91,35 @@ class Perfil_ extends State<Perfil> {
             }
           }
           
+          // Calcular clasificación usando método bayesiano
+          String clasificacionFinal = 'Sin clasificación';
+          if (userData['clasificacion'] != null) {
+            double clasificacionOriginal = double.parse(userData['clasificacion'].toString());
+            int cantidadValoraciones = userData['cantidadValoraciones'] ?? 1; // Usar 1 como mínimo
+            
+            // Llamar al método bayesiano
+            double? clasificacionBayesiana = await _calcularCalificacionBayesiana(
+              clasificacionOriginal,
+              cantidadValoraciones
+            );
+            
+            if (clasificacionBayesiana != null) {
+              clasificacionFinal = clasificacionBayesiana.toStringAsFixed(1);
+              print('Clasificación original: $clasificacionOriginal');
+              print('Clasificación bayesiana: $clasificacionBayesiana');
+            } else {
+              // Si falla el cálculo bayesiano, usar la clasificación original
+              clasificacionFinal = clasificacionOriginal.toStringAsFixed(1);
+            }
+          }
+          
           setState(() {
             _userEmail = userData['email'] ?? 'Sin email';
             _userName = userData['nombreCompleto'] ?? 'Nombre no especificado';
             _userAge = userAge;
             _userCareer = userData['carrera'] ?? 'Carrera no especificada';
             _userDescription = userData['descripcion'] ?? 'Sin descripción';
-            //para que use un solo decimal
-            _userclasificacion = userData['clasificacion'] != null
-                ? double.parse(userData['clasificacion'].toString()).toStringAsFixed(1)
-                : 'Sin clasificacion';
+            _userclasificacion = clasificacionFinal;
             _isLoading = false;
           });
         } else {
@@ -127,6 +146,73 @@ class Perfil_ extends State<Perfil> {
         _isLoading = false;
         _userEmail = 'Error al cargar datos';
       });
+    }
+  }
+
+  // Método para calcular la calificación bayesiana
+  Future<double?> _calcularCalificacionBayesiana(double promedioUsuario, int cantidadValoraciones) async {
+    try {
+      // Primero obtener el promedio global dinámico
+      double promedioGlobal = await _obtenerPromedioGlobal();
+      
+      const int minimoValoraciones = 2; // Mínimo de valoraciones para considerar confiable
+      
+      final response = await http.post(
+        Uri.parse('${confGlobal.baseUrl}/user/calcularCalificacion'),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: json.encode({
+          'promedioUsuario': promedioUsuario,
+          'cantidadValoraciones': cantidadValoraciones,
+          'promedioGlobal': promedioGlobal,
+          'minimoValoraciones': minimoValoraciones,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data != null && data['success'] == true) {
+          return data['data']['calificacionAjustada']?.toDouble();
+        }
+      }
+      
+      print('Error en cálculo bayesiano: ${response.statusCode}');
+      print('Response body: ${response.body}');
+      return null;
+    } catch (error) {
+      print('Error al calcular calificación bayesiana: $error');
+      return null;
+    }
+  }
+
+  // Nuevo método para obtener el promedio global desde el backend
+  Future<double> _obtenerPromedioGlobal() async {
+    try {
+      final response = await http.get(
+        Uri.parse('${confGlobal.baseUrl}/user/promedioGlobal'),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data != null && data['success'] == true) {
+          double promedioGlobal = data['data']['promedioGlobal']?.toDouble() ?? 3.0;
+          print('Promedio global obtenido: $promedioGlobal');
+          return promedioGlobal;
+        }
+      }
+      
+      print('Error obteniendo promedio global: ${response.statusCode}');
+      print('Response body: ${response.body}');
+      // En caso de error, retornar valor por defecto
+      return 3.0;
+    } catch (error) {
+      print('Error al obtener promedio global: $error');
+      // En caso de error, retornar valor por defecto
+      return 3.0;
     }
   }
 
