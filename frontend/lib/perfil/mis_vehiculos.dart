@@ -4,6 +4,7 @@ import 'dart:convert';
 import '../utils/token_manager.dart';
 import '../config/confGlobal.dart';
 import 'agregar_vehiculo.dart';
+import 'editar_vehiculo.dart';
 
 class MisVehiculosPage extends StatefulWidget {
   const MisVehiculosPage({super.key});
@@ -83,6 +84,20 @@ class _MisVehiculosPageState extends State<MisVehiculosPage> {
     );
     
     // Si se agregó un vehículo, recargar la lista
+    if (result == true) {
+      _loadVehiculos();
+    }
+  }
+
+  Future<void> _navigateToEditarVehiculo(Map<String, dynamic> vehiculo) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => EditarVehiculoPage(vehiculo: vehiculo),
+      ),
+    );
+    
+    // Si se editó o eliminó el vehículo, recargar la lista
     if (result == true) {
       _loadVehiculos();
     }
@@ -265,15 +280,7 @@ class _MisVehiculosPageState extends State<MisVehiculosPage> {
                 ),
               ),
               IconButton(
-                onPressed: () {
-                  // TODO: Implementar edición de vehículo
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Función de editar próximamente'),
-                      backgroundColor: secundario,
-                    ),
-                  );
-                },
+                onPressed: () => _navigateToEditarVehiculo(vehiculo),
                 icon: Icon(Icons.edit, color: secundario),
                 tooltip: 'Editar vehículo',
               ),

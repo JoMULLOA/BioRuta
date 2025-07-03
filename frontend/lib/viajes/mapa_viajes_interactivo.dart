@@ -72,13 +72,6 @@ class _MapaViajesInteractivoState extends State<MapaViajesInteractivo> {
       final marcadoresObtenidos = await ViajeService.obtenerMarcadoresViajes();
       
       print('✅ Marcadores obtenidos: ${marcadoresObtenidos.length}');
-      print('📍 Datos de marcadores: ${marcadoresObtenidos.map((m) => {
-        'id': m.id,
-        'origen_coords': m.origen.coordinates,
-        'destino_coords': m.destino.coordinates,
-        'origen_nombre': m.origen.nombre,
-        'destino_nombre': m.destino.nombre
-      }).toList()}');
       
       setState(() {
         marcadores = marcadoresObtenidos;

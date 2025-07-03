@@ -463,23 +463,8 @@ export async function obtenerViajesParaMapa(req, res) {
 
     let filtroFecha = { estado: 'activo', plazas_disponibles: { $gt: 0 } };
     
-    // DEBUG: Revisar todos los viajes primero
-    const todosLosViajes = await Viaje.find({ estado: 'activo' }).select({
-      _id: 1,
-      fecha_ida: 1,
-      plazas_disponibles: 1,
-      estado: 1,
-      max_pasajeros: 1
-    });
-    console.log('🔍 TODOS los viajes activos:', todosLosViajes.map(v => ({
-      id: v._id,
-      fecha: v.fecha_ida,
-      plazas_disponibles: v.plazas_disponibles,
-      max_pasajeros: v.max_pasajeros,
-      estado: v.estado
-    })));
-    
-    // TEMPORALMENTE: Comentar el filtro de fecha para mostrar todos los viajes
+    // COMENTAR TEMPORALMENTE el filtro de fecha para mostrar todos los viajes
+    // Esto evita problemas de zona horaria que filtran incorrectamente los viajes
     /*
     if (fecha_desde || fecha_hasta) {
       filtroFecha.fecha_ida = {};
@@ -489,14 +474,10 @@ export async function obtenerViajesParaMapa(req, res) {
       // Por defecto, solo viajes de hoy en adelante
       const hoy = new Date();
       // No establecer horas para evitar problemas de zona horaria
-      // Solo comparar con la fecha sin hora
       const fechaHoy = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
       filtroFecha.fecha_ida = { $gte: fechaHoy };
     }
     */
-    
-    console.log('🔍 Filtro aplicado:', filtroFecha);
-    console.log('🔍 Fecha actual:', new Date());
 
     const viajes = await Viaje.find(filtroFecha)
       .select({
@@ -511,14 +492,6 @@ export async function obtenerViajesParaMapa(req, res) {
         plazas_disponibles: 1
       })
       .sort({ fecha_ida: 1 });
-
-    console.log('🔍 Viajes encontrados con filtro:', viajes.length);
-    console.log('🔍 Detalles de viajes encontrados:', viajes.map(v => ({
-      id: v._id,
-      fecha: v.fecha_ida,
-      plazas: v.plazas_disponibles,
-      precio: v.precio
-    })));
 
     // Enriquecer con datos de PostgreSQL para el mapa
     const marcadores = await Promise.all(

@@ -152,9 +152,7 @@ class ViajeService {
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        print('🔍 Respuesta del backend para marcadores: $data');
         final marcadoresData = data['data']['marcadores'] as List;
-        print('🔍 Datos de marcadores del backend: $marcadoresData');
         return marcadoresData
             .map((marcador) => MarcadorViaje.fromJson(marcador))
             .toList();
