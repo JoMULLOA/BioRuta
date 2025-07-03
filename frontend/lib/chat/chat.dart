@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart'; // Importa SecureStorage
 
-import '../../navbar_widget.dart';
+import '../widgets/custom_navbar_con_notificaciones.dart';
 import 'pagina_individual.dart';
 import '../models/user_models.dart';
-import '../config/confGlobal.dart'; // ¡Importa tu clase de configuración global!
+import '../services/amistad_service.dart'; // Importar el servicio de amistad
+import '../perfil/notificaciones.dart'; // Importar pantalla de notificaciones
 class Chat extends StatefulWidget {
   @override
   ChatState createState() => ChatState();
@@ -66,7 +65,7 @@ class ChatState extends State<Chat> {
     }
   }
 
-  // --- Función para cargar la lista de usuarios desde el backend ---
+  // --- Función para cargar SOLO los amigos desde el backend ---
   Future<void> _cargarAmigosDisponibles() async {
     // Asegurarse de que el token esté disponible antes de la petición
     if (_jwtToken == null) {
@@ -84,52 +83,53 @@ class ChatState extends State<Chat> {
     });
 
     try {
-      final Uri requestUri = Uri.parse('${confGlobal.baseUrl}/users');
+      // Usar el servicio de amistad para obtener SOLO los amigos confirmados
+      final Map<String, dynamic> resultado = await AmistadService.obtenerAmigos();
       
-      print('DEBUG: Intentando hacer GET a: $requestUri');
-      print('DEBUG: Con token (primeros 10 chars): ${_jwtToken!.substring(0, _jwtToken!.length > 10 ? 10 : _jwtToken!.length)}...');
-
-      final response = await http.get(
-        requestUri,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ${_jwtToken!.trim()}', // Usa el token cargado dinámicamente
-        },
-      );
-
-      print('DEBUG: Código de estado de la respuesta: ${response.statusCode}');
-      print('DEBUG: Cuerpo de la respuesta: ${response.body}');
-
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> responseData = json.decode(response.body);
-
-        if (responseData['success'] == true && responseData['data'] is List) {
-          final List<dynamic> usersJson = responseData['data'];
-          setState(() {
-            // Filtra al usuario actualmente autenticado de la lista
-            amigosDisponibles = usersJson
-                .map((json) => User.fromJson(json))
-                .where((user) => user.rut != _rutUsuarioAutenticado) // Filtra por RUT
-                .toList();
-            isLoading = false;
-          });
-        } else {
-          setState(() {
-            errorMessage = 'Error en la estructura de datos recibida: ${responseData['message'] ?? 'Formato inesperado'}';
-            isLoading = false;
-          });
-          print('ERROR: Formato de respuesta inesperado: $responseData');
+      print('DEBUG: Resultado completo del servicio: $resultado');
+      
+      if (resultado['success'] == true) {
+        final List<dynamic> amigosJson = resultado['data'] ?? [];
+        print('DEBUG: Datos de amigos recibidos: $amigosJson');
+        
+        final List<User> amigos = [];
+        
+        for (var item in amigosJson) {
+          try {
+            // El backend devuelve { amigo: userData, fechaAmistad: ... }
+            // Necesitamos extraer solo la parte 'amigo'
+            final amigoData = item['amigo'];
+            print('DEBUG: Procesando amigo: $amigoData');
+            
+            if (amigoData != null) {
+              final user = User.fromJson(amigoData);
+              amigos.add(user);
+              print('DEBUG: Usuario agregado: ${user.nombreCompleto}');
+            } else {
+              print('DEBUG: amigoData es null para item: $item');
+            }
+          } catch (e) {
+            print('ERROR: Error al procesar amigo: $e, item: $item');
+          }
         }
-      } else {
+        
+        print('DEBUG: Total de amigos obtenidos: ${amigos.length}');
+        
         setState(() {
-          errorMessage = 'Error al cargar usuarios: ${response.statusCode} - ${response.body}';
+          amigosDisponibles = amigos;
           isLoading = false;
         });
-        print('ERROR: Fallo en la respuesta del servidor: ${response.statusCode} - ${response.body}');
+      } else {
+        print('DEBUG: Success no es true. Resultado: $resultado');
+        setState(() {
+          errorMessage = resultado['message'] ?? 'Error al cargar amigos';
+          isLoading = false;
+        });
       }
+      
     } catch (e) {
       setState(() {
-        errorMessage = 'Error de red o parseo: $e';
+        errorMessage = 'Error al cargar amigos: $e';
         isLoading = false;
       });
       print('ERROR: Excepción al intentar cargar amigos: $e');
@@ -150,6 +150,20 @@ class ChatState extends State<Chat> {
         elevation: 0,
         title: Text('Chats', style: TextStyle(color: principal)),
         iconTheme: IconThemeData(color: principal),
+        actions: [
+          // Botón de notificaciones
+          IconButton(
+            icon: Icon(Icons.notifications, color: principal),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => NotificacionesScreen(),
+                ),
+              );
+            },
+          ),
+        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(12.0),
@@ -187,39 +201,75 @@ class ChatState extends State<Chat> {
                         style: TextStyle(color: principal, fontSize: 18, fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 8),
-                      // Generar la lista de chats con amigos DINÁMICAMENTE desde los usuarios obtenidos
-                      ...amigosDisponibles.map((user) {
-                        return Card(
-                          color: Colors.white,
-                          elevation: 2,
+                      // Verificar si hay amigos
+                      if (amigosDisponibles.isEmpty)
+                        Card(
+                          color: Colors.orange.shade50,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          margin: const EdgeInsets.symmetric(vertical: 6),
-                          child: ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor: principal.withOpacity(0.8),
-                              child: Text(user.nombreCompleto[0], style: const TextStyle(color: Colors.white)),
-                            ),
-                            title: Text(user.nombreCompleto, style: TextStyle(color: principal)),
-                            subtitle: Text(user.email, style: TextStyle(color: secundario)),
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => PaginaIndividual(
-                                    nombre: user.nombreCompleto,
-                                    rutAmigo: user.rut,
-                                    rutUsuarioAutenticado: _rutUsuarioAutenticado!, // Pasa el RUT del usuario autenticado aquí
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Column(
+                              children: [
+                                Icon(Icons.people_outline, size: 48, color: Colors.orange.shade400),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'No tienes amigos para chatear',
+                                  style: TextStyle(
+                                    color: principal,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
                                   ),
                                 ),
-                              );
-                            },
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Ve a tu perfil para enviar solicitudes de amistad',
+                                  style: TextStyle(color: secundario),
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 8),
+                                ElevatedButton(
+                                  onPressed: () => Navigator.pushNamed(context, '/perfil'),
+                                  style: ElevatedButton.styleFrom(backgroundColor: principal),
+                                  child: const Text('Ir a Perfil', style: TextStyle(color: Colors.white)),
+                                ),
+                              ],
+                            ),
                           ),
-                        );
-                      }).toList(),
+                        )
+                      else
+                        // Generar la lista de chats con amigos DINÁMICAMENTE desde los usuarios obtenidos
+                        ...amigosDisponibles.map((user) {
+                          return Card(
+                            color: Colors.white,
+                            elevation: 2,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            margin: const EdgeInsets.symmetric(vertical: 6),
+                            child: ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor: principal.withOpacity(0.8),
+                                child: Text(user.nombreCompleto[0], style: const TextStyle(color: Colors.white)),
+                              ),
+                              title: Text(user.nombreCompleto, style: TextStyle(color: principal)),
+                              subtitle: Text(user.email, style: TextStyle(color: secundario)),
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => PaginaIndividual(
+                                      nombre: user.nombreCompleto,
+                                      rutAmigo: user.rut,
+                                      rutUsuarioAutenticado: _rutUsuarioAutenticado, // Ahora es opcional
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          );
+                        }).toList(),
                     ],
                   ),
       ),
-      bottomNavigationBar: CustomNavbar(
+      bottomNavigationBar: CustomNavbarConNotificaciones(
         currentIndex: _selectedIndex,
         onTap: (index) {
           if (index == _selectedIndex) return;

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../config/confGlobal.dart';
+import '../services/amistad_service.dart';
 
 class Solicitud extends StatefulWidget {
   @override
@@ -123,18 +124,56 @@ class _SolicitudState extends State<Solicitud> {
     }
   }
 
-  void _agregarAmigo() {
+  void _agregarAmigo() async {
     if (_usuarioEncontrado != null) {
-      // Aquí implementarás la lógica para agregar al amigo
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('🤝 Solicitud enviada a ${_usuarioEncontrado!['nombreCompleto']}'),
-          backgroundColor: Color(0xFF854937),
-        ),
-      );
-      
-      // Limpiar después de enviar solicitud
-      _limpiarBusqueda();
+      setState(() {
+        _isLoading = true;
+      });
+
+      try {
+        // Enviar solicitud real usando el servicio
+        final resultado = await AmistadService.enviarSolicitudAmistad(
+          rutReceptor: _usuarioEncontrado!['data']['rut'],
+          mensaje: 'Hola, me gustaría agregarte como amigo.',
+        );
+
+        setState(() {
+          _isLoading = false;
+        });
+
+        if (resultado['success']) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('🤝 ${resultado['message']}'),
+              backgroundColor: Color(0xFF854937),
+              duration: Duration(seconds: 3),
+            ),
+          );
+          
+          // Limpiar después de enviar solicitud exitosamente
+          _limpiarBusqueda();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('❌ ${resultado['message']}'),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+      } catch (e) {
+        setState(() {
+          _isLoading = false;
+        });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Error inesperado: $e'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
     }
   }
 
@@ -368,30 +407,39 @@ class _SolicitudState extends State<Solicitud> {
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: _agregarAmigo,
+                        onPressed: _isLoading ? null : _agregarAmigo,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Color(0xFF854937),
-                          foregroundColor: Colors.white,
+                          backgroundColor: _isLoading ? Colors.grey[300] : Color(0xFF854937),
+                          foregroundColor: _isLoading ? Colors.grey[500] : Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          elevation: 2,
+                          elevation: _isLoading ? 0 : 2,
                         ),
-                        child: const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.person_add, size: 20),
-                            SizedBox(width: 8),
-                            Text(
-                              'Enviar Solicitud',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
+                        child: _isLoading
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                ),
+                              )
+                            : const Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.person_add, size: 20),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Enviar Solicitud',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ),
-                          ],
-                        ),
                       ),
                     ),
                   ],

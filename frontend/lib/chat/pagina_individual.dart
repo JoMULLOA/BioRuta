@@ -10,13 +10,13 @@ import '../config/confGlobal.dart'; // ¡Importa tu clase de configuración glob
 class PaginaIndividual extends StatefulWidget {
   final String nombre;
   final String rutAmigo;
-  final String rutUsuarioAutenticado;
+  final String? rutUsuarioAutenticado; // Hacer opcional
 
   const PaginaIndividual({
     Key? key,
     required this.nombre,
     required this.rutAmigo,
-    required this.rutUsuarioAutenticado,
+    this.rutUsuarioAutenticado, // Opcional
   }) : super(key: key);
 
   @override
@@ -30,6 +30,7 @@ class _PaginaIndividualState extends State<PaginaIndividual> {
   final FlutterSecureStorage _storage = FlutterSecureStorage();
   
   String? _jwtToken;
+  String? _rutUsuarioAutenticadoReal; // RUT real del usuario (desde parámetro o storage)
 
   // ¡Elimina la declaración _baseUrl aquí! Ahora se usa confGlobal.baseUrl
 
@@ -39,6 +40,23 @@ class _PaginaIndividualState extends State<PaginaIndividual> {
     print('DEBUG PaginaIndividual: RUT del usuario autenticado: ${widget.rutUsuarioAutenticado}');
     print('DEBUG PaginaIndividual: RUT del amigo: ${widget.rutAmigo}');
 
+    _initializarDatos();
+  }
+
+  Future<void> _initializarDatos() async {
+    // Obtener el RUT del usuario autenticado
+    _rutUsuarioAutenticadoReal = widget.rutUsuarioAutenticado ?? await _storage.read(key: 'user_rut');
+    
+    if (_rutUsuarioAutenticadoReal == null) {
+      print('ERROR: No se pudo obtener el RUT del usuario autenticado');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: No se pudo identificar el usuario')),
+      );
+      return;
+    }
+
+    print('DEBUG: RUT usuario autenticado final: $_rutUsuarioAutenticadoReal');
+    
     _loadTokenAndFetchMessages();
   }
 
@@ -120,12 +138,20 @@ class _PaginaIndividualState extends State<PaginaIndividual> {
   Future<void> _sendMessage() async {
     if (_messageController.text.trim().isEmpty) return;
 
+    // Validar que tenemos el RUT del usuario autenticado
+    if (_rutUsuarioAutenticadoReal == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error: No se pudo identificar el usuario para enviar el mensaje.')),
+      );
+      return;
+    }
+
     final String messageText = _messageController.text.trim();
     _messageController.clear();
 
     setState(() {
       _messages.add(Message(
-        senderRut: widget.rutUsuarioAutenticado,
+        senderRut: _rutUsuarioAutenticadoReal!,
         text: messageText,
         timestamp: DateTime.now(),
       ));
@@ -178,7 +204,6 @@ class _PaginaIndividualState extends State<PaginaIndividual> {
   @override
   Widget build(BuildContext context) {
     final Color principal = const Color(0xFF6B3B2D);
-    final Color secundario = const Color(0xFF8D4F3A);
     final Color miBurbuja = const Color(0xFFE0F7FA);
     final Color amigoBurbuja = const Color(0xFFDCF8C6);
 
@@ -187,6 +212,15 @@ class _PaginaIndividualState extends State<PaginaIndividual> {
         title: Text(widget.nombre, style: TextStyle(color: principal)),
         backgroundColor: Colors.white,
         iconTheme: IconThemeData(color: principal),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.chat, color: principal),
+            tooltip: 'Ir a Chat Principal',
+            onPressed: () {
+              Navigator.pushReplacementNamed(context, '/chat');
+            },
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -197,7 +231,7 @@ class _PaginaIndividualState extends State<PaginaIndividual> {
               itemCount: _messages.length,
               itemBuilder: (context, index) {
                 final message = _messages[index];
-                final bool isMe = message.senderRut == widget.rutUsuarioAutenticado;
+                final bool isMe = message.senderRut == _rutUsuarioAutenticadoReal;
 
                 return Align(
                   alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,

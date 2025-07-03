@@ -15,10 +15,10 @@ class User {
   // Factory constructor para crear una instancia de User desde un mapa JSON
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
-      rut: json['rut'],
-      nombreCompleto: json['nombreCompleto'],
-      email: json['email'],
-      rol: json['rol'],
+      rut: json['rut']?.toString() ?? '',
+      nombreCompleto: json['nombreCompleto']?.toString() ?? 'Usuario sin nombre',
+      email: json['email']?.toString() ?? 'Sin email',
+      rol: json['rol']?.toString() ?? 'usuario',
     );
   }
 }

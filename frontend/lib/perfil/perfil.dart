@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import '../navbar_widget.dart';
+import '../widgets/custom_navbar_con_notificaciones.dart';
 import '../chat/Chatsoporte.dart';
-import './solicitudes.dart';
+import './amistad_menu.dart';
 import '../config/confGlobal.dart';
 import 'ajustes.dart';
 
@@ -230,24 +230,14 @@ class Perfil_ extends State<Perfil> {
         title: Text('Perfil', style: TextStyle(color: primario)),
         iconTheme: IconThemeData(color: primario),
         actions: [
-          //Agregar icono de solicitud de amistad
+          //Botón de amistades
           IconButton(
-            icon: Icon(Icons.person_add),
-            tooltip: 'Solicitudes de amistad',
+            icon: Icon(Icons.people),
+            tooltip: 'Amistades',
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => Solicitud()),
-              );
-            },
-          ),
-          IconButton(
-            icon: Icon(Icons.support_agent),
-            tooltip: 'Soporte',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => ChatSoporte()),
+                MaterialPageRoute(builder: (context) => AmistadMenuScreen()),
               );
             },
           ),
@@ -403,7 +393,20 @@ class Perfil_ extends State<Perfil> {
               ),
             ),
           ),
-      bottomNavigationBar: CustomNavbar(
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ChatSoporte(),
+            ),
+          );
+        },
+        backgroundColor: primario,
+        child: Icon(Icons.support_agent, color: Colors.white),
+        tooltip: 'Gestionar Amistades',
+      ),
+      bottomNavigationBar: CustomNavbarConNotificaciones(
         currentIndex: _selectedIndex,
         onTap: (index) {
           if (index == _selectedIndex) return;
