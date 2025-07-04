@@ -32,7 +32,7 @@ class _RegistroPageState extends State<RegistroPage> {
         "rut": _rutController.text.trim().toUpperCase(),
         "email": widget.email.toLowerCase(),
         "carrera": _carreraController.text.trim(),
-        "rol": "pasajero",
+        "rol": "estudiante",
         "password": _passwordController.text.trim(),
       }),
     );

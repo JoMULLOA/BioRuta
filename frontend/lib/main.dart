@@ -35,6 +35,7 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
       ),
       home: const LoginPage(),      routes: {
+        '/login': (context) => const LoginPage(),
         '/inicio': (context) => const InicioScreen(),
         '/mapa': (context) => const MapPage(),
         '/viajes': (context) => const MapaViajesScreen(),

@@ -23,7 +23,7 @@ async function createInitialData() {
         nombreCompleto: "Usuario1",
         email: "usuario1@alumnos.ubiobio.cl",
         password: await encryptPassword("admin1234"),
-        rol: "administrador",
+        rol: "estudiante",
         puntuacion: 5,
         clasificacion : 2,
       });
@@ -35,7 +35,7 @@ async function createInitialData() {
         nombreCompleto: "Usuario2",
         email: "usuario2@alumnos.ubiobio.cl",
         password: await encryptPassword("user2345"),
-        rol: "usuario",
+        rol: "estudiante",
         puntuacion: 3,
         clasificacion : 1,
       });
@@ -47,12 +47,23 @@ async function createInitialData() {
         nombreCompleto: "Usuario3",
         email: "usuario3@alumnos.ubiobio.cl",
         password: await encryptPassword("user3456"),
-        rol: "usuario",
+        rol: "estudiante",
         puntuacion: 4,
         clasificacion : 2,
       });
       await userRepository.save(user3);
       console.log("* => Usuario 3 creado exitosamente");
+
+      // Crear un usuario administrador
+      const adminUser = userRepository.create({
+        rut: "20.444.555-6",
+        nombreCompleto: "Administrador",
+        email: "admin@ubiobio.cl",
+        password: await encryptPassword("admin1234"),
+        rol: "administrador",
+      });
+      await userRepository.save(adminUser);
+      console.log("* => Usuario administrador creado exitosamente");
 
     } else {
       user1 = await userRepository.findOneBy({

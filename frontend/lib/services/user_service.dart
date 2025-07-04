@@ -1,15 +1,14 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../config/api_config.dart';
+import '../utils/token_manager.dart';
 
 class UserService {
   static String get baseUrl => ApiConfig.baseUrl;
-  static const FlutterSecureStorage _storage = FlutterSecureStorage();
   
   // Obtener token de autenticación
   static Future<String?> _getToken() async {
-    return await _storage.read(key: 'auth_token');
+    return await TokenManager.getValidToken();
   }
   
   // Headers por defecto con autenticación
@@ -26,6 +25,12 @@ class UserService {
     try {
       print('🚗 Solicitando vehículos del usuario...');
       
+      // Verificar que tengamos un token válido antes de hacer la petición
+      final token = await _getToken();
+      if (token == null) {
+        throw Exception('No hay token de autenticación válido');
+      }
+      
       final response = await http.get(
         Uri.parse('$baseUrl/users/mis-vehiculos'),
         headers: await _getHeaders(),
@@ -40,13 +45,21 @@ class UserService {
         print('✅ Vehículos obtenidos: ${vehiculos.length}');
         return vehiculos;
       } else if (response.statusCode == 401) {
-        throw Exception('No autorizado. Token inválido o expirado');
+        // Token expirado o inválido, limpiar datos de autenticación
+        await TokenManager.clearAuthData();
+        throw Exception('Sesión expirada. Por favor, inicia sesión nuevamente');
       } else {
         final errorData = json.decode(response.body);
         throw Exception('Error ${response.statusCode}: ${errorData['message'] ?? 'Error desconocido'}');
       }
     } catch (e) {
       print('❌ Error obteniendo vehículos: $e');
+      
+      // Si el error contiene información sobre token expirado, limpiamos los datos
+      if (e.toString().contains('expirado') || e.toString().contains('expired') || e.toString().contains('401')) {
+        await TokenManager.clearAuthData();
+      }
+      
       throw Exception('Error de conexión: $e');
     }
   }
