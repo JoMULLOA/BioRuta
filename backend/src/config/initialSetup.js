@@ -2,6 +2,7 @@
 import User from "../entity/user.entity.js";
 import Vehiculo from "../entity/vehiculo.entity.js";
 import Viaje from "../entity/viaje.entity.js";
+import Amistad from "../entity/amistad.entity.js";
 import { AppDataSource } from "./configDb.js";
 import { encryptPassword } from "../helpers/bcrypt.helper.js";
 //Los ruts estan hasta un maximo de 29.999.999-9, por lo que no se pueden crear usuarios con ruts mayores a ese valor, se creara, 
@@ -104,6 +105,26 @@ async function createInitialData() {
         );
       }
       console.log("* => Vehículos creados exitosamente");
+    }
+
+    // Crear amistades de prueba usando la entidad Amistad
+    const amistadRepository = AppDataSource.getRepository(Amistad);
+    const amistadCount = await amistadRepository.count();
+    
+    if (amistadCount === 0 && user1 && user2 && user3) {
+      // Crear amistad entre Usuario1 y Usuario2
+      const amistad1 = amistadRepository.create({
+        rutUsuario1: user1.rut,
+        rutUsuario2: user2.rut,
+        fechaAmistad: new Date(),
+        bloqueado: false,
+        usuario1: user1,
+        usuario2: user2
+      });
+      await amistadRepository.save(amistad1);
+      
+      console.log("* => Amistades de prueba creadas exitosamente");
+      console.log("  - Usuario1 es amigo de Usuario2");
     }
 
     // Crear índices geoespaciales para MongoDB
