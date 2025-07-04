@@ -1,63 +1,169 @@
-// pagina_individual.dart
+// pagina_individual_websocket.dart - Versión completa con WebSockets
 
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:async';
 import '../models/mensaje_model.dart';
-import '../config/confGlobal.dart'; // ¡Importa tu clase de configuración global!
+import '../config/confGlobal.dart';
+import '../services/socket_service.dart';
 
-class PaginaIndividual extends StatefulWidget {
+class PaginaIndividualWebSocket extends StatefulWidget {
   final String nombre;
   final String rutAmigo;
-  final String? rutUsuarioAutenticado; // Hacer opcional
+  final String? rutUsuarioAutenticado;
 
-  const PaginaIndividual({
+  const PaginaIndividualWebSocket({
     Key? key,
     required this.nombre,
     required this.rutAmigo,
-    this.rutUsuarioAutenticado, // Opcional
+    this.rutUsuarioAutenticado,
   }) : super(key: key);
 
   @override
-  _PaginaIndividualState createState() => _PaginaIndividualState();
+  _PaginaIndividualWebSocketState createState() => _PaginaIndividualWebSocketState();
 }
 
-class _PaginaIndividualState extends State<PaginaIndividual> {
+class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
   final TextEditingController _messageController = TextEditingController();
   final List<Message> _messages = [];
   final ScrollController _scrollController = ScrollController();
   final FlutterSecureStorage _storage = FlutterSecureStorage();
   
   String? _jwtToken;
-  String? _rutUsuarioAutenticadoReal; // RUT real del usuario (desde parámetro o storage)
-
-  // ¡Elimina la declaración _baseUrl aquí! Ahora se usa confGlobal.baseUrl
+  String? _rutUsuarioAutenticadoReal;
+  late SocketService _socketService;
+  late StreamSubscription _messageSubscription;
+  late StreamSubscription _connectionSubscription;
+  bool _isConnected = false;
 
   @override
   void initState() {
     super.initState();
-    print('DEBUG PaginaIndividual: RUT del usuario autenticado: ${widget.rutUsuarioAutenticado}');
-    print('DEBUG PaginaIndividual: RUT del amigo: ${widget.rutAmigo}');
+    print('DEBUG PaginaIndividualWebSocket: RUT del usuario autenticado: ${widget.rutUsuarioAutenticado}');
+    print('DEBUG PaginaIndividualWebSocket: RUT del amigo: ${widget.rutAmigo}');
 
+    _socketService = SocketService.instance;
     _initializarDatos();
+  }
+
+  @override
+  void dispose() {
+    _messageSubscription.cancel();
+    _connectionSubscription.cancel();
+    _messageController.dispose();
+    _scrollController.dispose();
+    super.dispose();
   }
 
   Future<void> _initializarDatos() async {
     // Obtener el RUT del usuario autenticado
     _rutUsuarioAutenticadoReal = widget.rutUsuarioAutenticado ?? await _storage.read(key: 'user_rut');
     
-    if (_rutUsuarioAutenticadoReal == null) {
-      print('ERROR: No se pudo obtener el RUT del usuario autenticado');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: No se pudo identificar el usuario')),
-      );
-      return;
-    }
-
-    print('DEBUG: RUT usuario autenticado final: $_rutUsuarioAutenticadoReal');
+    // Cargar el token JWT
+    await _loadJwtToken();
     
-    _loadTokenAndFetchMessages();
+    // Conectar al socket
+    await _connectSocket();
+    
+    // Cargar mensajes históricos
+    await _fetchMessages();
+
+    print('DEBUG: RUT Usuario Real: $_rutUsuarioAutenticadoReal');
+    print('DEBUG: RUT Amigo: ${widget.rutAmigo}');
+  }
+
+  Future<void> _loadJwtToken() async {
+    try {
+      _jwtToken = await _storage.read(key: 'jwt_token');
+      if (_jwtToken != null) {
+        print('✅ Token JWT cargado correctamente');
+      } else {
+        print('❌ No se encontró token JWT');
+      }
+    } catch (e) {
+      print('ERROR cargando token: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error: No se pudo cargar el token de autenticación.')),
+        );
+      }
+    }
+  }
+
+  Future<void> _connectSocket() async {
+    try {
+      // Conectar al socket
+      await _socketService.connect();
+      
+      // Escuchar cambios en la conexión
+      _connectionSubscription = _socketService.connectionStream.listen((isConnected) {
+        if (mounted) {
+          setState(() {
+            _isConnected = isConnected;
+          });
+          
+          if (isConnected) {
+            print('🔌 Socket conectado correctamente');
+          } else {
+            print('🔌 Socket desconectado');
+          }
+        }
+      });
+      
+      // Escuchar nuevos mensajes
+      _messageSubscription = _socketService.messageStream.listen((messageData) {
+        _handleNewSocketMessage(messageData);
+      });
+      
+    } catch (e) {
+      print('ERROR conectando socket: $e');
+    }
+  }
+
+  void _handleNewSocketMessage(Map<String, dynamic> messageData) {
+    if (!mounted) return;
+    
+    try {
+      print('📨 Procesando nuevo mensaje: $messageData');
+      
+      // Verificar que el mensaje es para esta conversación
+      final emisorRut = messageData['emisor']['rut'];
+      final receptorRut = messageData['receptor']?['rut'];
+      
+      bool esParaEstaConversacion = false;
+      
+      if (receptorRut != null) {
+        // Es un mensaje 1 a 1
+        esParaEstaConversacion = (emisorRut == widget.rutAmigo && receptorRut == _rutUsuarioAutenticadoReal) ||
+                                (emisorRut == _rutUsuarioAutenticadoReal && receptorRut == widget.rutAmigo);
+      }
+      
+      if (esParaEstaConversacion) {
+        final nuevoMensaje = Message(
+          senderRut: emisorRut,
+          text: messageData['contenido'],
+          timestamp: DateTime.parse(messageData['fecha']),
+        );
+        
+        setState(() {
+          // Evitar duplicados
+          if (!_messages.any((m) => 
+              m.senderRut == nuevoMensaje.senderRut && 
+              m.text == nuevoMensaje.text && 
+              m.timestamp.difference(nuevoMensaje.timestamp).abs().inSeconds < 2)) {
+            _messages.add(nuevoMensaje);
+            _messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+          }
+        });
+        
+        _scrollToBottom();
+        print('✅ Mensaje agregado a la conversación');
+      }
+    } catch (e) {
+      print('ERROR procesando mensaje socket: $e');
+    }
   }
 
   Future<void> _fetchMessages() async {
@@ -67,7 +173,6 @@ class _PaginaIndividualState extends State<PaginaIndividual> {
     }
 
     try {
-      // Usando confGlobal.baseUrl directamente
       final Uri requestUri = Uri.parse('${confGlobal.baseUrl}/chat/conversacion/${widget.rutAmigo}');
       print('DEBUG: Intentando GET historial de mensajes de: $requestUri');
 
@@ -84,7 +189,6 @@ class _PaginaIndividualState extends State<PaginaIndividual> {
 
       if (response.statusCode == 200) {
         final List<dynamic> responseData = json.decode(response.body);
-
         final List<dynamic> messagesJson = responseData;
 
         setState(() {
@@ -99,41 +203,15 @@ class _PaginaIndividualState extends State<PaginaIndividual> {
 
           _messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
         });
-        print('✅ Historial de mensajes cargado correctamente: ${_messages.length} mensajes.');
 
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (_scrollController.hasClients) {
-            _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
-          }
-        });
-
+        _scrollToBottom();
       } else {
-        print('ERROR: Fallo al obtener historial: ${response.statusCode} - ${response.body}');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al cargar historial: ${response.body}')),
-        );
+        print('ERROR al obtener historial: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
-      print('ERROR: Excepción al obtener historial de mensajes: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error de conexión al cargar historial: $e')),
-      );
+      print('ERROR de conexión al obtener historial: $e');
     }
   }
-
-  Future<void> _loadTokenAndFetchMessages() async {
-    _jwtToken = await _storage.read(key: 'jwt_token');
-    print('DEBUG PaginaIndividual: Token cargado para envíos y lectura: ${_jwtToken != null ? _jwtToken!.substring(0, _jwtToken!.length > 10 ? 10 : _jwtToken!.length) : "Nulo"}...');
-    
-    if (_jwtToken != null) {
-      await _fetchMessages();
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error: No se pudo cargar el token de autenticación.')),
-      );
-    }
-  }
-
 
   Future<void> _sendMessage() async {
     if (_messageController.text.trim().isEmpty) return;
@@ -149,139 +227,204 @@ class _PaginaIndividualState extends State<PaginaIndividual> {
     final String messageText = _messageController.text.trim();
     _messageController.clear();
 
-    setState(() {
-      _messages.add(Message(
-        senderRut: _rutUsuarioAutenticadoReal!,
-        text: messageText,
-        timestamp: DateTime.now(),
-      ));
-    });
-
-    _scrollController.animateTo(
-      _scrollController.position.maxScrollExtent,
-      duration: Duration(milliseconds: 300),
-      curve: Curves.easeOut,
-    );
-
-    if (_jwtToken == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error: No se encontró token de autenticación para enviar el mensaje.')),
-      );
-      print('ERROR: Intento de enviar mensaje sin token.');
-      return;
+    // Verificar que el socket esté conectado
+    if (!_socketService.isConnected) {
+      print('🔌 Socket no conectado, intentando reconectar...');
+      await _socketService.connect();
+      
+      if (!_socketService.isConnected) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error de conexión. Intenta nuevamente.')),
+        );
+        return;
+      }
     }
 
     try {
-      // Usando confGlobal.baseUrl directamente
-      final response = await http.post(
-        Uri.parse('${confGlobal.baseUrl}/chat/mensaje'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $_jwtToken',
-        },
-        body: jsonEncode({
-          'contenido': messageText,
-          'rutReceptor': widget.rutAmigo,
-        }),
+      // Enviar mensaje via WebSocket
+      _socketService.sendMessage(
+        contenido: messageText,
+        receptorRut: widget.rutAmigo,
       );
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        print('✅ Mensaje enviado al backend correctamente.');
-      } else {
-        print('❌ Error al enviar mensaje al backend: ${response.statusCode} - ${response.body}');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al enviar mensaje: ${response.body}')),
-        );
-      }
+      print('📤 Mensaje enviado via WebSocket');
+
     } catch (e) {
-      print('❌ Error de conexión al enviar mensaje: $e');
+      print('ERROR enviando mensaje: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error de conexión al enviar mensaje: $e')),
+        SnackBar(content: Text('Error al enviar mensaje: $e')),
       );
     }
   }
 
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  Widget _buildMessage(Message message, bool isMe) {
+    return Container(
+      margin: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+      child: Row(
+        mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+        children: [
+          if (!isMe) ...[
+            CircleAvatar(
+              radius: 16,
+              backgroundColor: Colors.grey[300],
+              child: Text(
+                widget.nombre[0].toUpperCase(),
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+              ),
+            ),
+            SizedBox(width: 8),
+          ],
+          Flexible(
+            child: Container(
+              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: isMe ? Colors.blue : Colors.grey[200],
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    message.text,
+                    style: TextStyle(
+                      color: isMe ? Colors.white : Colors.black87,
+                      fontSize: 16,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    '${message.timestamp.hour.toString().padLeft(2, '0')}:${message.timestamp.minute.toString().padLeft(2, '0')}',
+                    style: TextStyle(
+                      color: isMe ? Colors.white70 : Colors.grey[600],
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (isMe) ...[
+            SizedBox(width: 8),
+            CircleAvatar(
+              radius: 16,
+              backgroundColor: Colors.blue[100],
+              child: Icon(Icons.person, size: 16, color: Colors.blue),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final Color principal = const Color(0xFF6B3B2D);
-    final Color miBurbuja = const Color(0xFFE0F7FA);
-    final Color amigoBurbuja = const Color(0xFFDCF8C6);
-
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.nombre, style: TextStyle(color: principal)),
+        title: Row(
+          children: [
+            CircleAvatar(
+              backgroundColor: Colors.grey[300],
+              child: Text(
+                widget.nombre[0].toUpperCase(),
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+            SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.nombre,
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    _isConnected ? 'En línea' : 'Desconectado',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: _isConnected ? Colors.green : Colors.red,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
         backgroundColor: Colors.white,
-        iconTheme: IconThemeData(color: principal),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.chat, color: principal),
-            tooltip: 'Ir a Chat Principal',
-            onPressed: () {
-              Navigator.pushReplacementNamed(context, '/chat');
-            },
-          ),
-        ],
+        foregroundColor: Colors.black,
+        elevation: 1,
       ),
       body: Column(
         children: [
-          Expanded(
-            child: ListView.builder(
-              controller: _scrollController,
-              padding: const EdgeInsets.all(8.0),
-              itemCount: _messages.length,
-              itemBuilder: (context, index) {
-                final message = _messages[index];
-                final bool isMe = message.senderRut == _rutUsuarioAutenticadoReal;
-
-                return Align(
-                  alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
-                    padding: const EdgeInsets.all(12.0),
-                    decoration: BoxDecoration(
-                      color: isMe ? amigoBurbuja : miBurbuja,
-                      borderRadius: BorderRadius.only(
-                        topLeft: Radius.circular(12.0),
-                        topRight: Radius.circular(12.0),
-                        bottomLeft: isMe ? Radius.circular(12.0) : Radius.circular(0.0),
-                        bottomRight: isMe ? Radius.circular(0.0) : Radius.circular(12.0),
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.grey.withOpacity(0.3),
-                          spreadRadius: 1,
-                          blurRadius: 3,
-                          offset: Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          message.text,
-                          style: TextStyle(
-                            color: isMe ? Colors.black87 : Colors.black87,
-                            fontSize: 16.0,
-                          ),
-                        ),
-                        SizedBox(height: 4.0),
-                        Text(
-                          '${message.timestamp.hour}:${message.timestamp.minute.toString().padLeft(2, '0')}',
-                          style: TextStyle(
-                            color: Colors.black54,
-                            fontSize: 10.0,
-                          ),
-                        ),
-                      ],
-                    ),
+          // Indicador de conexión
+          if (!_isConnected)
+            Container(
+              width: double.infinity,
+              padding: EdgeInsets.all(8),
+              color: Colors.orange[100],
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.wifi_off, size: 16, color: Colors.orange[800]),
+                  SizedBox(width: 8),
+                  Text(
+                    'Sin conexión en tiempo real',
+                    style: TextStyle(color: Colors.orange[800]),
                   ),
-                );
-              },
+                ],
+              ),
             ),
+          
+          // Lista de mensajes
+          Expanded(
+            child: _messages.isEmpty
+                ? Center(
+                    child: Text(
+                      'No hay mensajes aún.\n¡Comienza la conversación!',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 16,
+                      ),
+                    ),
+                  )
+                : ListView.builder(
+                    controller: _scrollController,
+                    itemCount: _messages.length,
+                    itemBuilder: (context, index) {
+                      final message = _messages[index];
+                      final isMe = message.senderRut == _rutUsuarioAutenticadoReal;
+                      return _buildMessage(message, isMe);
+                    },
+                  ),
           ),
-          Padding(
-            padding: const EdgeInsets.all(8.0),
+          
+          // Campo de entrada de mensaje
+          Container(
+            padding: EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.2),
+                  spreadRadius: 1,
+                  blurRadius: 3,
+                  offset: Offset(0, -1),
+                ),
+              ],
+            ),
             child: Row(
               children: [
                 Expanded(
@@ -290,22 +433,23 @@ class _PaginaIndividualState extends State<PaginaIndividual> {
                     decoration: InputDecoration(
                       hintText: 'Escribe un mensaje...',
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(20.0),
+                        borderRadius: BorderRadius.circular(25),
                         borderSide: BorderSide.none,
                       ),
                       filled: true,
-                      fillColor: Colors.grey[200],
-                      contentPadding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                      fillColor: Colors.grey[100],
+                      contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                     ),
-                    onSubmitted: (text) => _sendMessage(),
+                    onSubmitted: (_) => _sendMessage(),
+                    maxLines: null,
                   ),
                 ),
-                SizedBox(width: 8.0),
+                SizedBox(width: 8),
                 FloatingActionButton(
                   onPressed: _sendMessage,
-                  backgroundColor: principal,
-                  child: Icon(Icons.send, color: Colors.white),
-                  elevation: 2,
+                  child: Icon(Icons.send),
+                  mini: true,
+                  backgroundColor: _isConnected ? Colors.blue : Colors.grey,
                 ),
               ],
             ),

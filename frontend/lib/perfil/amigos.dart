@@ -150,7 +150,7 @@ class _AmigosScreenState extends State<AmigosScreen> {
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => PaginaIndividual(
+        builder: (context) => PaginaIndividualWebSocket(
           nombre: amigo['nombreCompleto'] ?? 'Usuario',
           rutAmigo: amigo['rut'] ?? '',
           rutUsuarioAutenticado: _rutUsuarioAutenticado, // Ahora es opcional

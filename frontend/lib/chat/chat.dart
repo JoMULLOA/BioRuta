@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart'; // Importa SecureStorage
 
 import '../widgets/custom_navbar_con_notificaciones.dart';
-import 'pagina_individual.dart';
+import 'pagina_individual.dart'; // Cambiar a la versión WebSocket
 import '../models/user_models.dart';
 import '../services/amistad_service.dart'; // Importar el servicio de amistad
 import '../perfil/notificaciones.dart'; // Importar pantalla de notificaciones
@@ -255,7 +255,7 @@ class ChatState extends State<Chat> {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (context) => PaginaIndividual(
+                                    builder: (context) => PaginaIndividualWebSocket(
                                       nombre: user.nombreCompleto,
                                       rutAmigo: user.rut,
                                       rutUsuarioAutenticado: _rutUsuarioAutenticado, // Ahora es opcional

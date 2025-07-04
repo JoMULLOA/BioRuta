@@ -9,6 +9,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../config/confGlobal.dart';
 import '../utils/token_manager.dart';
+import '../services/socket_service.dart'; // Importar SocketService
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -185,6 +186,16 @@ class _LoginPageState extends State<LoginPage> {
               await _saveUserEmail(email); // Guardar el email (si lo sigues necesitando en SharedPreferences)
 
               print('✅ Login exitoso. Token y RUT ($userRut) guardados.');
+
+              // Inicializar conexión WebSocket después del login exitoso
+              try {
+                final socketService = SocketService.instance;
+                await socketService.connect();
+                print('🔌 Socket inicializado después del login');
+              } catch (e) {
+                print('⚠️ Error al conectar socket después del login: $e');
+                // No fallar el login por error de socket
+              }
 
               Navigator.pushReplacement(
                 context,

@@ -67,10 +67,13 @@ async function setupServer() {
     app.use("/api", pingRoutes);  // Rutas de MongoDB
 
     const server = http.createServer(app);
-    initSocket(server); // Inicializa Socket.IO con el servidor    // Inicio del servidor
-    app.listen(PORT, '0.0.0.0', () => {
+    initSocket(server); // Inicializa Socket.IO con el servidor
+    
+    // Inicio del servidor usando server.listen() para incluir Socket.IO
+    server.listen(PORT, '0.0.0.0', () => {
       console.log(`✅ Servidor corriendo en ${HOST}:${PORT}/api`);
       console.log(`🌐 Accesible desde emulador Android en 10.0.2.2:${PORT}/api`);
+      console.log(`🔌 Socket.IO disponible en ${HOST}:${PORT}/socket.io/`);
     });
   } catch (error) {
     console.error("Error en index.js -> setupServer():", error);
