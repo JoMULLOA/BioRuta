@@ -2,6 +2,7 @@
 import User from "../entity/user.entity.js";
 import { AppDataSource } from "../config/configDb.js";
 import { comparePassword, encryptPassword } from "../helpers/bcrypt.helper.js";
+import { Not, IsNull } from "typeorm";
 
 export async function getUserService(query) {
   try {
@@ -209,14 +210,12 @@ export async function obtenerPromedioGlobalService() {
   try {
     const userRepository = AppDataSource.getRepository(User);
 
-    // Obtener todos los usuarios que tienen clasificación
+    // Obtener todos los usuarios que tienen clasificación (usando sintaxis correcta para PostgreSQL)
     const usuarios = await userRepository.find({
       where: {
-        clasificacion: {
-          $ne: null // No es null
-        }
+        clasificacion: Not(IsNull()) // Sintaxis correcta de TypeORM para "no es null"
       },
-      select: ['clasificacion', 'cantidadValoraciones']
+      select: ['clasificacion'] // Solo necesitamos la clasificación para calcular el promedio
     });
 
     if (!usuarios || usuarios.length === 0) {
