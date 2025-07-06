@@ -10,6 +10,7 @@ import 'dart:convert';
 import '../config/confGlobal.dart';
 import '../utils/token_manager.dart';
 import '../services/socket_service.dart'; // Importar SocketService
+import '../admin/admin_dashboard.dart'; // Importar AdminDashboard
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -146,6 +147,12 @@ class _LoginPageState extends State<LoginPage> {
     print('✅ RUT de usuario guardado correctamente en SecureStorage: $rut');
   }
 
+  // Método para guardar el rol del usuario (usando FlutterSecureStorage)
+  Future<void> _saveUserRole(String role) async {
+    await _storage.write(key: 'user_role', value: role);
+    print('✅ Rol de usuario guardado correctamente en SecureStorage: $role');
+  }
+
   Future<void> login() async {
     final email = _emailController.text.trim().toLowerCase();
     final password = _passwordController.text.trim();
@@ -179,13 +186,20 @@ class _LoginPageState extends State<LoginPage> {
           try {
             Map<String, dynamic> decodedToken = JwtDecoder.decode(token);
             final String? userRut = decodedToken['rut']; // Asumiendo que el RUT está en el payload del JWT
+            final String? userRole = decodedToken['rol']; // Extraer el rol del usuario
 
             if (userRut != null) {
               await _saveAuthToken(token); // Guardar el token
               await _saveUserRut(userRut); // Guardar el RUT decodificado
               await _saveUserEmail(email); // Guardar el email (si lo sigues necesitando en SharedPreferences)
+              
+              // Guardar el rol del usuario
+              if (userRole != null) {
+                await _saveUserRole(userRole);
+                print('✅ Rol de usuario guardado: $userRole');
+              }
 
-              print('✅ Login exitoso. Token y RUT ($userRut) guardados.');
+              print('✅ Login exitoso. Token, RUT ($userRut) y rol ($userRole) guardados.');
 
               // Inicializar conexión WebSocket después del login exitoso
               try {
@@ -197,10 +211,18 @@ class _LoginPageState extends State<LoginPage> {
                 // No fallar el login por error de socket
               }
 
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (_) => const InicioScreen()),
-              );
+              // Navegar según el rol del usuario
+              if (userRole == 'administrador') {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (_) => const AdminDashboard()),
+                );
+              } else {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (_) => const InicioScreen()),
+                );
+              }
             } else {
               print('⚠️ RUT no encontrado en el payload del token JWT.');
               ScaffoldMessenger.of(context).showSnackBar(
