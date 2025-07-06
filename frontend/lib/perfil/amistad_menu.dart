@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../perfil/solicitudes.dart';
 import '../perfil/amigos.dart';
-import '../perfil/notificaciones.dart';
 import '../utils/custom_app_bar.dart';
 
 class AmistadMenuScreen extends StatelessWidget {

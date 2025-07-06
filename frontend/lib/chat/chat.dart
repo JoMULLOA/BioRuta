@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart'; // Importa SecureStorage
-
 import '../widgets/custom_navbar_con_notificaciones.dart';
 import 'pagina_individual.dart'; // Cambiar a la versión WebSocket
 import '../models/user_models.dart';
@@ -16,8 +15,6 @@ class ChatState extends State<Chat> {
   bool isLoading = true;
   String? errorMessage;
   int _selectedIndex = 3;
-
-  // --- Configuraciones de la API ---
 
   // --- Variables para el token y RUT (ahora NO hardcodeadas) ---
   String? _jwtToken; // Será nulo hasta que se cargue

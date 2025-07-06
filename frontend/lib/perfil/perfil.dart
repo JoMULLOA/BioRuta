@@ -7,6 +7,7 @@ import '../chat/Chatsoporte.dart';
 import './amistad_menu.dart';
 import '../config/confGlobal.dart';
 import 'ajustes.dart';
+import 'editar_perfil.dart';
 
 class Perfil extends StatefulWidget {
   @override
@@ -216,6 +217,14 @@ class Perfil_ extends State<Perfil> {
     }
   }
 
+  // Función para navegar a la página de editar perfil
+  void _navigateToEditProfile(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const EditarPerfilPage()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final Color fondo = Color(0xFFF8F2EF);
@@ -269,64 +278,149 @@ class Perfil_ extends State<Perfil> {
                 child: Column(
                   children: [
                     // Tarjeta de perfil
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Color(0xFFF3D5C0),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    padding: EdgeInsets.all(16),
-                    child: Column(
+                    Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            Color(0xFF8D4F3A), // Color secundario (marrón medio)
+                            Color(0xFF6B3B2D), // Color primario (marrón oscuro)
+                            Color(0xFFA0613B), // Marrón más claro para transición
+                          ],
+                          stops: [0.0, 0.7, 1.0],
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.15),
+                            spreadRadius: 2,
+                            blurRadius: 12,
+                            offset: Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      padding: EdgeInsets.all(16),
+                      child: Stack(
+                        children: [
+                          // Ícono de editar flotante en la esquina superior derecha
+                          Positioned(
+                            top: -8,
+                            right: -8,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: secundario, 
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black26,
+                                    blurRadius: 6,
+                                    offset: Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: IconButton(
+                                onPressed: () => _navigateToEditProfile(context),
+                                icon: Icon(Icons.edit, color: Colors.white, size: 20), // Ícono marrón
+                                padding: EdgeInsets.all(8),
+                                constraints: BoxConstraints(minWidth: 36, minHeight: 36),
+                                tooltip: 'Editar Perfil',
+                              ),
+                            ),
+                          ),
+                          // Contenido original de la tarjeta
+                          Column(
                       children: [
                         CircleAvatar(
-                          radius: 40,
+                          radius: 45, // Aumenté un poco el tamaño
+                          backgroundColor: Colors.white.withOpacity(0.2),
                           backgroundImage: AssetImage('assets/profile.png'),
                           child: _userName.isEmpty
-                              ? Icon(Icons.person, size: 40, color: secundario)
+                              ? Icon(Icons.person, size: 45, color: Colors.white70)
                               : null,
                         ),
-                        SizedBox(height: 8),
+                        SizedBox(height: 12),
                         Text(
                           _userName.isNotEmpty ? _userName : _userEmail,
                           style: TextStyle(
-                            fontSize: 20,
+                            fontSize: 22,
                             fontWeight: FontWeight.bold,
-                            color: primario,
+                            color: Colors.white, // Texto blanco
+                            shadows: [
+                              Shadow(
+                                color: Colors.black26,
+                                offset: Offset(0, 1),
+                                blurRadius: 2,
+                              ),
+                            ],
                           ),
                         ),
-                        Text(_userAge, style: TextStyle(color: secundario)),
+                        SizedBox(height: 4),
+                        Text(
+                          _userAge, 
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.9),
+                            fontSize: 16,
+                          ),
+                        ),
                         if (_userEmail.isNotEmpty && _userName.isNotEmpty)
                           Padding(
-                            padding: const EdgeInsets.only(top: 4),
+                            padding: const EdgeInsets.only(top: 6),
                             child: Text(
                               _userEmail,
-                              style: TextStyle(color: secundario, fontSize: 12),
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.8), 
+                                fontSize: 13,
+                              ),
                             ),
                           ),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Icon(Icons.star, color: secundario, size: 16), // Ícono de estrella
-                            SizedBox(width: 8), // Espaciado entre el ícono y el texto
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Clasificación',
-                                  style: TextStyle(color: secundario, fontSize: 12, fontWeight: FontWeight.bold),
-                                ),
-                                Text(
-                                  '$_userclasificacion/5',
-                                  style: TextStyle(color: secundario, fontSize: 12),
-                                ),
-                              ],
+                        SizedBox(height: 12),
+                        Container(
+                          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.3),
+                              width: 1,
                             ),
-                          ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.star, color: Color(0xFFFFD700), size: 18), // Estrella dorada
+                              SizedBox(width: 8),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    'Clasificación',
+                                    style: TextStyle(
+                                      color: Colors.white.withOpacity(0.9), 
+                                      fontSize: 12, 
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  Text(
+                                    '$_userclasificacion/5',
+                                    style: TextStyle(
+                                      color: Colors.white, 
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
                         ),
-                      ],
-
-                    ),
-                  ),
+                          ], // Cierra Row de clasificación
+                        ), // Cierra Column del contenido del Stack
+                      ], // Cierra children del Stack
+                    ), // Cierra Stack
+                  ), // Cierra Container
 
                   SizedBox(height: 20),
 

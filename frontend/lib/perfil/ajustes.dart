@@ -5,7 +5,6 @@ import 'dart:convert';
 import '../utils/token_manager.dart';
 import '../config/confGlobal.dart';
 import '../auth/login.dart';
-import 'editar_perfil.dart';
 import 'mis_vehiculos.dart';
 
 class LogoutPage extends StatelessWidget {
@@ -30,33 +29,6 @@ class LogoutPage extends StatelessWidget {
         child: Column(
           children: [
             Spacer(),
-
-            // Botón de editar perfil
-            Container(
-              width: double.infinity,
-              margin: EdgeInsets.only(bottom: 16),
-              child: ElevatedButton.icon(
-                onPressed: () => _navigateToEditProfile(context),
-                icon: Icon(Icons.edit, color: Colors.white),
-                label: Text(
-                  'Editar Perfil',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: primario,
-                  foregroundColor: Colors.white,
-                  padding: EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  elevation: 2,
-                ),
-              ),
-            ),
 
             // Botón de mis vehículos
             Container(
@@ -141,14 +113,6 @@ class LogoutPage extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-
-  // Navegar a la página de editar perfil
-  void _navigateToEditProfile(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const EditarPerfilPage()),
     );
   }
 
