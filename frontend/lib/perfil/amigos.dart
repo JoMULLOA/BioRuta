@@ -171,12 +171,6 @@ class _AmigosScreenState extends State<AmigosScreen> {
         backgroundColor: const Color(0xFF854937),
         foregroundColor: Colors.white,
         elevation: 0,
-        actions: [
-          IconButton(
-            icon: Icon(Icons.refresh),
-            onPressed: _cargarAmigos,
-          ),
-        ],
       ),
       body: _isLoading
           ? Center(

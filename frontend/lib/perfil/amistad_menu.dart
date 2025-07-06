@@ -56,22 +56,6 @@ class AmistadMenuScreen extends StatelessWidget {
 
             _buildOptionCard(
               context,
-              icon: Icons.notifications,
-              title: 'Notificaciones',
-              subtitle: 'Revisa y responde solicitudes pendientes',
-              color: Colors.orange,
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => NotificacionesScreen()),
-                );
-              },
-            ),
-
-            const SizedBox(height: 16),
-
-            _buildOptionCard(
-              context,
               icon: Icons.people,
               title: 'Mis Amigos',
               subtitle: 'Ve tu lista de amigos y chatea con ellos',

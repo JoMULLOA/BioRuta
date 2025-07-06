@@ -5,7 +5,6 @@ import '../widgets/custom_navbar_con_notificaciones.dart';
 import 'pagina_individual.dart'; // Cambiar a la versión WebSocket
 import '../models/user_models.dart';
 import '../services/amistad_service.dart'; // Importar el servicio de amistad
-import '../perfil/notificaciones.dart'; // Importar pantalla de notificaciones
 class Chat extends StatefulWidget {
   @override
   ChatState createState() => ChatState();
@@ -150,20 +149,6 @@ class ChatState extends State<Chat> {
         elevation: 0,
         title: Text('Chats', style: TextStyle(color: principal)),
         iconTheme: IconThemeData(color: principal),
-        actions: [
-          // Botón de notificaciones
-          IconButton(
-            icon: Icon(Icons.notifications, color: principal),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => NotificacionesScreen(),
-                ),
-              );
-            },
-          ),
-        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(12.0),
