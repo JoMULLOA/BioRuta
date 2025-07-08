@@ -60,3 +60,53 @@ export function validateParams(schema) {
     next();
   };
 }
+
+/**
+ * Middleware genérico de validación que puede validar body, query o params
+ * @param {Object} schema - Esquema de validación Joi
+ * @param {string} target - 'body', 'query', o 'params' (por defecto 'body')
+ */
+export function validationMiddleware(schema, target = 'body') {
+  return (req, res, next) => {
+    let dataToValidate;
+    
+    switch (target) {
+      case 'query':
+        dataToValidate = req.query;
+        break;
+      case 'params':
+        dataToValidate = req.params;
+        break;
+      case 'body':
+      default:
+        dataToValidate = req.body;
+        break;
+    }
+
+    const { error, value } = schema.validate(dataToValidate, { 
+      abortEarly: false,
+      stripUnknown: true 
+    });
+    
+    if (error) {
+      const errorMessages = error.details.map(detail => detail.message);
+      return handleErrorServer(res, `Errores de validación en ${target}: ${errorMessages.join(', ')}`);
+    }
+    
+    // Asignar los valores validados y limpios de vuelta al request
+    switch (target) {
+      case 'query':
+        req.query = value;
+        break;
+      case 'params':
+        req.params = value;
+        break;
+      case 'body':
+      default:
+        req.body = value;
+        break;
+    }
+    
+    next();
+  };
+}

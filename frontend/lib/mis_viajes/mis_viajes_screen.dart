@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../services/viaje_service.dart';
+import '../services/pago_service.dart';
 import '../models/viaje_model.dart';
 import '../navbar_widget.dart';
-import '../utils/token_manager.dart';
-import '../auth/login.dart';
 
 class MisViajesScreen extends StatefulWidget {
   const MisViajesScreen({super.key});
@@ -30,17 +31,6 @@ Future<void> _cargarViajes() async {
       cargando = true;
     });
 
-    // Verificar autenticación antes de cargar viajes
-    if (await TokenManager.needsLogin()) {
-      if (mounted) {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => const LoginPage()),
-          (route) => false,
-        );
-      }
-      return;
-    }
-
     // Cargar viajes usando el método obtenerMisViajes
     final List<Viaje> viajes = await ViajeService.obtenerMisViajes();
 
@@ -54,22 +44,10 @@ Future<void> _cargarViajes() async {
     setState(() {
       cargando = false;
     });
-    
-    // Verificar si el error es de autenticación
-    if (e.toString().contains('Sesión expirada') || e.toString().contains('Token')) {
-      if (mounted) {
-        TokenManager.showSessionExpiredMessage(context);
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => const LoginPage()),
-          (route) => false,
-        );
-      }
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al cargar viajes: $e')),
-        );
-      }
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al cargar viajes: $e')),
+      );
     }
   }
 }
@@ -392,7 +370,7 @@ Future<void> _cargarViajes() async {
             
             const SizedBox(height: 12),
             
-            // Pasajeros
+            // Pasajeros y botones
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -406,9 +384,18 @@ Future<void> _cargarViajes() async {
                     ),
                   ],
                 ),
-                if (esCreador)
-                  Row(
-                    children: [
+                Row(
+                  children: [
+                    // Botón de pago para todos los viajes
+                    IconButton(
+                      icon: const Icon(Icons.payment, size: 20, color: Colors.green),
+                      tooltip: 'Pagar viaje',
+                      onPressed: () {
+                        _procesarPago(viaje);
+                      },
+                    ),
+                    // Botones de editar y borrar solo para el creador
+                    if (esCreador) ...[
                       IconButton(
                         icon: const Icon(Icons.edit, size: 20),
                         onPressed: () {
@@ -422,7 +409,8 @@ Future<void> _cargarViajes() async {
                         },
                       ),
                     ],
-                  ),
+                  ],
+                ),
               ],
             ),
           ],
@@ -430,8 +418,6 @@ Future<void> _cargarViajes() async {
       ),
     );
   }
-
-// ...existing code...
 
 Future<void> _mostrarDialogoCancelar(Viaje viaje) async {
   final confirmado = await showDialog<bool>(
@@ -532,5 +518,237 @@ Future<void> _mostrarDialogoCancelar(Viaje viaje) async {
     }
   }
 }
+
+// Función para procesar el pago de un viaje
+  Future<void> _procesarPago(Viaje viaje) async {
+    try {
+      // Mostrar diálogo de confirmación
+      final confirmado = await showDialog<bool>(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: const Text('Procesar Pago'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Viaje: ${viaje.origen.nombre} → ${viaje.destino.nombre}'),
+                const SizedBox(height: 8),
+                Text('Precio: \$${viaje.precio.toInt()}'),
+                const SizedBox(height: 8),
+                Text('Fecha: ${viaje.fechaIda.day}/${viaje.fechaIda.month}/${viaje.fechaIda.year}'),
+                const SizedBox(height: 16),
+                const Text('¿Confirmas el pago de este viaje?'),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancelar'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF854937),
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Pagar'),
+              ),
+            ],
+          );
+        },
+      );
+
+      if (confirmado == true) {
+        // Mostrar indicador de carga
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Row(
+                children: [
+                  SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  ),
+                  SizedBox(width: 16),
+                  Text('Procesando pago...'),
+                ],
+              ),
+              backgroundColor: Color(0xFF854937),
+            ),
+          );
+        }
+
+        // Llamar al servicio de pago
+        final respuesta = await PagoService.crearPago(
+          viajeId: viaje.id,
+          montoTotal: viaje.precio,
+          descripcion: 'Pago viaje: ${viaje.origen.nombre} → ${viaje.destino.nombre} del ${viaje.fechaIda.day}/${viaje.fechaIda.month}/${viaje.fechaIda.year}',
+        );
+
+        if (mounted) {
+          // Ocultar el snackbar de carga
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+          if (respuesta['success'] == true) {
+            final urlPago = respuesta['data']?['init_point'];
+            
+            if (urlPago != null) {
+              // Mostrar diálogo con opciones de pago
+              final opcion = await showDialog<String>(
+                context: context,
+                builder: (BuildContext context) {
+                  return AlertDialog(
+                    title: const Text('Pago Creado'),
+                    content: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text('Se ha creado el pago exitosamente.'),
+                        const SizedBox(height: 8),
+                        const Text('¿Qué deseas hacer?'),
+                      ],
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop('later'),
+                        child: const Text('Más tarde'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop('copy'),
+                        child: const Text('Copiar URL'),
+                      ),
+                      ElevatedButton(
+                        onPressed: () => Navigator.of(context).pop('open'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                          foregroundColor: Colors.white,
+                        ),
+                        child: const Text('Abrir MercadoPago'),
+                      ),
+                    ],
+                  );
+                },
+              );
+
+              if (opcion == 'copy') {
+                // Copiar URL al portapapeles
+                await Clipboard.setData(ClipboardData(text: urlPago));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('URL copiada al portapapeles'),
+                        const SizedBox(height: 4),
+                        Text(urlPago, style: const TextStyle(fontSize: 12)),
+                      ],
+                    ),
+                    backgroundColor: Colors.green,
+                    duration: const Duration(seconds: 5),
+                  ),
+                );
+              } else if (opcion == 'open') {
+                // Abrir la URL de pago en el navegador
+                final Uri url = Uri.parse(urlPago);
+                
+                print('🔗 Intentando abrir URL: $urlPago');
+                print('🔗 URI parseada: $url');
+                
+                try {
+                  // Verificar si se puede abrir la URL
+                  final canLaunch = await canLaunchUrl(url);
+                  print('🔗 ¿Se puede abrir la URL?: $canLaunch');
+                  
+                  if (canLaunch) {
+                    final launched = await launchUrl(
+                      url, 
+                      mode: LaunchMode.externalApplication,
+                      webOnlyWindowName: '_blank',
+                    );
+                    print('🔗 ¿Se lanzó exitosamente?: $launched');
+                    
+                    if (!launched) {
+                      throw Exception('launchUrl retornó false');
+                    }
+                  } else {
+                    // Intentar con modo interno si el externo falla
+                    print('🔗 Intentando con modo interno...');
+                    final launched = await launchUrl(url, mode: LaunchMode.inAppWebView);
+                    
+                    if (!launched) {
+                      throw Exception('No se pudo abrir en ningún modo');
+                    }
+                  }
+                } catch (e) {
+                  print('❌ Error al abrir URL: $e');
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('No se pudo abrir el enlace de pago automáticamente'),
+                          const SizedBox(height: 8),
+                          Text('URL: $urlPago', style: const TextStyle(fontSize: 12)),
+                          const SizedBox(height: 8),
+                          const Text('Copia esta URL en tu navegador para completar el pago', 
+                                   style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic)),
+                        ],
+                      ),
+                      backgroundColor: Colors.orange,
+                      duration: const Duration(seconds: 10),
+                      action: SnackBarAction(
+                        label: 'Copiar URL',
+                        textColor: Colors.white,
+                        onPressed: () async {
+                          await Clipboard.setData(ClipboardData(text: urlPago));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('URL copiada al portapapeles'),
+                              backgroundColor: Colors.green,
+                              duration: Duration(seconds: 2),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  );
+                }
+              }
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Error: No se recibió URL de pago'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Error al crear el pago: ${respuesta['message'] ?? 'Error desconocido'}'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al procesar el pago: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
 
 }

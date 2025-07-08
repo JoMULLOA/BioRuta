@@ -20,6 +20,8 @@ import { cookieKey, HOST, PORT } from "./config/configEnv.js";
 import { connectDB } from "./config/configDb.js";
 import { createInitialData } from "./config/initialSetup.js";
 import { passportJwtSetup } from "./auth/passport.auth.js";
+import pagoRoutes from "./routes/pago.routes.js";
+
 
 async function setupServer() {
   try {
@@ -65,6 +67,7 @@ async function setupServer() {
     app.use("/api/chat", chatRoutes); // Rutas de chat
     app.use("/api/viajes", viajeRoutes); // Rutas de viajes
     app.use("/api", pingRoutes);  // Rutas de MongoDB
+    app.use("/api/pagos", pagoRoutes); // Rutas de pagos
 
     const server = http.createServer(app);
     initSocket(server); // Inicializa Socket.IO con el servidor
