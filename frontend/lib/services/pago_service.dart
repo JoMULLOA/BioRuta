@@ -2,9 +2,10 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../config/confGlobal.dart';
 
 class PagoService {
-  static const String baseUrl = 'http://10.0.2.2:3000/api'; // Para emulador Android
+  static String get baseUrl => confGlobal.baseUrl;
   static const FlutterSecureStorage _storage = FlutterSecureStorage();
 
   /// Crear una preferencia de pago

@@ -1,10 +1,10 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import '../config/api_config.dart';
+import '../config/confGlobal.dart';
 import '../utils/token_manager.dart';
 
 class UserService {
-  static String get baseUrl => ApiConfig.baseUrl;
+  static String get baseUrl => confGlobal.baseUrl;
   
   // Obtener token de autenticación
   static Future<String?> _getToken() async {

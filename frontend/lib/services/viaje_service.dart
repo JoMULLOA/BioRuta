@@ -2,11 +2,11 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/viaje_model.dart';
 import '../models/marcador_viaje_model.dart';
-import '../config/api_config.dart';
+import '../config/confGlobal.dart';
 import '../utils/token_manager.dart';
 
 class ViajeService {
-  static String get baseUrl => ApiConfig.baseUrl;
+  static String get baseUrl => confGlobal.baseUrl;
   
   // Headers por defecto con autenticación
   static Future<Map<String, String>?> _getHeaders() async {

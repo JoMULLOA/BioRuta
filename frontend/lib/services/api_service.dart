@@ -1,11 +1,11 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/viaje_model.dart';
+import '../config/confGlobal.dart';
 
 class ApiService {
-  // Configuración de la API
-  static const String baseUrl = 'http://10.0.2.2:3000/api'; // Para emulador Android
-  static const String baseUrlLocal = 'http://localhost:3000/api'; // Para desarrollo local
+  // Configuración de la API usando confGlobal
+  static String get baseUrl => confGlobal.baseUrl;
   
   static const Duration timeoutDuration = Duration(seconds: 10);
   
