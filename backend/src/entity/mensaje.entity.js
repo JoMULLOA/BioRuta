@@ -27,6 +27,18 @@ export default new EntitySchema({
       type: "boolean",
       default: false,
     },
+    // RUT del emisor del mensaje
+    rutEmisor: {
+      type: "varchar",
+      length: 12,
+      nullable: false,
+    },
+    // RUT del receptor del mensaje (solo para chat 1 a 1)
+    rutReceptor: {
+      type: "varchar",
+      length: 12,
+      nullable: true, // Es nulo para mensajes de viaje
+    },
     // NUEVA COLUMNA: Para vincular el mensaje a un chat de viaje (MongoDB)
     // Será nulo si el mensaje es para un chat 1 a 1
     idViajeMongo: {

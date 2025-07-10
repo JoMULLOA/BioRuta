@@ -1,6 +1,6 @@
 // src/socket.js
 import { Server } from "socket.io";
-import { enviarMensaje } from "./services/chat.service.js";
+import { enviarMensaje, editarMensaje, eliminarMensaje } from "./services/chat.service.js";
 import jwt from "jsonwebtoken";
 import { ACCESS_TOKEN_SECRET } from "./config/configEnv.js";
 
@@ -60,8 +60,7 @@ export function initSocket(server) {
       }
 
       try {
-        // Usar el servicio existente para guardar el mensaje
-        const mensajeGuardado = await enviarMensaje(
+        const mensajeProcesado = await enviarMensaje(
           socket.userId,
           contenido,
           receptorRut,
@@ -70,35 +69,26 @@ export function initSocket(server) {
 
         console.log(`✅ Mensaje guardado y enviando a usuarios...`);
 
-        // Preparar datos del mensaje para enviar
         const mensajeParaEnviar = {
-          id: mensajeGuardado.id,
-          contenido: mensajeGuardado.contenido,
-          fecha: mensajeGuardado.fecha,
-          emisor: {
-            rut: mensajeGuardado.emisor.rut,
-            nombreCompleto: mensajeGuardado.emisor.nombreCompleto,
-          },
-          receptor: mensajeGuardado.receptor ? {
-            rut: mensajeGuardado.receptor.rut,
-            nombreCompleto: mensajeGuardado.receptor.nombreCompleto,
-          } : null,
-          idViajeMongo: mensajeGuardado.idViajeMongo,
+          id: mensajeProcesado.id,
+          contenido: mensajeProcesado.contenido,
+          fecha: mensajeProcesado.fecha,
+          emisor: mensajeProcesado.emisor.rut,
+          receptor: mensajeProcesado.receptor?.rut || null,
+          idViajeMongo: mensajeProcesado.idViajeMongo,
+          editado: false,
+          eliminado: false
         };
 
         if (idViajeMongo) {
-          // Para chat de viaje, enviar a la sala del viaje
           io.to(`viaje_${idViajeMongo}`).emit("nuevo_mensaje", mensajeParaEnviar);
           console.log(`📢 Mensaje enviado a chat de viaje ${idViajeMongo}`);
         } else if (receptorRut) {
-          // Para chat 1 a 1, enviar al emisor y receptor
           io.to(`usuario_${socket.userId}`).emit("nuevo_mensaje", mensajeParaEnviar);
           io.to(`usuario_${receptorRut}`).emit("nuevo_mensaje", mensajeParaEnviar);
-          
           console.log(`💬 Mensaje enviado entre ${socket.userId} y ${receptorRut}`);
         }
 
-        // Confirmar al emisor que el mensaje se envió
         socket.emit("mensaje_enviado", { success: true, mensaje: mensajeParaEnviar });
 
       } catch (error) {
@@ -107,7 +97,84 @@ export function initSocket(server) {
       }
     });
 
-    // Unirse a sala de viaje (para chats grupales)
+    // Manejar edición de mensajes
+    socket.on("editar_mensaje", async (data) => {
+      const { idMensaje, nuevoContenido } = data;
+      
+      if (!idMensaje || !nuevoContenido) {
+        console.error("❌ ID del mensaje y nuevo contenido son requeridos");
+        socket.emit("error_edicion", { error: "ID del mensaje y nuevo contenido son requeridos" });
+        return;
+      }
+
+      try {
+        const mensajeEditado = await editarMensaje(idMensaje, socket.userId, nuevoContenido);
+
+        console.log(`✏️ Mensaje editado por usuario ${socket.userId}: ${idMensaje}`);
+
+        const mensajeParaEnviar = {
+          id: mensajeEditado.id,
+          contenido: mensajeEditado.contenido,
+          emisor: mensajeEditado.emisor,
+          fecha: mensajeEditado.fecha,
+          editado: true
+        };
+
+        // Determinar salas para enviar la actualización
+        if (mensajeEditado.receptor) {
+          // Chat 1 a 1
+          io.to(`usuario_${socket.userId}`).emit("mensaje_editado", mensajeParaEnviar);
+          io.to(`usuario_${mensajeEditado.receptor}`).emit("mensaje_editado", mensajeParaEnviar);
+          console.log(`📝 Edición enviada a chat 1 a 1: ${socket.userId} ↔ ${mensajeEditado.receptor}`);
+        } else if (mensajeEditado.idViajeMongo) {
+          // Chat grupal
+          io.to(`viaje_${mensajeEditado.idViajeMongo}`).emit("mensaje_editado", mensajeParaEnviar);
+          console.log(`📝 Edición enviada a chat de viaje: ${mensajeEditado.idViajeMongo}`);
+        }
+
+        socket.emit("edicion_exitosa", { success: true, mensaje: mensajeParaEnviar });
+
+      } catch (error) {
+        console.error("❌ Error al editar mensaje:", error.message);
+        socket.emit("error_edicion", { error: error.message });
+      }
+    });
+
+    // Manejar eliminación de mensajes
+    socket.on("eliminar_mensaje", async (data) => {
+      const { idMensaje } = data;
+      
+      if (!idMensaje) {
+        console.error("❌ ID del mensaje es requerido para eliminación");
+        socket.emit("error_eliminacion", { error: "ID del mensaje es requerido" });
+        return;
+      }
+
+      try {
+        await eliminarMensaje(idMensaje, socket.userId);
+
+        console.log(`🗑️ Mensaje eliminado por usuario ${socket.userId}: ${idMensaje}`);
+
+        const eventoEliminacion = {
+          idMensaje,
+          eliminadoPor: socket.userId,
+          fecha: new Date()
+        };
+
+        // Enviar notificación de eliminación a las salas correspondientes
+        // Nota: Necesitamos determinar si es chat 1 a 1 o grupal
+        // Por ahora enviamos a sala personal del usuario
+        io.to(`usuario_${socket.userId}`).emit("mensaje_eliminado", eventoEliminacion);
+        console.log(`🗑️ Notificación de eliminación enviada a usuario ${socket.userId}`);
+
+        socket.emit("eliminacion_exitosa", { success: true, idMensaje });
+
+      } catch (error) {
+        console.error("❌ Error al eliminar mensaje:", error.message);
+        socket.emit("error_eliminacion", { error: error.message });
+      }
+    });
+
     socket.on("unirse_viaje", (idViaje) => {
       if (idViaje) {
         socket.join(`viaje_${idViaje}`);
@@ -115,7 +182,6 @@ export function initSocket(server) {
       }
     });
 
-    // Salir de sala de viaje
     socket.on("salir_viaje", (idViaje) => {
       if (idViaje) {
         socket.leave(`viaje_${idViaje}`);
@@ -123,7 +189,6 @@ export function initSocket(server) {
       }
     });
 
-    // Manejar reconexión
     socket.on("reconectar_usuario", () => {
       socket.join(`usuario_${socket.userId}`);
       console.log(`🔄 Usuario ${socket.userId} reconectado y reregistrado`);

@@ -161,3 +161,84 @@ export async function deleteMensaje(req, res) {
     res.status(500).json({ mensaje: error.message || "Error interno del servidor al eliminar mensaje." });
   }
 }
+
+/**
+ * GET /api/chat/buscar/conversacion/:rutUsuario2
+ *
+ * Busca mensajes en una conversación 1 a 1 entre el usuario autenticado y otro usuario,
+ * filtrando por un término de búsqueda en el contenido del mensaje.
+ *
+ * @param {object} req - Objeto de solicitud de Express (req.user.rut, req.params.rutUsuario2, req.query.q).
+ * @param {object} res - Objeto de respuesta de Express.
+ */
+export async function buscarEnConversacion(req, res) {
+  try {
+    const rutUsuario1 = req.user.rut;
+    const { rutUsuario2 } = req.params;
+    const { q } = req.query;
+
+    if (!rutUsuario2) {
+      return res.status(400).json({ mensaje: "Falta el RUT del segundo usuario." });
+    }
+
+    if (!q) {
+      return res.status(400).json({ mensaje: "Falta el parámetro de búsqueda 'q'." });
+    }
+
+    const mensajes = await chatService.buscarMensajesEnConversacion(rutUsuario1, rutUsuario2, q);
+    res.status(200).json(mensajes);
+  } catch (error) {
+    console.error("Error en buscarEnConversacion:", error.message);
+    res.status(500).json({ mensaje: error.message || "Error interno del servidor al buscar mensajes." });
+  }
+}
+
+/**
+ * GET /api/chat/buscar/viaje/:idViajeMongo
+ *
+ * Busca mensajes en el chat grupal de un viaje específico,
+ * filtrando por un término de búsqueda en el contenido del mensaje.
+ *
+ * @param {object} req - Objeto de solicitud de Express (req.user.rut, req.params.idViajeMongo, req.query.q).
+ * @param {object} res - Objeto de respuesta de Express.
+ */
+export async function buscarEnViaje(req, res) {
+  try {
+    const rutUsuarioSolicitante = req.user.rut;
+    const { idViajeMongo } = req.params;
+    const { q } = req.query;
+
+    if (!idViajeMongo) {
+      return res.status(400).json({ mensaje: "Falta el ID del viaje." });
+    }
+
+    if (!q) {
+      return res.status(400).json({ mensaje: "Falta el parámetro de búsqueda 'q'." });
+    }
+
+    const mensajes = await chatService.buscarMensajesEnViaje(idViajeMongo, rutUsuarioSolicitante, q);
+    res.status(200).json(mensajes);
+  } catch (error) {
+    console.error("Error en buscarEnViaje:", error.message);
+    res.status(500).json({ mensaje: error.message || "Error interno del servidor al buscar mensajes." });
+  }
+}
+
+/**
+ * GET /api/chat/usuario/chats
+ *
+ * Obtiene la lista de chats (1 a 1 y grupales) en los que el usuario autenticado está involucrado.
+ *
+ * @param {object} req - Objeto de solicitud de Express (req.user.rut).
+ * @param {object} res - Objeto de respuesta de Express.
+ */
+export async function getChatsUsuario(req, res) {
+  try {
+    const rutUsuario = req.user.rut;
+    const chats = await chatService.obtenerChatsUsuario(rutUsuario);
+    res.status(200).json(chats);
+  } catch (error) {
+    console.error("Error en getChatsUsuario:", error.message);
+    res.status(500).json({ mensaje: error.message || "Error interno del servidor al obtener chats." });
+  }
+}
