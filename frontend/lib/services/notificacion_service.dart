@@ -73,4 +73,72 @@ class NotificacionService {
       };
     }
   }
+
+  // Responder a una solicitud de viaje (aceptar o rechazar)
+  static Future<Map<String, dynamic>> responderSolicitudViaje({
+    required String notificacionId,
+    required bool aceptar,
+  }) async {
+    try {
+      final headers = await _getHeaders();
+      
+      final response = await http.post(
+        Uri.parse('${confGlobal.baseUrl}/notificaciones/$notificacionId/responder'),
+        headers: headers,
+        body: jsonEncode({
+          'aceptar': aceptar,
+        }),
+      );
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return {
+          'success': true,
+          'message': data['message'] ?? (aceptar ? 'Solicitud aceptada' : 'Solicitud rechazada'),
+        };
+      } else {
+        return {
+          'success': false,
+          'message': data['message'] ?? 'Error al procesar la respuesta',
+        };
+      }
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Error de conexión: $e',
+      };
+    }
+  }
+
+  // Marcar notificación como leída
+  static Future<Map<String, dynamic>> marcarComoLeida(String notificacionId) async {
+    try {
+      final headers = await _getHeaders();
+      
+      final response = await http.patch(
+        Uri.parse('${confGlobal.baseUrl}/notificaciones/$notificacionId/leer'),
+        headers: headers,
+      );
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return {
+          'success': true,
+          'message': data['message'] ?? 'Notificación marcada como leída',
+        };
+      } else {
+        return {
+          'success': false,
+          'message': data['message'] ?? 'Error al marcar como leída',
+        };
+      }
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Error de conexión: $e',
+      };
+    }
+  }
 }

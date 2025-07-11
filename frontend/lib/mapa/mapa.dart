@@ -478,26 +478,31 @@ class _MapPageState extends State<MapPage> {
       final resultado = await ViajeService.unirseAViaje(marcador.id);
 
       if (mounted) {
+        // Mensaje específico para el nuevo flujo de notificaciones
+        String mensaje = resultado['message'] ?? 'Solicitud enviada';
+        if (resultado['success'] == true) {
+          mensaje = 'Solicitud enviada al conductor. Espera su respuesta en tus notificaciones.';
+        }
+        
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(resultado['message'] ?? 'Solicitud enviada'),
+            content: Text(mensaje),
             backgroundColor: resultado['success'] == true 
                 ? const Color(0xFF854937) 
                 : Colors.red,
+            duration: const Duration(seconds: 4), // Más tiempo para leer el mensaje
           ),
         );
       }
 
-      // Recargar marcadores para actualizar plazas disponibles
-      if (resultado['success'] == true) {
-        await _cargarMarcadoresViajes();
-      }
+      // No recargar marcadores inmediatamente ya que el pasajero no se une directamente
+      // Los marcadores se actualizarán cuando el conductor acepte/rechace la solicitud
     } catch (e) {
       debugPrint('❌ Error al unirse al viaje: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error al unirse al viaje: $e'),
+            content: Text('Error al enviar la solicitud: $e'),
             backgroundColor: Colors.red,
           ),
         );

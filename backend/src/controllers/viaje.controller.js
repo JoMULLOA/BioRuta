@@ -546,67 +546,6 @@ export async function obtenerViajesParaMapa(req, res) {
 }
 
 /**
- * Unirse a un viaje
- */
-export async function unirseAViaje(req, res) {
-  try {
-    const { viajeId } = req.params;
-    const { pasajeros_solicitados = 1, mensaje } = req.body;
-    const usuarioRut = req.user.rut;
-
-    // Buscar el viaje
-    const viaje = await Viaje.findById(viajeId);
-
-    if (!viaje) {
-      return handleErrorServer(res, 404, "Viaje no encontrado");
-    }
-
-    // Validaciones
-    if (viaje.estado !== 'activo') {
-      return handleErrorServer(res, 400, "Este viaje ya no está disponible");
-    }
-
-    if (viaje.usuario_rut === usuarioRut) {
-      return handleErrorServer(res, 400, "No puedes unirte a tu propio viaje");
-    }
-
-    if (viaje.plazas_disponibles < pasajeros_solicitados) {
-      return handleErrorServer(res, 400, `Solo hay ${viaje.plazas_disponibles} plazas disponibles`);
-    }
-
-    // Verificar si ya se unió
-    const yaUnido = viaje.pasajeros.some(p => 
-      p.usuario_rut === usuarioRut
-    );
-
-    if (yaUnido) {
-      return handleErrorServer(res, 400, "Ya tienes una solicitud pendiente para este viaje");
-    }
-
-    // Agregar solicitud de pasajero
-    viaje.pasajeros.push({
-      usuario_rut: usuarioRut,
-      estado: 'confirmado', // Cambiado de 'pendiente' a 'confirmado' para simplificar
-      pasajeros_solicitados: pasajeros_solicitados,
-      mensaje: mensaje
-    });
-
-    // Reducir plazas disponibles temporalmente
-    viaje.plazas_disponibles -= pasajeros_solicitados;
-
-    await viaje.save();
-
-    handleSuccess(res, 200, "Te has unido al viaje exitosamente", {
-      estado: 'confirmado'
-    });
-
-  } catch (error) {
-    console.error("Error al unirse a viaje:", error);
-    handleErrorServer(res, 500, "Error interno del servidor");
-  }
-}
-
-/**
  * Obtener viajes del usuario
  */
 export async function obtenerViajesUsuario(req, res) {
@@ -936,6 +875,74 @@ export async function cambiarEstadoViaje(req, res) {
 
   } catch (error) {
     console.error("Error al cambiar estado del viaje:", error);
+    handleErrorServer(res, 500, "Error interno del servidor");
+  }
+}
+
+/**
+ * Unirse a viaje - crea una solicitud de notificación para unirse al viaje
+ */
+export async function unirseAViaje(req, res) {
+  try {
+    const { viajeId } = req.params;
+    const userRut = req.user.rut;
+
+    console.log(`🚪 Solicitando unirse al viaje ${viajeId} por usuario ${userRut}`);
+
+    // Buscar el viaje en MongoDB
+    const viaje = await Viaje.findById(viajeId);
+    if (!viaje) {
+      console.log(`❌ Viaje ${viajeId} no encontrado`);
+      return handleErrorServer(res, 404, "Viaje no encontrado");
+    }
+
+    console.log(`📋 Viaje encontrado. Conductor: ${viaje.usuario_rut}`);
+
+    // Verificar que el usuario no es el conductor
+    if (viaje.usuario_rut === userRut) {
+      console.log(`❌ Usuario ${userRut} es el conductor, no puede unirse a su propio viaje`);
+      return handleErrorServer(res, 400, "No puedes unirte a tu propio viaje");
+    }
+
+    // Verificar que el usuario no está ya en el viaje
+    const yaEsPasajero = viaje.pasajeros.some(p => p.usuario_rut === userRut);
+    if (yaEsPasajero) {
+      console.log(`❌ Usuario ${userRut} ya está en este viaje`);
+      return handleErrorServer(res, 400, "Ya estás registrado en este viaje");
+    }
+
+    // Verificar que hay espacio disponible
+    if (viaje.pasajeros.length >= viaje.maxPasajeros) {
+      console.log(`❌ Viaje ${viajeId} está lleno`);
+      return handleErrorServer(res, 400, "El viaje está completo");
+    }
+
+    // Verificar que el viaje esté en estado apropiado
+    if (!['activo', 'confirmado'].includes(viaje.estado)) {
+      console.log(`❌ Viaje ${viajeId} no está disponible para unirse (estado: ${viaje.estado})`);
+      return handleErrorServer(res, 400, "Este viaje no está disponible para nuevos pasajeros");
+    }
+
+    // Crear la solicitud de notificación
+    const { crearSolicitudViaje } = await import('../services/notificacion.service.js');
+    
+    await crearSolicitudViaje({
+      conductorRut: viaje.usuario_rut,
+      pasajeroRut: userRut,
+      viajeId: viajeId,
+      mensaje: `Solicitud para unirse al viaje de ${viaje.origen} a ${viaje.destino}`
+    });
+
+    console.log(`✅ Solicitud de viaje creada exitosamente para ${userRut} → ${viaje.usuario_rut}`);
+
+    handleSuccess(res, 200, "Solicitud enviada al conductor. Espera su respuesta.", {
+      viajeId: viaje._id,
+      estado: 'pendiente',
+      mensaje: 'Tu solicitud ha sido enviada al conductor'
+    });
+
+  } catch (error) {
+    console.error("Error al solicitar unirse al viaje:", error);
     handleErrorServer(res, 500, "Error interno del servidor");
   }
 }

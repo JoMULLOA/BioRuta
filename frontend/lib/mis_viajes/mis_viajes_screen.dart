@@ -3,10 +3,12 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/viaje_service.dart';
 import '../services/pago_service.dart';
+import '../services/notificacion_service.dart';
 import '../models/viaje_model.dart';
 import '../navbar_widget.dart';
 import 'detalle_viaje_conductor_screen.dart';
 import 'detalle_viaje_pasajero_screen.dart';
+import 'solicitudes_pasajeros_modal.dart';
 
 class MisViajesScreen extends StatefulWidget {
   const MisViajesScreen({super.key});
@@ -15,16 +17,30 @@ class MisViajesScreen extends StatefulWidget {
   State<MisViajesScreen> createState() => _MisViajesScreenState();
 }
 
-class _MisViajesScreenState extends State<MisViajesScreen> {
+class _MisViajesScreenState extends State<MisViajesScreen> 
+    with SingleTickerProviderStateMixin {
   List<Viaje> viajesCreados = [];
   List<Viaje> viajesUnidos = [];
   bool cargando = true;
   int _selectedIndex = 5; // Perfil section
+  int numeroSolicitudesPendientes = 0;
+  late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(() {
+      setState(() {}); // Actualizar el FAB cuando cambie de pestaña
+    });
     _cargarViajes();
+    _cargarSolicitudesPendientes();
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
 Future<void> _cargarViajes() async {
@@ -61,6 +77,41 @@ Future<void> _cargarViajes() async {
       );
     }
   }
+}
+
+Future<void> _cargarSolicitudesPendientes() async {
+  try {
+    final numero = await NotificacionService.obtenerNumeroNotificacionesPendientes();
+    setState(() {
+      numeroSolicitudesPendientes = numero;
+    });
+  } catch (e) {
+    print('Error al cargar solicitudes pendientes: $e');
+  }
+}
+
+void _mostrarSolicitudesPasajeros() {
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (context) => SolicitudesPasajerosModal(
+      onSolicitudProcesada: () {
+        // Recargar solicitudes pendientes para actualizar el badge
+        _cargarSolicitudesPendientes();
+        
+        // Recargar viajes para mostrar los cambios en las listas
+        _cargarViajes();
+        
+        // Notificar al sistema global que los marcadores deben actualizarse
+        // Esto permitirá que el mapa se entere cuando se regrese a esa pantalla
+        debugPrint('📱 Solicitud procesada - estado de viajes actualizado');
+      },
+    ),
+  ).then((_) {
+    // Recargar solicitudes al cerrar el modal
+    _cargarSolicitudesPendientes();
+  });
 }
 
   void _onItemTapped(int index) {
@@ -100,6 +151,18 @@ Future<void> _cargarViajes() async {
         foregroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
+        bottom: cargando
+            ? null
+            : TabBar(
+                controller: _tabController,
+                labelColor: Colors.white,
+                unselectedLabelColor: const Color(0xFFEDCAB6),
+                indicatorColor: Colors.white,
+                tabs: const [
+                  Tab(text: 'Mis Publicaciones'),
+                  Tab(text: 'Viajes Unidos'),
+                ],
+              ),
       ),
       body: cargando
           ? const Center(
@@ -107,38 +170,63 @@ Future<void> _cargarViajes() async {
                 valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF854937)),
               ),
             )
-          : DefaultTabController(
-              length: 2,
-              child: Column(
-                children: [
-                  Container(
-                    color: Colors.white,
-                    child: const TabBar(
-                      labelColor: Color(0xFF854937),
-                      unselectedLabelColor: Colors.grey,
-                      indicatorColor: Color(0xFF854937),
-                      tabs: [
-                        Tab(text: 'Mis Publicaciones'),
-                        Tab(text: 'Viajes Unidos'),
-                      ],
-                    ),
-                  ),
-                  Expanded(
-                    child: TabBarView(
-                      children: [
-                        _buildViajesCreados(),
-                        _buildViajesUnidos(),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+          : TabBarView(
+              controller: _tabController,
+              children: [
+                _buildViajesCreados(),
+                _buildViajesUnidos(),
+              ],
             ),
+      floatingActionButton: _buildFloatingActionButton(),
       bottomNavigationBar: CustomNavbar(
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
       ),
     );
+  }
+
+  Widget? _buildFloatingActionButton() {
+    // Solo mostrar el FAB en la pestaña "Mis Publicaciones" y si hay viajes creados
+    return _tabController.index == 0 && viajesCreados.isNotEmpty
+        ? FloatingActionButton.extended(
+            onPressed: _mostrarSolicitudesPasajeros,
+            backgroundColor: const Color(0xFF854937),
+            foregroundColor: Colors.white,
+            icon: Stack(
+              children: [
+                const Icon(Icons.notifications),
+                if (numeroSolicitudesPendientes > 0)
+                  Positioned(
+                    right: 0,
+                    top: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 16,
+                        minHeight: 16,
+                      ),
+                      child: Text(
+                        '$numeroSolicitudesPendientes',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            label: Text(
+              'Solicitudes${numeroSolicitudesPendientes > 0 ? ' ($numeroSolicitudesPendientes)' : ''}',
+            ),
+          )
+        : null;
   }
 
   Widget _buildViajesCreados() {
