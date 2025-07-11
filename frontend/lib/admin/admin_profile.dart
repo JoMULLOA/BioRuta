@@ -471,46 +471,6 @@ class _AdminProfileState extends State<AdminProfile> {
                         ],
                       ),
                     ),
-
-                    SizedBox(height: 16),
-
-                    // Información del sistema
-                    Container(
-                      width: double.infinity,
-                      padding: EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 6)],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(Icons.info_outline, color: primario),
-                              SizedBox(width: 8),
-                              Text(
-                                'Información del Sistema',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: primario,
-                                ),
-                              ),
-                            ],
-                          ),
-                          SizedBox(height: 12),
-                          Text(
-                            '• BioRuta v1.0\n'
-                            '• Sistema de carpooling universitario\n'
-                            '• Backend: Node.js + MongoDB\n'
-                            '• Frontend: Flutter',
-                            style: TextStyle(color: secundario, height: 1.6),
-                          ),
-                        ],
-                      ),
-                    ),
                   ],
                 ),
               ),
