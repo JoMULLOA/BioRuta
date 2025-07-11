@@ -90,6 +90,18 @@ class SocketService {
         _handleNewMessage(data);
       });
 
+      // Escuchar mensaje editado
+      socket!.on('mensaje_editado', (data) {
+        print('✏️ Mensaje editado recibido: $data');
+        _handleEditedMessage(data);
+      });
+
+      // Escuchar mensaje eliminado
+      socket!.on('mensaje_eliminado', (data) {
+        print('🗑️ Mensaje eliminado recibido: $data');
+        _handleDeletedMessage(data);
+      });
+
       // Escuchar confirmación de mensaje enviado
       socket!.on('mensaje_enviado', (data) {
         print('✅ Mensaje enviado confirmado: $data');
@@ -125,6 +137,46 @@ class SocketService {
 
     print('📤 Enviando mensaje via socket: $messageData');
     socket!.emit('enviar_mensaje', messageData);
+  }
+
+  // Editar mensaje via WebSocket
+  void editMessage({
+    required int idMensaje,
+    required String nuevoContenido,
+  }) {
+    print('🔍 DEBUG: editMessage llamado con idMensaje=$idMensaje, nuevoContenido=$nuevoContenido');
+    
+    if (socket?.connected != true) {
+      print('❌ Socket no conectado, no se puede editar mensaje');
+      return;
+    }
+
+    final messageData = {
+      'idMensaje': idMensaje,
+      'nuevoContenido': nuevoContenido,
+    };
+
+    print('✏️ Editando mensaje via socket: $messageData');
+    socket!.emit('editar_mensaje', messageData);
+  }
+
+  // Eliminar mensaje via WebSocket
+  void deleteMessage({
+    required int idMensaje,
+  }) {
+    print('🔍 DEBUG: deleteMessage llamado con idMensaje=$idMensaje');
+    
+    if (socket?.connected != true) {
+      print('❌ Socket no conectado, no se puede eliminar mensaje');
+      return;
+    }
+
+    final messageData = {
+      'idMensaje': idMensaje,
+    };
+
+    print('🗑️ Eliminando mensaje via socket: $messageData');
+    socket!.emit('eliminar_mensaje', messageData);
   }
 
   // Unirse a chat de viaje
@@ -165,6 +217,42 @@ class SocketService {
       }
     } catch (e) {
       print('❌ Error procesando mensaje: $e');
+    }
+  }
+
+  // Manejar mensajes editados
+  void _handleEditedMessage(dynamic data) {
+    try {
+      final messageData = Map<String, dynamic>.from(data);
+      messageData['_isEdited'] = true; // Marcar como editado
+      
+      // Emitir a través del stream
+      _messageStreamController.add(messageData);
+      
+      // Mantener compatibilidad con callback
+      if (_onNewMessageCallback != null) {
+        _onNewMessageCallback!(data);
+      }
+    } catch (e) {
+      print('❌ Error procesando mensaje editado: $e');
+    }
+  }
+
+  // Manejar mensajes eliminados
+  void _handleDeletedMessage(dynamic data) {
+    try {
+      final messageData = Map<String, dynamic>.from(data);
+      messageData['_isDeleted'] = true; // Marcar como eliminado
+      
+      // Emitir a través del stream
+      _messageStreamController.add(messageData);
+      
+      // Mantener compatibilidad con callback
+      if (_onNewMessageCallback != null) {
+        _onNewMessageCallback!(data);
+      }
+    } catch (e) {
+      print('❌ Error procesando mensaje eliminado: $e');
     }
   }
 

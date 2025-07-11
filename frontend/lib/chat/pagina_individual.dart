@@ -3,9 +3,47 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:async';
-import '../models/mensaje_model.dart';
+// import '../models/mensaje_model.dart'; // Temporalmente comentado
 import '../config/confGlobal.dart';
 import '../services/socket_service.dart';
+
+// Clase Message temporal inline para debugging
+class Message {
+  final int? id;
+  final String senderRut;
+  final String text;
+  final DateTime timestamp;
+  final bool isEdited;
+  final bool isDeleted;
+
+  Message({
+    this.id,
+    required this.senderRut,
+    required this.text,
+    required this.timestamp,
+    this.isEdited = false,
+    this.isDeleted = false,
+  });
+
+  // Crear copia del mensaje con cambios
+  Message copyWith({
+    int? id,
+    String? senderRut,
+    String? text,
+    DateTime? timestamp,
+    bool? isEdited,
+    bool? isDeleted,
+  }) {
+    return Message(
+      id: id ?? this.id,
+      senderRut: senderRut ?? this.senderRut,
+      text: text ?? this.text,
+      timestamp: timestamp ?? this.timestamp,
+      isEdited: isEdited ?? this.isEdited,
+      isDeleted: isDeleted ?? this.isDeleted,
+    );
+  }
+}
 
 class PaginaIndividualWebSocket extends StatefulWidget {
   final String nombre;
@@ -26,8 +64,10 @@ class PaginaIndividualWebSocket extends StatefulWidget {
 class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
   final TextEditingController _messageController = TextEditingController();
   final List<Message> _messages = [];
+  final List<Message> _filteredMessages = []; // Para búsqueda
   final ScrollController _scrollController = ScrollController();
   final FlutterSecureStorage _storage = FlutterSecureStorage();
+  final TextEditingController _searchController = TextEditingController();
   
   String? _jwtToken;
   String? _rutUsuarioAutenticadoReal;
@@ -35,6 +75,12 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
   late StreamSubscription _messageSubscription;
   late StreamSubscription _connectionSubscription;
   bool _isConnected = false;
+  bool _isSearching = false;
+  String _searchTerm = '';
+  
+  // Para edición de mensajes
+  int? _editingMessageId;
+  final TextEditingController _editController = TextEditingController();
 
   @override
   void initState() {
@@ -52,6 +98,8 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
     _connectionSubscription.cancel();
     _messageController.dispose();
     _scrollController.dispose();
+    _searchController.dispose();
+    _editController.dispose();
     super.dispose();
   }
 
@@ -66,7 +114,9 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
     await _connectSocket();
     
     // Cargar mensajes históricos
+    print('🔍 DEBUG: Antes de llamar _fetchMessages');
     await _fetchMessages();
+    print('🔍 DEBUG: Después de llamar _fetchMessages');
 
     print('DEBUG: RUT Usuario Real: $_rutUsuarioAutenticadoReal');
     print('DEBUG: RUT Amigo: ${widget.rutAmigo}');
@@ -126,41 +176,124 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
     try {
       print('📨 Procesando nuevo mensaje: $messageData');
       
+      // Verificar si es un mensaje editado o eliminado
+      if (messageData['_isEdited'] == true) {
+        print('🔄 Mensaje editado detectado');
+        _handleEditedMessage(messageData);
+        return;
+      }
+      
+      if (messageData['_isDeleted'] == true) {
+        print('🗑️ Mensaje eliminado detectado');
+        _handleDeletedMessage(messageData);
+        return;
+      }
+      
       // Verificar que el mensaje es para esta conversación
-      final emisorRut = messageData['emisor']['rut'];
-      final receptorRut = messageData['receptor']?['rut'];
+      final emisorRut = messageData['emisor'];
+      final receptorRut = messageData['receptor'];
+      
+      print('🔍 Verificando emisor: $emisorRut, receptor: $receptorRut');
+      
+      // Los RUTs vienen como strings directos del backend
+      String emisorRutString = emisorRut.toString();
+      String? receptorRutString = receptorRut?.toString();
+      
+      print('🔍 Emisor string: $emisorRutString, Receptor string: $receptorRutString');
+      print('🔍 Widget rutAmigo: ${widget.rutAmigo}, Usuario autenticado: $_rutUsuarioAutenticadoReal');
       
       bool esParaEstaConversacion = false;
       
-      if (receptorRut != null) {
+      if (receptorRutString != null) {
         // Es un mensaje 1 a 1
-        esParaEstaConversacion = (emisorRut == widget.rutAmigo && receptorRut == _rutUsuarioAutenticadoReal) ||
-                                (emisorRut == _rutUsuarioAutenticadoReal && receptorRut == widget.rutAmigo);
+        esParaEstaConversacion = (emisorRutString == widget.rutAmigo && receptorRutString == _rutUsuarioAutenticadoReal) ||
+                                (emisorRutString == _rutUsuarioAutenticadoReal && receptorRutString == widget.rutAmigo);
       }
       
+      print('🔍 Es para esta conversación: $esParaEstaConversacion');
+      
       if (esParaEstaConversacion) {
+        print('✅ Creando mensaje para agregar a la conversación');
+        
+        // Crear mensaje usando el constructor directo con conversión correcta
         final nuevoMensaje = Message(
-          senderRut: emisorRut,
-          text: messageData['contenido'],
+          id: messageData['id'] is String ? int.tryParse(messageData['id']) : messageData['id'],
+          senderRut: messageData['emisor'].toString(),
+          text: messageData['contenido'].toString(),
           timestamp: DateTime.parse(messageData['fecha']),
+          isEdited: messageData['editado'] ?? false,
+          isDeleted: messageData['eliminado'] ?? false,
         );
+        
+        print('✅ Mensaje creado: ID=${nuevoMensaje.id}, Sender=${nuevoMensaje.senderRut}, Text=${nuevoMensaje.text}');
         
         setState(() {
           // Evitar duplicados
           if (!_messages.any((m) => 
-              m.senderRut == nuevoMensaje.senderRut && 
-              m.text == nuevoMensaje.text && 
-              m.timestamp.difference(nuevoMensaje.timestamp).abs().inSeconds < 2)) {
+              m.id == nuevoMensaje.id ||
+              (m.senderRut == nuevoMensaje.senderRut && 
+               m.text == nuevoMensaje.text && 
+               m.timestamp.difference(nuevoMensaje.timestamp).abs().inSeconds < 2))) {
             _messages.add(nuevoMensaje);
             _messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+            print('✅ Mensaje agregado. Total mensajes: ${_messages.length}');
+          } else {
+            print('⚠️ Mensaje duplicado, no agregado');
           }
         });
         
         _scrollToBottom();
         print('✅ Mensaje agregado a la conversación');
+      } else {
+        print('❌ Mensaje no es para esta conversación');
       }
     } catch (e) {
       print('ERROR procesando mensaje socket: $e');
+      print('ERROR Stack trace: ${e.toString()}');
+    }
+  }
+
+  void _handleEditedMessage(Map<String, dynamic> messageData) {
+    if (!mounted) return;
+    
+    try {
+      final messageId = messageData['id'] is String ? int.tryParse(messageData['id']) : messageData['id'];
+      final newContent = messageData['contenido'];
+      
+      setState(() {
+        final index = _messages.indexWhere((m) => m.id == messageId);
+        if (index != -1) {
+          _messages[index] = _messages[index].copyWith(
+            text: newContent,
+            isEdited: true,
+          );
+        }
+      });
+      
+      print('✅ Mensaje editado actualizado');
+    } catch (e) {
+      print('ERROR procesando mensaje editado: $e');
+    }
+  }
+
+  void _handleDeletedMessage(Map<String, dynamic> messageData) {
+    if (!mounted) return;
+    
+    try {
+      final messageId = messageData['id'] is String ? int.tryParse(messageData['id']) : messageData['id'];
+      
+      setState(() {
+        final index = _messages.indexWhere((m) => m.id == messageId);
+        if (index != -1) {
+          _messages[index] = _messages[index].copyWith(
+            isDeleted: true,
+          );
+        }
+      });
+      
+      print('✅ Mensaje eliminado actualizado');
+    } catch (e) {
+      print('ERROR procesando mensaje eliminado: $e');
     }
   }
 
@@ -171,9 +304,18 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
     }
 
     try {
+      print('🔍 DEBUG: Preparando URI...');
+      print('🔍 DEBUG: baseUrl: ${confGlobal.baseUrl}');
+      print('🔍 DEBUG: rutAmigo: ${widget.rutAmigo}');
+      print('🔍 DEBUG: rutAmigo type: ${widget.rutAmigo.runtimeType}');
+      
+      print('🔍 DEBUG: Intentando crear URI...');
       final Uri requestUri = Uri.parse('${confGlobal.baseUrl}/chat/conversacion/${widget.rutAmigo}');
+      print('🔍 DEBUG: URI creada exitosamente: $requestUri');
+      
       print('DEBUG: Intentando GET historial de mensajes de: $requestUri');
 
+      print('🔍 DEBUG: Iniciando request HTTP...');
       final response = await http.get(
         requestUri,
         headers: {
@@ -181,33 +323,129 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
           'Authorization': 'Bearer $_jwtToken',
         },
       );
+      print('🔍 DEBUG: Request HTTP completado exitosamente');
 
       print('DEBUG: Código de estado del historial: ${response.statusCode}');
       print('DEBUG: Cuerpo de la respuesta del historial: ${response.body}');
 
+      print('🔍 DEBUG: Verificando código de estado...');
+      print('🔍 DEBUG: response.statusCode = ${response.statusCode}');
+      print('🔍 DEBUG: response.statusCode == 200 = ${response.statusCode == 200}');
+
       if (response.statusCode == 200) {
-        final List<dynamic> responseData = json.decode(response.body);
-        final List<dynamic> messagesJson = responseData;
+        print('🔍 DEBUG: Entrando al bloque if (response.statusCode == 200)');
+        try {
+          print('🧪 PRUEBA: Respuesta recibida correctamente');
+          print('🧪 PRUEBA: Response body length: ${response.body.length}');
+          
+          // Agregar debugging específico antes del json.decode
+          print('🔍 DEBUG: Intentando parsear JSON...');
+          print('🔍 DEBUG: Response body type: ${response.body.runtimeType}');
+          print('🔍 DEBUG: Response body: ${response.body}');
+          
+          List<dynamic> responseData;
+          try {
+            responseData = json.decode(response.body);
+            print('🔍 DEBUG: JSON parseado correctamente');
+            print('🔍 DEBUG: Response data type: ${responseData.runtimeType}');
+            print('🔍 DEBUG: Response data length: ${responseData.length}');
+          } catch (jsonError) {
+            print('❌ ERROR en json.decode: $jsonError');
+            print('❌ ERROR tipo: ${jsonError.runtimeType}');
+            throw jsonError;
+          }
+          
+          final List<dynamic> messagesJson = responseData;
 
-        setState(() {
-          _messages.clear();
-          _messages.addAll(messagesJson.map((json) {
-            return Message(
-              senderRut: json['emisor']['rut'],
-              text: json['contenido'],
-              timestamp: DateTime.parse(json['fecha']),
-            );
-          }).toList());
+          print('📥 Procesando ${messagesJson.length} mensajes del historial...');
 
-          _messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
-        });
+          List<Message> newMessages = [];
+          
+          for (int i = 0; i < messagesJson.length; i++) {
+            try {
+              print('🔍 DEBUG: Procesando mensaje en índice $i');
+              print('🔍 DEBUG: Tipo de índice i: ${i.runtimeType}');
+              print('🔍 DEBUG: Valor de i: $i');
+              print('🔍 DEBUG: Accediendo a messagesJson[$i]...');
+              
+              final messageData = messagesJson[i];
+              print('🔍 DEBUG: Mensaje obtenido exitosamente');
+              print('📥 Procesando mensaje $i: ID=${messageData['id']}, Emisor=${messageData['emisor']}, Contenido=${messageData['contenido']}');
+              
+              // Crear mensaje directamente en lugar del factory temporalmente
+              print('🔍 DEBUG: Creando mensaje directamente...');
+              print('🔍 DEBUG: messageData[id]: ${messageData['id']}');
+              print('🔍 DEBUG: messageData[emisor]: ${messageData['emisor']}');
+              print('🔍 DEBUG: messageData[contenido]: ${messageData['contenido']}');
+              print('🔍 DEBUG: messageData[fecha]: ${messageData['fecha']}');
+              print('🔍 DEBUG: messageData[editado]: ${messageData['editado']}');
+              print('🔍 DEBUG: messageData[eliminado]: ${messageData['eliminado']}');
+              
+              // Convertir id
+              int? messageId = messageData['id'] is String ? int.tryParse(messageData['id']) : messageData['id'];
+              print('🔍 DEBUG: messageId convertido: $messageId');
+              
+              // Crear mensaje paso a paso
+              print('🔍 DEBUG: Creando DateTime...');
+              DateTime timestamp = DateTime.parse(messageData['fecha']);
+              print('🔍 DEBUG: DateTime creado: $timestamp');
+              
+              print('🔍 DEBUG: Llamando al constructor Message...');
+              final message = Message(
+                id: messageId,
+                senderRut: messageData['emisor'].toString(),
+                text: messageData['contenido'].toString(),
+                timestamp: timestamp,
+                isEdited: messageData['editado'] ?? false,
+                isDeleted: messageData['eliminado'] ?? false,
+              );
+              print('🔍 DEBUG: Mensaje creado exitosamente');
+              
+              newMessages.add(message);
+              print('✅ Mensaje $i procesado correctamente');
+            } catch (e) {
+              print('❌ Error procesando mensaje $i: $e');
+              print('❌ Error tipo: ${e.runtimeType}');
+              print('❌ Datos del mensaje: ${messagesJson[i]}');
+            }
+          }
 
-        _scrollToBottom();
+          setState(() {
+            _messages.clear();
+            _messages.addAll(newMessages);
+            _messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+            print('✅ Historial cargado. Total mensajes: ${_messages.length}');
+          });
+
+          _scrollToBottom();
+          
+          print('🧪 PRUEBA: Método _fetchMessages completado con procesamiento');
+        } catch (e) {
+          print('❌ Error procesando respuesta del historial: $e');
+          print('❌ Error stack trace: ${e.toString()}');
+          print('❌ Response body: ${response.body}');
+          
+          // Agregar información específica del error
+          if (e is TypeError) {
+            print('❌ TypeError específico: ${e.toString()}');
+          }
+          if (e is FormatException) {
+            print('❌ FormatException específico: ${e.toString()}');
+          }
+        }
       } else {
         print('ERROR al obtener historial: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
       print('ERROR de conexión al obtener historial: $e');
+      print('ERROR Stack trace: ${e.toString()}');
+      print('ERROR tipo de error: ${e.runtimeType}');
+      if (e is TypeError) {
+        print('ERROR TypeError details: ${e.toString()}');
+      }
+      if (e is FormatException) {
+        print('ERROR FormatException details: ${e.toString()}');
+      }
     }
   }
 
@@ -255,6 +493,268 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
     }
   }
 
+  // Función para buscar mensajes
+  Future<void> _searchMessages(String query) async {
+    if (_jwtToken == null || query.trim().isEmpty) return;
+
+    try {
+      final Uri requestUri = Uri.parse('${confGlobal.baseUrl}/chat/conversacion/${widget.rutAmigo}/buscar?q=${Uri.encodeComponent(query)}');
+      
+      final response = await http.get(
+        requestUri,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $_jwtToken',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> responseData = json.decode(response.body);
+        
+        // Mostrar los resultados en un diálogo
+        _showSearchResults(responseData, query);
+      } else {
+        print('ERROR al buscar mensajes: ${response.statusCode} - ${response.body}');
+      }
+    } catch (e) {
+      print('ERROR de conexión al buscar mensajes: $e');
+    }
+  }
+
+  // Mostrar diálogo de búsqueda
+  void _showSearchDialog() {
+    String searchQuery = '';
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Buscar mensajes'),
+        content: TextField(
+          controller: _searchController,
+          decoration: const InputDecoration(
+            hintText: 'Escribe tu búsqueda...',
+            border: OutlineInputBorder(),
+          ),
+          onChanged: (value) {
+            searchQuery = value;
+          },
+          onSubmitted: (value) {
+            if (value.trim().isNotEmpty) {
+              Navigator.pop(context);
+              _searchMessages(value.trim());
+            }
+          },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () {
+              if (searchQuery.trim().isNotEmpty) {
+                Navigator.pop(context);
+                _searchMessages(searchQuery.trim());
+              }
+            },
+            child: const Text('Buscar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Mostrar resultados de búsqueda
+  void _showSearchResults(List<dynamic> results, String query) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Resultados para "$query"'),
+        content: Container(
+          width: double.maxFinite,
+          height: 300,
+          child: results.isEmpty
+              ? const Center(child: Text('No se encontraron mensajes'))
+              : ListView.builder(
+                  itemCount: results.length,
+                  itemBuilder: (context, index) {
+                    final json = results[index];
+                    return ListTile(
+                      title: Text(json['contenido']),
+                      subtitle: Text(
+                        '${json['emisor'] == _rutUsuarioAutenticadoReal ? "Tú" : widget.nombre} - ${DateTime.parse(json['fecha']).day}/${DateTime.parse(json['fecha']).month}/${DateTime.parse(json['fecha']).year}',
+                      ),
+                      dense: true,
+                    );
+                  },
+                ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cerrar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Función para editar mensaje
+  Future<void> _editMessage(int messageId, String newContent) async {
+    if (_jwtToken == null) return;
+
+    try {
+      final Uri requestUri = Uri.parse('${confGlobal.baseUrl}/chat/mensaje');
+      
+      final response = await http.put(
+        requestUri,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $_jwtToken',
+        },
+        body: json.encode({
+          'idMensaje': messageId,
+          'nuevoContenido': newContent,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        // También enviar por WebSocket para actualizaciones en tiempo real
+        _socketService.editMessage(
+          idMensaje: messageId,
+          nuevoContenido: newContent,
+        );
+        
+        print('✅ Mensaje editado exitosamente');
+      } else {
+        print('ERROR al editar mensaje: ${response.statusCode} - ${response.body}');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error al editar mensaje')),
+        );
+      }
+    } catch (e) {
+      print('ERROR de conexión al editar mensaje: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error de conexión: $e')),
+      );
+    }
+  }
+
+  // Función para eliminar mensaje
+  Future<void> _deleteMessage(int messageId) async {
+    if (_jwtToken == null) return;
+
+    try {
+      final Uri requestUri = Uri.parse('${confGlobal.baseUrl}/chat/mensaje/$messageId');
+      
+      final response = await http.delete(
+        requestUri,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $_jwtToken',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        // También enviar por WebSocket para actualizaciones en tiempo real
+        _socketService.deleteMessage(idMensaje: messageId);
+        
+        print('✅ Mensaje eliminado exitosamente');
+      } else {
+        print('ERROR al eliminar mensaje: ${response.statusCode} - ${response.body}');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error al eliminar mensaje')),
+        );
+      }
+    } catch (e) {
+      print('ERROR de conexión al eliminar mensaje: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error de conexión: $e')),
+      );
+    }
+  }
+
+  // Mostrar opciones de mensaje (editar/eliminar)
+  void _showMessageOptions(Message message) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.edit),
+              title: const Text('Editar mensaje'),
+              onTap: () {
+                Navigator.pop(context);
+                _startEditingMessage(message);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete, color: Colors.red),
+              title: const Text('Eliminar mensaje', style: TextStyle(color: Colors.red)),
+              onTap: () {
+                Navigator.pop(context);
+                _confirmDeleteMessage(message);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Iniciar edición de mensaje
+  void _startEditingMessage(Message message) {
+    setState(() {
+      _editingMessageId = message.id;
+      _editController.text = message.text;
+    });
+  }
+
+  // Confirmar eliminación de mensaje
+  void _confirmDeleteMessage(Message message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Eliminar mensaje'),
+        content: const Text('¿Estás seguro de que quieres eliminar este mensaje?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              if (message.id != null) {
+                _deleteMessage(message.id!);
+              }
+            },
+            child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Cancelar edición
+  void _cancelEditing() {
+    setState(() {
+      _editingMessageId = null;
+      _editController.clear();
+    });
+  }
+
+  // Confirmar edición
+  void _confirmEdit() {
+    if (_editingMessageId != null && _editController.text.trim().isNotEmpty) {
+      _editMessage(_editingMessageId!, _editController.text.trim());
+      _cancelEditing();
+    }
+  }
+
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
@@ -285,31 +785,62 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
             SizedBox(width: 8),
           ],
           Flexible(
-            child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: isMe ? Colors.blue : Colors.grey[200],
-                borderRadius: BorderRadius.circular(18),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    message.text,
-                    style: TextStyle(
-                      color: isMe ? Colors.white : Colors.black87,
-                      fontSize: 16,
+            child: GestureDetector(
+              onLongPress: () {
+                // Solo mostrar opciones para mensajes propios y no eliminados
+                if (isMe && !message.isDeleted && message.id != null) {
+                  _showMessageOptions(message);
+                }
+              },
+              child: Container(
+                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: message.isDeleted 
+                      ? Colors.grey[300] 
+                      : (isMe ? Colors.blue : Colors.grey[200]),
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      message.isDeleted ? 'Mensaje eliminado' : message.text,
+                      style: TextStyle(
+                        color: message.isDeleted 
+                            ? Colors.grey[600]
+                            : (isMe ? Colors.white : Colors.black87),
+                        fontSize: 16,
+                        fontStyle: message.isDeleted ? FontStyle.italic : FontStyle.normal,
+                      ),
                     ),
-                  ),
-                  SizedBox(height: 4),
-                  Text(
-                    '${message.timestamp.hour.toString().padLeft(2, '0')}:${message.timestamp.minute.toString().padLeft(2, '0')}',
-                    style: TextStyle(
-                      color: isMe ? Colors.white70 : Colors.grey[600],
-                      fontSize: 12,
+                    SizedBox(height: 4),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          '${message.timestamp.hour.toString().padLeft(2, '0')}:${message.timestamp.minute.toString().padLeft(2, '0')}',
+                          style: TextStyle(
+                            color: message.isDeleted 
+                                ? Colors.grey[500]
+                                : (isMe ? Colors.white70 : Colors.grey[600]),
+                            fontSize: 12,
+                          ),
+                        ),
+                        if (message.isEdited && !message.isDeleted) ...[
+                          SizedBox(width: 4),
+                          Text(
+                            '• editado',
+                            style: TextStyle(
+                              color: isMe ? Colors.white60 : Colors.grey[500],
+                              fontSize: 10,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -360,6 +891,39 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
             ),
           ],
         ),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.more_vert),
+            onPressed: () {
+              showMenu(
+                context: context,
+                position: RelativeRect.fromLTRB(
+                  MediaQuery.of(context).size.width - 100,
+                  kToolbarHeight,
+                  0,
+                  0,
+                ),
+                items: [
+                  PopupMenuItem(
+                    child: Row(
+                      children: [
+                        Icon(Icons.search),
+                        SizedBox(width: 8),
+                        Text('Buscar mensajes'),
+                      ],
+                    ),
+                    onTap: () {
+                      // Usar Future.delayed para evitar problemas con el context
+                      Future.delayed(Duration.zero, () {
+                        _showSearchDialog();
+                      });
+                    },
+                  ),
+                ],
+              );
+            },
+          ),
+        ],
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 1,
@@ -423,31 +987,78 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
                 ),
               ],
             ),
-            child: Row(
+            child: Column(
               children: [
-                Expanded(
-                  child: TextField(
-                    controller: _messageController,
-                    decoration: InputDecoration(
-                      hintText: 'Escribe un mensaje...',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(25),
-                        borderSide: BorderSide.none,
-                      ),
-                      filled: true,
-                      fillColor: Colors.grey[100],
-                      contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                // Mostrar banner de edición si está editando
+                if (_editingMessageId != null)
+                  Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.blue[50],
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    onSubmitted: (_) => _sendMessage(),
-                    maxLines: null,
+                    child: Row(
+                      children: [
+                        Icon(Icons.edit, color: Colors.blue, size: 16),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Editando mensaje',
+                            style: TextStyle(color: Colors.blue[700]),
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: _cancelEditing,
+                          icon: Icon(Icons.close, color: Colors.blue),
+                          padding: EdgeInsets.zero,
+                          constraints: BoxConstraints(),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                SizedBox(width: 8),
-                FloatingActionButton(
-                  onPressed: _sendMessage,
-                  child: Icon(Icons.send),
-                  mini: true,
-                  backgroundColor: _isConnected ? Colors.blue : Colors.grey,
+                
+                // Campo de entrada
+                SizedBox(height: _editingMessageId != null ? 8 : 0),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _editingMessageId != null ? _editController : _messageController,
+                        decoration: InputDecoration(
+                          hintText: _editingMessageId != null ? 'Editar mensaje...' : 'Escribe un mensaje...',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(25),
+                            borderSide: BorderSide.none,
+                          ),
+                          filled: true,
+                          fillColor: Colors.grey[100],
+                          contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                        ),
+                        onSubmitted: (_) {
+                          if (_editingMessageId != null) {
+                            _confirmEdit();
+                          } else {
+                            _sendMessage();
+                          }
+                        },
+                        maxLines: null,
+                      ),
+                    ),
+                    SizedBox(width: 8),
+                    FloatingActionButton(
+                      onPressed: () {
+                        if (_editingMessageId != null) {
+                          _confirmEdit();
+                        } else {
+                          _sendMessage();
+                        }
+                      },
+                      child: Icon(_editingMessageId != null ? Icons.check : Icons.send),
+                      mini: true,
+                      backgroundColor: _isConnected ? Colors.blue : Colors.grey,
+                    ),
+                  ],
                 ),
               ],
             ),
