@@ -13,10 +13,16 @@ class SocketService {
       StreamController<Map<String, dynamic>>.broadcast();
   final StreamController<bool> _connectionStreamController = 
       StreamController<bool>.broadcast();
+  final StreamController<Map<String, dynamic>> _editedMessageStreamController = 
+      StreamController<Map<String, dynamic>>.broadcast();
+  final StreamController<Map<String, dynamic>> _deletedMessageStreamController = 
+      StreamController<Map<String, dynamic>>.broadcast();
   
   // Getters para los streams
   Stream<Map<String, dynamic>> get messageStream => _messageStreamController.stream;
   Stream<bool> get connectionStream => _connectionStreamController.stream;
+  Stream<Map<String, dynamic>> get editedMessageStream => _editedMessageStreamController.stream;
+  Stream<Map<String, dynamic>> get deletedMessageStream => _deletedMessageStreamController.stream;
   
   // Callback para nuevos mensajes (mantiene compatibilidad)
   Function(dynamic)? _onNewMessageCallback;
@@ -93,12 +99,14 @@ class SocketService {
       // Escuchar mensaje editado
       socket!.on('mensaje_editado', (data) {
         print('✏️ Mensaje editado recibido: $data');
+        print('✏️ Tipo de data: ${data.runtimeType}');
         _handleEditedMessage(data);
       });
 
       // Escuchar mensaje eliminado
       socket!.on('mensaje_eliminado', (data) {
         print('🗑️ Mensaje eliminado recibido: $data');
+        print('🗑️ Tipo de data: ${data.runtimeType}');
         _handleDeletedMessage(data);
       });
 
@@ -111,6 +119,12 @@ class SocketService {
       socket!.on('error_mensaje', (data) {
         print('❌ Error de mensaje: $data');
       });
+
+      // Esperar un poco para que la conexión se establezca
+      await Future.delayed(Duration(milliseconds: 500));
+      
+      // Emitir estado inicial después de intentar conectar
+      _connectionStreamController.add(socket?.connected == true);
 
     } catch (e) {
       print('❌ Error conectando socket: $e');
@@ -223,16 +237,23 @@ class SocketService {
   // Manejar mensajes editados
   void _handleEditedMessage(dynamic data) {
     try {
+      print('📝 Procesando mensaje editado en service: $data');
       final messageData = Map<String, dynamic>.from(data);
-      messageData['_isEdited'] = true; // Marcar como editado
       
-      // Emitir a través del stream
+      // Emitir a través del stream específico para mensajes editados
+      print('📝 Emitiendo mensaje editado a stream específico');
+      _editedMessageStreamController.add(messageData);
+      
+      // También emitir en el stream general con marca para compatibilidad
+      messageData['_isEdited'] = true;
       _messageStreamController.add(messageData);
       
       // Mantener compatibilidad con callback
       if (_onNewMessageCallback != null) {
         _onNewMessageCallback!(data);
       }
+      
+      print('📝 Mensaje editado procesado exitosamente');
     } catch (e) {
       print('❌ Error procesando mensaje editado: $e');
     }
@@ -241,16 +262,28 @@ class SocketService {
   // Manejar mensajes eliminados
   void _handleDeletedMessage(dynamic data) {
     try {
+      print('🗑️ Procesando mensaje eliminado en service: $data');
       final messageData = Map<String, dynamic>.from(data);
-      messageData['_isDeleted'] = true; // Marcar como eliminado
       
-      // Emitir a través del stream
+      // Convertir formato del backend al formato del frontend
+      if (messageData.containsKey('idMensaje')) {
+        messageData['id'] = messageData['idMensaje']; // Backend envía 'idMensaje', frontend espera 'id'
+      }
+      
+      // Emitir a través del stream específico para mensajes eliminados
+      print('🗑️ Emitiendo mensaje eliminado a stream específico');
+      _deletedMessageStreamController.add(messageData);
+      
+      // También emitir en el stream general con marca para compatibilidad
+      messageData['_isDeleted'] = true;
       _messageStreamController.add(messageData);
       
       // Mantener compatibilidad con callback
       if (_onNewMessageCallback != null) {
         _onNewMessageCallback!(data);
       }
+      
+      print('🗑️ Mensaje eliminado procesado exitosamente');
     } catch (e) {
       print('❌ Error procesando mensaje eliminado: $e');
     }
@@ -282,5 +315,7 @@ class SocketService {
     disconnect();
     _messageStreamController.close();
     _connectionStreamController.close();
+    _editedMessageStreamController.close();
+    _deletedMessageStreamController.close();
   }
 }

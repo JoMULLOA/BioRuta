@@ -157,7 +157,15 @@ export async function editarMensaje(idMensaje, rutEmisor, nuevoContenido) {
           fechaUltimaActualizacion: new Date()
         });
 
-        return mensajes[mensajeIndex];
+        // Retornar mensaje editado con información del receptor
+        const mensajeEditado = mensajes[mensajeIndex];
+        const receptor = chat.rutUsuario1 === rutEmisor ? chat.rutUsuario2 : chat.rutUsuario1;
+        
+        return {
+          ...mensajeEditado,
+          receptor: receptor,
+          idViajeMongo: null
+        };
       }
     }
 
@@ -188,7 +196,14 @@ export async function editarMensaje(idMensaje, rutEmisor, nuevoContenido) {
           fechaUltimaActualizacion: new Date()
         });
 
-        return mensajes[mensajeIndex];
+        // Retornar mensaje editado con información del viaje
+        const mensajeEditado = mensajes[mensajeIndex];
+        
+        return {
+          ...mensajeEditado,
+          receptor: null,
+          idViajeMongo: chat.idViajeMongo
+        };
       }
     }
 
@@ -224,7 +239,19 @@ export async function eliminarMensaje(idMensaje, rutEmisor) {
           fechaUltimaActualizacion: new Date()
         });
 
-        return { mensaje: "Mensaje eliminado exitosamente" };
+        // Retornar información del mensaje eliminado incluyendo receptor
+        const mensajeEliminado = mensajes[mensajeIndex];
+        const receptor = chat.rutUsuario1 === rutEmisor ? chat.rutUsuario2 : chat.rutUsuario1;
+        
+        return { 
+          mensaje: "Mensaje eliminado exitosamente",
+          mensajeEliminado: {
+            id: mensajeEliminado.id,
+            emisor: mensajeEliminado.emisor,
+            receptor: receptor,
+            esChat1a1: true
+          }
+        };
       }
     }
 
@@ -254,7 +281,18 @@ export async function eliminarMensaje(idMensaje, rutEmisor) {
           fechaUltimaActualizacion: new Date()
         });
 
-        return { mensaje: "Mensaje eliminado exitosamente" };
+        // Retornar información del mensaje eliminado para chat grupal
+        const mensajeEliminado = mensajes[mensajeIndex];
+        
+        return { 
+          mensaje: "Mensaje eliminado exitosamente",
+          mensajeEliminado: {
+            id: mensajeEliminado.id,
+            emisor: mensajeEliminado.emisor,
+            idViajeMongo: chat.idViajeMongo,
+            esChat1a1: false
+          }
+        };
       }
     }
 

@@ -72,8 +72,10 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
   String? _jwtToken;
   String? _rutUsuarioAutenticadoReal;
   late SocketService _socketService;
-  late StreamSubscription _messageSubscription;
-  late StreamSubscription _connectionSubscription;
+  late StreamSubscription<Map<String, dynamic>> _messageSubscription;
+  late StreamSubscription<bool> _connectionSubscription;
+  late StreamSubscription<Map<String, dynamic>> _editedMessageSubscription;
+  late StreamSubscription<Map<String, dynamic>> _deletedMessageSubscription;
   bool _isConnected = false;
   bool _isSearching = false;
   String _searchTerm = '';
@@ -96,6 +98,8 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
   void dispose() {
     _messageSubscription.cancel();
     _connectionSubscription.cancel();
+    _editedMessageSubscription.cancel();
+    _deletedMessageSubscription.cancel();
     _messageController.dispose();
     _scrollController.dispose();
     _searchController.dispose();
@@ -145,6 +149,11 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
       // Conectar al socket
       await _socketService.connect();
       
+      // Inicializar estado de conexión con el valor actual
+      setState(() {
+        _isConnected = _socketService.isConnected;
+      });
+      
       // Escuchar cambios en la conexión
       _connectionSubscription = _socketService.connectionStream.listen((isConnected) {
         if (mounted) {
@@ -165,6 +174,18 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
         _handleNewSocketMessage(messageData);
       });
       
+      // Escuchar mensajes editados
+      _editedMessageSubscription = _socketService.editedMessageStream.listen((messageData) {
+        print('📝 Stream de mensaje editado recibido en página: $messageData');
+        _handleEditedMessage(messageData);
+      });
+      
+      // Escuchar mensajes eliminados
+      _deletedMessageSubscription = _socketService.deletedMessageStream.listen((messageData) {
+        print('🗑️ Stream de mensaje eliminado recibido en página: $messageData');
+        _handleDeletedMessage(messageData);
+      });
+      
     } catch (e) {
       print('ERROR conectando socket: $e');
     }
@@ -176,16 +197,9 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
     try {
       print('📨 Procesando nuevo mensaje: $messageData');
       
-      // Verificar si es un mensaje editado o eliminado
-      if (messageData['_isEdited'] == true) {
-        print('🔄 Mensaje editado detectado');
-        _handleEditedMessage(messageData);
-        return;
-      }
-      
-      if (messageData['_isDeleted'] == true) {
-        print('🗑️ Mensaje eliminado detectado');
-        _handleDeletedMessage(messageData);
+      // Si es un mensaje editado o eliminado, no procesar aquí (se procesará en streams dedicados)
+      if (messageData['_isEdited'] == true || messageData['_isDeleted'] == true) {
+        print('� Mensaje editado/eliminado detectado, saltando procesamiento normal');
         return;
       }
       
@@ -257,20 +271,53 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
     if (!mounted) return;
     
     try {
-      final messageId = messageData['id'] is String ? int.tryParse(messageData['id']) : messageData['id'];
-      final newContent = messageData['contenido'];
+      print('🔄 Procesando mensaje editado: $messageData');
       
-      setState(() {
-        final index = _messages.indexWhere((m) => m.id == messageId);
-        if (index != -1) {
-          _messages[index] = _messages[index].copyWith(
-            text: newContent,
-            isEdited: true,
-          );
-        }
-      });
+      // Buscar ID del mensaje - puede venir como 'id' o 'idMensaje'
+      final messageId = messageData['id'] is String ? int.tryParse(messageData['id']) : messageData['id'] ??
+                        messageData['idMensaje'] is String ? int.tryParse(messageData['idMensaje']) : messageData['idMensaje'];
+      final newContent = messageData['contenido'] ?? messageData['nuevoContenido'];
       
-      print('✅ Mensaje editado actualizado');
+      print('🔄 ID del mensaje editado: $messageId, Nuevo contenido: $newContent');
+      
+      if (messageId == null) {
+        print('❌ No se encontró ID del mensaje editado');
+        return;
+      }
+      
+      // Verificar si el mensaje pertenece a esta conversación
+      final emisorRut = messageData['emisor']?.toString();
+      final receptorRut = messageData['receptor']?.toString();
+      
+      bool esParaEstaConversacion = false;
+      if (emisorRut != null && receptorRut != null) {
+        esParaEstaConversacion = (emisorRut == widget.rutAmigo && receptorRut == _rutUsuarioAutenticadoReal) ||
+                                (emisorRut == _rutUsuarioAutenticadoReal && receptorRut == widget.rutAmigo);
+      }
+      
+      print('🔄 Es para esta conversación: $esParaEstaConversacion');
+      
+      if (!esParaEstaConversacion) {
+        print('❌ Mensaje editado no pertenece a esta conversación');
+        return;
+      }        setState(() {
+          final index = _messages.indexWhere((m) => m.id == messageId);
+          if (index != -1) {
+            _messages[index] = _messages[index].copyWith(
+              text: newContent,
+              isEdited: true,
+            );
+            print('✅ Mensaje editado actualizado en la posición $index');
+            print('✅ Nuevo texto: ${_messages[index].text}');
+          } else {
+            print('❌ No se encontró mensaje con ID $messageId para editar');
+            print('❌ Mensajes disponibles: ${_messages.map((m) => 'ID: ${m.id}').toList()}');
+            // Si no se encuentra el mensaje, recargar como respaldo
+            print('🔄 Recargando mensajes como respaldo...');
+            _reloadMessages();
+          }
+        });
+      
     } catch (e) {
       print('ERROR procesando mensaje editado: $e');
     }
@@ -280,21 +327,62 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
     if (!mounted) return;
     
     try {
-      final messageId = messageData['id'] is String ? int.tryParse(messageData['id']) : messageData['id'];
+      print('🗑️ Procesando mensaje eliminado: $messageData');
       
-      setState(() {
-        final index = _messages.indexWhere((m) => m.id == messageId);
-        if (index != -1) {
-          _messages[index] = _messages[index].copyWith(
-            isDeleted: true,
-          );
-        }
-      });
+      // Buscar ID del mensaje - puede venir como 'id' o 'idMensaje'
+      final messageId = messageData['id'] is String ? int.tryParse(messageData['id']) : messageData['id'] ??
+                        messageData['idMensaje'] is String ? int.tryParse(messageData['idMensaje']) : messageData['idMensaje'];
       
-      print('✅ Mensaje eliminado actualizado');
+      print('🗑️ ID del mensaje eliminado: $messageId');
+      
+      if (messageId == null) {
+        print('❌ No se encontró ID del mensaje eliminado');
+        return;
+      }
+      
+      // Verificar si el mensaje pertenece a esta conversación
+      final emisorRut = messageData['emisor']?.toString();
+      final receptorRut = messageData['receptor']?.toString();
+      
+      bool esParaEstaConversacion = false;
+      if (emisorRut != null && receptorRut != null) {
+        esParaEstaConversacion = (emisorRut == widget.rutAmigo && receptorRut == _rutUsuarioAutenticadoReal) ||
+                                (emisorRut == _rutUsuarioAutenticadoReal && receptorRut == widget.rutAmigo);
+      }
+      
+      print('🗑️ Es para esta conversación: $esParaEstaConversacion');
+      
+      if (!esParaEstaConversacion) {
+        print('❌ Mensaje eliminado no pertenece a esta conversación');
+        return;
+      }        setState(() {
+          final index = _messages.indexWhere((m) => m.id == messageId);
+          if (index != -1) {
+            _messages[index] = _messages[index].copyWith(
+              isDeleted: true,
+            );
+            print('✅ Mensaje eliminado actualizado en la posición $index');
+          } else {
+            print('❌ No se encontró mensaje con ID $messageId para eliminar');
+            print('❌ Mensajes disponibles: ${_messages.map((m) => 'ID: ${m.id}').toList()}');
+            // Si no se encuentra el mensaje, recargar como respaldo
+            print('🔄 Recargando mensajes como respaldo...');
+            _reloadMessages();
+          }
+        });
+      
     } catch (e) {
       print('ERROR procesando mensaje eliminado: $e');
     }
+  }
+
+  // Método para recargar mensajes (usado como respaldo)
+  Future<void> _reloadMessages() async {
+    print('🔄 Recargando mensajes...');
+    setState(() {
+      _messages.clear();
+    });
+    await _fetchMessages();
   }
 
   Future<void> _fetchMessages() async {
@@ -626,6 +714,10 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
         );
         
         print('✅ Mensaje editado exitosamente');
+        
+        // Recargar mensajes después de un pequeño delay para asegurar que se actualizó
+        await Future.delayed(Duration(milliseconds: 500));
+        await _reloadMessages();
       } else {
         print('ERROR al editar mensaje: ${response.statusCode} - ${response.body}');
         ScaffoldMessenger.of(context).showSnackBar(
@@ -660,6 +752,10 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
         _socketService.deleteMessage(idMensaje: messageId);
         
         print('✅ Mensaje eliminado exitosamente');
+        
+        // Recargar mensajes después de un pequeño delay para asegurar que se actualizó
+        await Future.delayed(Duration(milliseconds: 500));
+        await _reloadMessages();
       } else {
         print('ERROR al eliminar mensaje: ${response.statusCode} - ${response.body}');
         ScaffoldMessenger.of(context).showSnackBar(

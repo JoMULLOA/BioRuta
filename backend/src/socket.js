@@ -116,8 +116,10 @@ export function initSocket(server) {
           id: mensajeEditado.id,
           contenido: mensajeEditado.contenido,
           emisor: mensajeEditado.emisor,
+          receptor: mensajeEditado.receptor,
           fecha: mensajeEditado.fecha,
-          editado: true
+          editado: true,
+          idViajeMongo: mensajeEditado.idViajeMongo
         };
 
         // Determinar salas para enviar la actualización
@@ -151,21 +153,31 @@ export function initSocket(server) {
       }
 
       try {
-        await eliminarMensaje(idMensaje, socket.userId);
+        const resultado = await eliminarMensaje(idMensaje, socket.userId);
 
         console.log(`🗑️ Mensaje eliminado por usuario ${socket.userId}: ${idMensaje}`);
 
         const eventoEliminacion = {
+          id: idMensaje,
           idMensaje,
+          emisor: resultado.mensajeEliminado.emisor,
+          receptor: resultado.mensajeEliminado.receptor,
           eliminadoPor: socket.userId,
-          fecha: new Date()
+          fecha: new Date(),
+          idViajeMongo: resultado.mensajeEliminado.idViajeMongo
         };
 
-        // Enviar notificación de eliminación a las salas correspondientes
-        // Nota: Necesitamos determinar si es chat 1 a 1 o grupal
-        // Por ahora enviamos a sala personal del usuario
-        io.to(`usuario_${socket.userId}`).emit("mensaje_eliminado", eventoEliminacion);
-        console.log(`🗑️ Notificación de eliminación enviada a usuario ${socket.userId}`);
+        // Enviar notificación según el tipo de chat
+        if (resultado.mensajeEliminado.esChat1a1) {
+          // Chat 1 a 1: notificar a ambos usuarios
+          io.to(`usuario_${socket.userId}`).emit("mensaje_eliminado", eventoEliminacion);
+          io.to(`usuario_${resultado.mensajeEliminado.receptor}`).emit("mensaje_eliminado", eventoEliminacion);
+          console.log(`🗑️ Notificación de eliminación enviada a chat 1 a 1: ${socket.userId} ↔ ${resultado.mensajeEliminado.receptor}`);
+        } else {
+          // Chat grupal: notificar a toda la sala del viaje
+          io.to(`viaje_${resultado.mensajeEliminado.idViajeMongo}`).emit("mensaje_eliminado", eventoEliminacion);
+          console.log(`🗑️ Notificación de eliminación enviada a chat de viaje: ${resultado.mensajeEliminado.idViajeMongo}`);
+        }
 
         socket.emit("eliminacion_exitosa", { success: true, idMensaje });
 
