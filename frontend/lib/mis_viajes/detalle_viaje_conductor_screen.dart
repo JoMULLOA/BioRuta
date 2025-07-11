@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/viaje_model.dart';
 import '../services/viaje_service.dart';
+import '../services/ruta_service.dart';
 
 class DetalleViajeConductorScreen extends StatefulWidget {
   final Viaje viaje;
@@ -17,11 +18,15 @@ class DetalleViajeConductorScreen extends StatefulWidget {
 class _DetalleViajeConductorScreenState extends State<DetalleViajeConductorScreen> {
   late Viaje viaje;
   bool cargando = false;
+  bool mostrarRutaRestante = false;
 
   @override
   void initState() {
     super.initState();
     viaje = widget.viaje;
+    
+    // Verificar si ya hay una ruta activa para este viaje
+    mostrarRutaRestante = RutaService.instance.tieneRutaActiva(viaje.id);
   }
 
   Color _getEstadoColor(String estado) {
@@ -195,6 +200,26 @@ class _DetalleViajeConductorScreenState extends State<DetalleViajeConductorScree
           );
         }
       }
+    }
+  }
+
+  void _toggleRutaRestante() {
+    setState(() {
+      mostrarRutaRestante = !mostrarRutaRestante;
+    });
+    
+    if (mostrarRutaRestante) {
+      // Activar ruta restante en el servicio global
+      RutaService.instance.activarRutaRestante(
+        viajeId: viaje.id,
+        destinoNombre: viaje.destino.nombre,
+        destinoLat: viaje.destino.latitud,
+        destinoLng: viaje.destino.longitud,
+        esConductor: true,
+      );
+    } else {
+      // Desactivar ruta
+      RutaService.instance.desactivarRuta();
     }
   }
 
@@ -463,6 +488,28 @@ class _DetalleViajeConductorScreenState extends State<DetalleViajeConductorScree
     
     return Column(
       children: [
+        // Checkbox para mostrar ruta restante
+        CheckboxListTile(
+          title: const Text(
+            'Activar seguimiento de ruta restante',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          subtitle: const Text(
+            'Activa esta opción para ver el camino restante desde tu ubicación actual',
+            style: TextStyle(fontSize: 14, color: Colors.grey),
+          ),
+          value: mostrarRutaRestante,
+          onChanged: (bool? value) => _toggleRutaRestante(),
+          activeColor: const Color(0xFF854937),
+          controlAffinity: ListTileControlAffinity.leading,
+          contentPadding: EdgeInsets.zero,
+        ),
+        
+        const SizedBox(height: 16),
+        
         if (estado == 'activo') ...[
           SizedBox(
             width: double.infinity,

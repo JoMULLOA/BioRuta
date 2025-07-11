@@ -465,14 +465,16 @@ Future<void> _cargarViajes() async {
                 ),
                 Row(
                   children: [
-                    // Botón de pago para todos los viajes
-                    IconButton(
-                      icon: const Icon(Icons.payment, size: 20, color: Colors.green),
-                      tooltip: 'Pagar viaje',
-                      onPressed: () {
-                        _procesarPago(viaje);
-                      },
-                    ),
+                    // Botón de pago solo cuando el viaje está completado
+                    if (viaje.estado.toLowerCase() == 'completado') ...[
+                      IconButton(
+                        icon: const Icon(Icons.payment, size: 20, color: Colors.green),
+                        tooltip: 'Pagar viaje',
+                        onPressed: () {
+                          _procesarPago(viaje);
+                        },
+                      ),
+                    ],
                     // Botones de editar y borrar solo para el creador
                     if (esCreadorReal) ...[
                       IconButton(

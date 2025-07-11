@@ -9,6 +9,7 @@ import '../models/marcador_viaje_model.dart';
 import '../services/ubicacion_service.dart';
 import '../services/busqueda_service.dart';
 import '../services/viaje_service.dart';
+import '../services/ruta_service.dart';
 import 'mapa_widget.dart';
 import '../buscar/barra_busqueda_widget.dart';
 import '../mis_viajes/mis_viajes_screen.dart';
@@ -35,6 +36,9 @@ class _MapPageState extends State<MapPage> {
   bool _cargandoViajes = false;
   Map<String, GeoPoint> _marcadoresEnMapa = {};
 
+  // Variables para manejar rutas específicas pasadas como argumentos
+  bool _rutaEspecificaCargada = false;
+
   @override
   void initState() {
     super.initState();
@@ -44,8 +48,41 @@ class _MapPageState extends State<MapPage> {
         unFollowUser: false,
       ),
     );
+    
+    // Registrar callback para recibir notificaciones de cambios de ruta
+    RutaService.instance.registrarMapaCallback(_onRutaChanged);
+    
     _inicializarUbicacion();
     _cargarMarcadoresViajes();
+    
+    // Verificar si hay una ruta activa al cargar el mapa
+    _verificarRutaActiva();
+  }
+
+  @override
+  void dispose() {
+    // Limpiar el callback al destruir el widget
+    RutaService.instance.limpiarCallback();
+    destinoController.dispose();
+    _debounceTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    
+    // Verificar si hay argumentos de ruta específica (para compatibilidad con navegación directa)
+    if (!_rutaEspecificaCargada) {
+      final arguments = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+      
+      if (arguments != null) {
+        if (arguments.containsKey('origen') && arguments.containsKey('destino')) {
+          _rutaEspecificaCargada = true;
+          _mostrarRutaEspecifica(arguments);
+        }
+      }
+    }
   }
 
   Future<void> _inicializarUbicacion() async {
@@ -497,11 +534,209 @@ class _MapPageState extends State<MapPage> {
     return c * 2 * math.asin(math.sqrt(a));
   }
 
-  @override
-  void dispose() {
-    destinoController.dispose();
-    _debounceTimer?.cancel();
-    super.dispose();
+  Future<void> _mostrarRutaEspecifica(Map<String, dynamic> arguments) async {
+    try {
+      debugPrint("🗺️ Mostrando ruta específica con argumentos: $arguments");
+      
+      final origenData = arguments['origen'] as Map<String, dynamic>;
+      final destinoData = arguments['destino'] as Map<String, dynamic>;
+      
+      final origen = GeoPoint(
+        latitude: origenData['lat'] as double,
+        longitude: origenData['lng'] as double,
+      );
+      
+      final destino = GeoPoint(
+        latitude: destinoData['lat'] as double,
+        longitude: destinoData['lng'] as double,
+      );
+
+      // Esperar a que el mapa esté listo
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      // Remover rutas anteriores
+      await controller.removeLastRoad();
+
+      // Dibujar la ruta
+      await controller.drawRoad(
+        origen,
+        destino,
+        roadType: RoadType.car,
+        roadOption: const RoadOption(roadColor: Color(0xFF854937)),
+      );
+
+      // Agregar marcadores
+      await controller.addMarker(
+        origen,
+        markerIcon: const MarkerIcon(
+          icon: Icon(Icons.location_on, color: Color(0xFF1B5E20), size: 56),
+        ),
+      );
+
+      await controller.addMarker(
+        destino,
+        markerIcon: const MarkerIcon(
+          icon: Icon(Icons.flag, color: Color(0xFFEDCAB6), size: 56),
+        ),
+      );
+
+      // Centrar el mapa para mostrar ambos puntos
+      await _centrarMapaEnRuta(origen, destino);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('🚗 Ruta del viaje mostrada'),
+            backgroundColor: Color(0xFF854937),
+          ),
+        );
+      }
+
+    } catch (e) {
+      debugPrint("❌ Error al mostrar ruta específica: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('❌ Error al mostrar la ruta del viaje'),
+            backgroundColor: Color(0xFF070505),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _centrarMapaEnRuta(GeoPoint origen, GeoPoint destino) async {
+    try {
+      // Calcular el punto central y el zoom apropiado
+      final latPromedio = (origen.latitude + destino.latitude) / 2;
+      final lngPromedio = (origen.longitude + destino.longitude) / 2;
+      final puntoMedio = GeoPoint(latitude: latPromedio, longitude: lngPromedio);
+
+      // Calcular la distancia para determinar el zoom
+      final distancia = _calcularDistancia(origen.latitude, origen.longitude, destino.latitude, destino.longitude);
+      double zoom = 15.0; // Zoom por defecto
+      
+      if (distancia > 50000) { // distancia en metros
+        zoom = 10.0;
+      } else if (distancia > 20000) {
+        zoom = 12.0;
+      } else if (distancia > 5000) {
+        zoom = 14.0;
+      }
+
+      await controller.moveTo(puntoMedio);
+      await controller.setZoom(zoomLevel: zoom);
+      
+    } catch (e) {
+      debugPrint("❌ Error al centrar mapa: $e");
+    }
+  }
+
+  // Callback para manejar cambios en el estado de ruta
+  void _onRutaChanged(bool rutaActiva, Map<String, dynamic>? datosRuta) {
+    if (rutaActiva && datosRuta != null) {
+      _mostrarRutaRestanteDesdeServicio(datosRuta);
+    } else {
+      _limpiarRutasMapa();
+    }
+  }
+
+  // Verificar si hay una ruta activa al cargar el mapa
+  void _verificarRutaActiva() {
+    if (RutaService.instance.rutaActiva) {
+      final datosRuta = RutaService.instance.datosRuta;
+      if (datosRuta != null) {
+        // Esperar un poco para que el mapa se inicialice
+        Future.delayed(const Duration(milliseconds: 1000), () {
+          _mostrarRutaRestanteDesdeServicio(datosRuta);
+        });
+      }
+    }
+  }
+
+  // Limpiar rutas del mapa
+  Future<void> _limpiarRutasMapa() async {
+    try {
+      await controller.removeLastRoad();
+      debugPrint("🗺️ Rutas limpiadas del mapa");
+    } catch (e) {
+      debugPrint("❌ Error al limpiar rutas: $e");
+    }
+  }
+
+  // Mostrar ruta restante usando datos del servicio
+  Future<void> _mostrarRutaRestanteDesdeServicio(Map<String, dynamic> datosRuta) async {
+    try {
+      debugPrint("🗺️ Mostrando ruta restante desde servicio: $datosRuta");
+      
+      final destinoData = datosRuta['destino'] as Map<String, dynamic>;
+      final esConductor = datosRuta['esConductor'] as bool? ?? true;
+      
+      final destino = GeoPoint(
+        latitude: destinoData['lat'] as double,
+        longitude: destinoData['lng'] as double,
+      );
+
+      // Esperar a que el mapa esté listo
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      // Obtener la ubicación actual del usuario
+      final ubicacionActual = await controller.myLocation();
+
+      // Remover rutas anteriores
+      await controller.removeLastRoad();
+
+      // Dibujar la ruta desde la ubicación actual hasta el destino
+      await controller.drawRoad(
+        ubicacionActual,
+        destino,
+        roadType: RoadType.car,
+        roadOption: const RoadOption(
+          roadColor: Color(0xFF2196F3), // Azul para ruta restante
+          roadWidth: 6,
+        ),
+      );
+
+      // Agregar marcador de la ubicación actual
+      await controller.addMarker(
+        ubicacionActual,
+        markerIcon: const MarkerIcon(
+          icon: Icon(Icons.my_location, color: Color(0xFF2196F3), size: 56),
+        ),
+      );
+
+      // Agregar marcador del destino
+      await controller.addMarker(
+        destino,
+        markerIcon: const MarkerIcon(
+          icon: Icon(Icons.flag, color: Color(0xFFEDCAB6), size: 56),
+        ),
+      );
+
+      // Centrar el mapa para mostrar ambos puntos
+      await _centrarMapaEnRuta(ubicacionActual, destino);
+
+      if (mounted) {
+        final tipoUsuario = esConductor ? 'conductor' : 'pasajero';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('🚗 Ruta restante activada para $tipoUsuario'),
+            backgroundColor: const Color(0xFF2196F3),
+          ),
+        );
+      }
+
+    } catch (e) {
+      debugPrint("❌ Error al mostrar ruta restante desde servicio: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('❌ Error al mostrar la ruta restante'),
+            backgroundColor: Color(0xFF070505),
+          ),
+        );
+      }
+    }
   }
 
   @override
