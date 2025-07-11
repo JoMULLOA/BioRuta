@@ -84,10 +84,9 @@ export async function obtenerConversacion(rutUsuario1, rutUsuario2) {
       return [];
     }
 
-    // Filtrar mensajes no eliminados
-    const mensajesFiltrados = chatPersonal.chatCompleto.filter(mensaje => !mensaje.eliminado);
-    
-    return mensajesFiltrados;
+    // Retornar todos los mensajes, incluyendo los eliminados
+    // para que se muestren como "Mensaje eliminado" en el frontend
+    return chatPersonal.chatCompleto;
   } catch (error) {
     console.error("Error al obtener la conversación 1 a 1:", error.message);
     throw new Error(`Error al obtener la conversación 1 a 1: ${error.message}`);
@@ -122,9 +121,9 @@ export async function obtenerMensajesViaje(idViajeMongo, rutUsuarioSolicitante) 
       return [];
     }
 
-    const mensajesFiltrados = chatGrupal.chatCompleto.filter(mensaje => !mensaje.eliminado);
-    
-    return mensajesFiltrados;
+    // Retornar todos los mensajes, incluyendo los eliminados
+    // para que se muestren como "Mensaje eliminado" en el frontend
+    return chatGrupal.chatCompleto;
   } catch (error) {
     console.error("Error al obtener los mensajes del viaje:", error.message);
     throw new Error(`Error al obtener los mensajes del viaje: ${error.message}`);
