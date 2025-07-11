@@ -30,14 +30,14 @@ export async function crearViaje(req, res) {
 
     // Validar que hay exactamente 2 ubicaciones
     if (!ubicaciones || ubicaciones.length !== 2) {
-      return handleErrorServer(res, "Debe proporcionar exactamente 2 ubicaciones: origen y destino");
+      return handleErrorServer(res, 400, "Debe proporcionar exactamente 2 ubicaciones: origen y destino");
     }
 
     const origen = ubicaciones.find(u => u.esOrigen === true);
     const destino = ubicaciones.find(u => u.esOrigen === false);
 
     if (!origen || !destino) {
-      return handleErrorServer(res, "Debe especificar claramente el origen y destino");
+      return handleErrorServer(res, 400, "Debe especificar claramente el origen y destino");
     }
 
     // Verificar que el usuario existe en PostgreSQL
@@ -46,7 +46,7 @@ export async function crearViaje(req, res) {
     });
 
     if (!usuario) {
-      return handleErrorServer(res, "Usuario no encontrado");
+      return handleErrorServer(res, 404, "Usuario no encontrado");
     }
 
     // Verificar que el vehículo existe y pertenece al usuario
@@ -59,7 +59,7 @@ export async function crearViaje(req, res) {
     });
 
     if (!vehiculo) {
-      return handleErrorServer(res, "Vehículo no encontrado o no le pertenece");
+      return handleErrorServer(res, 404, "Vehículo no encontrado o no le pertenece");
     }
 
     // Validar fecha no sea pasada
@@ -68,7 +68,7 @@ export async function crearViaje(req, res) {
     ahora.setHours(0, 0, 0, 0);
     
     if (fechaViajeIda < ahora) {
-      return handleErrorServer(res, "No se pueden crear viajes en fechas pasadas");
+      return handleErrorServer(res, 400, "No se pueden crear viajes en fechas pasadas");
     }
 
     // Crear el viaje en MongoDB
@@ -111,7 +111,7 @@ export async function crearViaje(req, res) {
 
   } catch (error) {
     console.error("Error al crear viaje:", error);
-    handleErrorServer(res, "Error interno del servidor");
+    handleErrorServer(res, 500, "Error interno del servidor");
   }
 }
 
@@ -132,7 +132,7 @@ export async function buscarViajesPorProximidad(req, res) {
 
     // Validar parámetros requeridos
     if (!origenLat || !origenLng || !destinoLat || !destinoLng || !fechaViaje) {
-      return handleErrorServer(res, "Parámetros requeridos: origenLat, origenLng, destinoLat, destinoLng, fechaViaje");
+      return handleErrorServer(res, 400, "Parámetros requeridos: origenLat, origenLng, destinoLat, destinoLng, fechaViaje");
     }    // Convertir radio de kilómetros a metros (500 metros = 0.5 km)
     const radioEnMetros = parseFloat(radio) * 1000;
 
@@ -442,12 +442,12 @@ export async function buscarViajesPorProximidad(req, res) {
 
     } catch (aggregationError) {
       console.error('❌ Error en el pipeline de agregación:', aggregationError);
-      return handleErrorServer(res, "Error al procesar la búsqueda de viajes: " + aggregationError.message);
+      return handleErrorServer(res, 500, "Error al procesar la búsqueda de viajes: " + aggregationError.message);
     }
 
   } catch (error) {
     console.error("Error en búsqueda por proximidad:", error);
-    handleErrorServer(res, "Error interno del servidor");
+    handleErrorServer(res, 500, "Error interno del servidor");
   }
 }
 
@@ -558,20 +558,20 @@ export async function unirseAViaje(req, res) {
     const viaje = await Viaje.findById(viajeId);
 
     if (!viaje) {
-      return handleErrorServer(res, "Viaje no encontrado");
+      return handleErrorServer(res, 404, "Viaje no encontrado");
     }
 
     // Validaciones
     if (viaje.estado !== 'activo') {
-      return handleErrorServer(res, "Este viaje ya no está disponible");
+      return handleErrorServer(res, 400, "Este viaje ya no está disponible");
     }
 
     if (viaje.usuario_rut === usuarioRut) {
-      return handleErrorServer(res, "No puedes unirte a tu propio viaje");
+      return handleErrorServer(res, 400, "No puedes unirte a tu propio viaje");
     }
 
     if (viaje.plazas_disponibles < pasajeros_solicitados) {
-      return handleErrorServer(res, `Solo hay ${viaje.plazas_disponibles} plazas disponibles`);
+      return handleErrorServer(res, 400, `Solo hay ${viaje.plazas_disponibles} plazas disponibles`);
     }
 
     // Verificar si ya se unió
@@ -580,13 +580,13 @@ export async function unirseAViaje(req, res) {
     );
 
     if (yaUnido) {
-      return handleErrorServer(res, "Ya tienes una solicitud pendiente para este viaje");
+      return handleErrorServer(res, 400, "Ya tienes una solicitud pendiente para este viaje");
     }
 
     // Agregar solicitud de pasajero
     viaje.pasajeros.push({
       usuario_rut: usuarioRut,
-      estado: 'pendiente',
+      estado: 'confirmado', // Cambiado de 'pendiente' a 'confirmado' para simplificar
       pasajeros_solicitados: pasajeros_solicitados,
       mensaje: mensaje
     });
@@ -596,13 +596,13 @@ export async function unirseAViaje(req, res) {
 
     await viaje.save();
 
-    handleSuccess(res, 200, "Solicitud enviada exitosamente", {
-      estado: 'pendiente'
+    handleSuccess(res, 200, "Te has unido al viaje exitosamente", {
+      estado: 'confirmado'
     });
 
   } catch (error) {
     console.error("Error al unirse a viaje:", error);
-    handleErrorServer(res, "Error interno del servidor");
+    handleErrorServer(res, 500, "Error interno del servidor");
   }
 }
 
@@ -612,20 +612,62 @@ export async function unirseAViaje(req, res) {
 export async function obtenerViajesUsuario(req, res) {
   try {
     const usuarioRut = req.user.rut;
+    console.log(`🔍 Buscando viajes para usuario: ${usuarioRut}`);
 
-    const viajes = await Viaje.find({ usuario_rut: usuarioRut })
+    // Obtener viajes creados por el usuario
+    const viajesCreados = await Viaje.find({ usuario_rut: usuarioRut })
       .sort({ fecha_creacion: -1 });
+    console.log(`📝 Viajes creados encontrados: ${viajesCreados.length}`);
 
-    // Enriquecer con datos de PostgreSQL
-    const viajesConDatos = await Promise.all(
-      viajes.map(async (viaje) => obtenerViajeConDatos(viaje._id))
-    );
+    // Obtener viajes donde el usuario es pasajero (pendiente o confirmado)
+    const viajesUnidos = await Viaje.find({
+      "pasajeros.usuario_rut": usuarioRut,
+      "pasajeros.estado": { $in: ["pendiente", "confirmado"] }
+    }).sort({ fecha_creacion: -1 });
+    console.log(`🚗 Viajes unidos encontrados: ${viajesUnidos.length}`);
 
-    handleSuccess(res, 200, "Viajes obtenidos exitosamente", viajesConDatos);
+    // Combinar y eliminar duplicados (por si acaso)
+    const todosLosViajes = [];
+    const viajesIds = new Set();
+
+    // Agregar viajes creados
+    for (const viaje of viajesCreados) {
+      if (!viajesIds.has(viaje._id.toString())) {
+        const viajeConDatos = await obtenerViajeConDatos(viaje._id);
+        if (viajeConDatos) {
+          viajeConDatos.es_creador = true;
+          viajeConDatos.es_unido = false;
+          todosLosViajes.push(viajeConDatos);
+          viajesIds.add(viaje._id.toString());
+        }
+      }
+    }
+
+    // Agregar viajes a los que se unió
+    for (const viaje of viajesUnidos) {
+      if (!viajesIds.has(viaje._id.toString())) {
+        const viajeConDatos = await obtenerViajeConDatos(viaje._id);
+        if (viajeConDatos) {
+          viajeConDatos.es_creador = false;
+          viajeConDatos.es_unido = true;
+          todosLosViajes.push(viajeConDatos);
+          viajesIds.add(viaje._id.toString());
+        }
+      }
+    }
+
+    // Ordenar por fecha de creación (más reciente primero)
+    todosLosViajes.sort((a, b) => new Date(b.fecha_creacion) - new Date(a.fecha_creacion));
+
+    console.log(`✅ Total de viajes a enviar: ${todosLosViajes.length}`);
+    console.log(`   - Creados: ${todosLosViajes.filter(v => v.es_creador).length}`);
+    console.log(`   - Unidos: ${todosLosViajes.filter(v => v.es_unido).length}`);
+
+    handleSuccess(res, 200, "Viajes obtenidos exitosamente", todosLosViajes);
 
   } catch (error) {
     console.error("Error al obtener viajes del usuario:", error);
-    handleErrorServer(res, "Error interno del servidor");
+    handleErrorServer(res, 500, "Error interno del servidor");
   }
 }
 
@@ -762,6 +804,58 @@ export async function eliminarViaje(req, res) {
 
   } catch (error) {
     console.error("Error al eliminar viaje:", error);
+    handleErrorServer(res, "Error interno del servidor");
+  }
+}
+
+/**
+ * Confirmar un pasajero en un viaje
+ */
+export async function confirmarPasajero(req, res) {
+  try {
+    const { viajeId, usuarioRut } = req.params;
+    const conductorRut = req.user.rut;
+
+    // Buscar el viaje
+    const viaje = await Viaje.findById(viajeId);
+
+    if (!viaje) {
+      return handleErrorServer(res, "Viaje no encontrado");
+    }
+
+    // Verificar que el usuario autenticado es el conductor del viaje
+    if (viaje.usuario_rut !== conductorRut) {
+      return handleErrorServer(res, "Solo el conductor puede confirmar pasajeros");
+    }
+
+    // Buscar el pasajero en la lista
+    const pasajeroIndex = viaje.pasajeros.findIndex(p => p.usuario_rut === usuarioRut);
+
+    if (pasajeroIndex === -1) {
+      return handleErrorServer(res, "Pasajero no encontrado en este viaje");
+    }
+
+    const pasajero = viaje.pasajeros[pasajeroIndex];
+
+    if (pasajero.estado === 'confirmado') {
+      return handleErrorServer(res, "El pasajero ya está confirmado");
+    }
+
+    if (pasajero.estado === 'rechazado') {
+      return handleErrorServer(res, "No se puede confirmar un pasajero rechazado");
+    }
+
+    // Confirmar el pasajero
+    viaje.pasajeros[pasajeroIndex].estado = 'confirmado';
+    await viaje.save();
+
+    handleSuccess(res, 200, "Pasajero confirmado exitosamente", {
+      usuarioRut: usuarioRut,
+      estado: 'confirmado'
+    });
+
+  } catch (error) {
+    console.error("Error al confirmar pasajero:", error);
     handleErrorServer(res, "Error interno del servidor");
   }
 }

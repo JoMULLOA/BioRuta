@@ -13,7 +13,7 @@ export function validateBody(schema) {
     
     if (error) {
       const errorMessages = error.details.map(detail => detail.message);
-      return handleErrorServer(res, `Errores de validación: ${errorMessages.join(', ')}`);
+      return handleErrorServer(res, 400, `Errores de validación: ${errorMessages.join(', ')}`);
     }
     
     req.body = value; // Usar los valores validados y limpios
@@ -33,7 +33,7 @@ export function validateQuery(schema) {
     
     if (error) {
       const errorMessages = error.details.map(detail => detail.message);
-      return handleErrorServer(res, `Errores de validación en parámetros: ${errorMessages.join(', ')}`);
+      return handleErrorServer(res, 400, `Errores de validación en parámetros: ${errorMessages.join(', ')}`);
     }
     
     req.query = value; // Usar los valores validados y limpios
@@ -53,7 +53,7 @@ export function validateParams(schema) {
     
     if (error) {
       const errorMessages = error.details.map(detail => detail.message);
-      return handleErrorServer(res, `Errores de validación en parámetros de URL: ${errorMessages.join(', ')}`);
+      return handleErrorServer(res, 400, `Errores de validación en parámetros de URL: ${errorMessages.join(', ')}`);
     }
     
     req.params = value; // Usar los valores validados y limpios
@@ -90,7 +90,7 @@ export function validationMiddleware(schema, target = 'body') {
     
     if (error) {
       const errorMessages = error.details.map(detail => detail.message);
-      return handleErrorServer(res, `Errores de validación en ${target}: ${errorMessages.join(', ')}`);
+      return handleErrorServer(res, 400, `Errores de validación en ${target}: ${errorMessages.join(', ')}`);
     }
     
     // Asignar los valores validados y limpios de vuelta al request

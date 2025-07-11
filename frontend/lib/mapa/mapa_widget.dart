@@ -3,13 +3,19 @@ import 'package:flutter_osm_plugin/flutter_osm_plugin.dart';
 
 class MapaWidget extends StatelessWidget {
   final MapController controller;
+  final Function(GeoPoint)? onMapTap;
 
-  const MapaWidget({super.key, required this.controller});
+  const MapaWidget({
+    super.key, 
+    required this.controller,
+    this.onMapTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     return OSMFlutter(
       controller: controller,
+      onGeoPointClicked: onMapTap,
       osmOption: OSMOption(
         userTrackingOption: const UserTrackingOption(
           enableTracking: true,

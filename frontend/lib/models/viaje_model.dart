@@ -26,6 +26,10 @@ class Viaje {
   final double? distanciaOrigen;
   final double? distanciaDestino;
 
+  // Propiedades para determinar el tipo de relación del usuario con el viaje
+  final bool? esCreador;
+  final bool? esUnido;
+
   Viaje({
     required this.id,
     required this.usuarioRut,
@@ -51,6 +55,8 @@ class Viaje {
     this.vehiculo,
     this.distanciaOrigen,
     this.distanciaDestino,
+    this.esCreador,
+    this.esUnido,
   });
 
   factory Viaje.fromJson(Map<String, dynamic> json) {
@@ -91,6 +97,8 @@ class Viaje {
         : null,
       distanciaOrigen: json['distancia_origen']?.toDouble(),
       distanciaDestino: json['distancia_destino']?.toDouble(),
+      esCreador: json['es_creador'],
+      esUnido: json['es_unido'],
     );
   }
 
@@ -120,6 +128,8 @@ class Viaje {
       if (vehiculo != null) 'vehiculo': vehiculo!.toJson(),
       if (distanciaOrigen != null) 'distancia_origen': distanciaOrigen,
       if (distanciaDestino != null) 'distancia_destino': distanciaDestino,
+      if (esCreador != null) 'es_creador': esCreador,
+      if (esUnido != null) 'es_unido': esUnido,
     };
   }
 }

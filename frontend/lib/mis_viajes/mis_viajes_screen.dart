@@ -33,13 +33,22 @@ Future<void> _cargarViajes() async {
 
     // Cargar viajes usando el método obtenerMisViajes
     final List<Viaje> viajes = await ViajeService.obtenerMisViajes();
+    
+    print('🔍 Total viajes recibidos: ${viajes.length}');
+    for (int i = 0; i < viajes.length; i++) {
+      final viaje = viajes[i];
+      print('   Viaje $i: esCreador=${viaje.esCreador}, esUnido=${viaje.esUnido}');
+    }
 
     setState(() {
-      // Separar viajes creados de viajes a los que se unió
-      viajesCreados = viajes.where((v) => v.estado == 'activo').toList();
-      viajesUnidos = viajes.where((v) => v.pasajeros.isNotEmpty).toList();
+      // Separar viajes creados de viajes a los que se unió usando las nuevas propiedades
+      viajesCreados = viajes.where((v) => v.esCreador == true).toList();
+      viajesUnidos = viajes.where((v) => v.esUnido == true).toList();
       cargando = false;
     });
+    
+    print('📝 Viajes creados: ${viajesCreados.length}');
+    print('🚗 Viajes unidos: ${viajesUnidos.length}');
   } catch (e) {
     setState(() {
       cargando = false;
@@ -185,7 +194,8 @@ Future<void> _cargarViajes() async {
         padding: const EdgeInsets.all(16),
         itemCount: viajesCreados.length,
         itemBuilder: (context, index) {
-          return _buildViajeCard(viajesCreados[index], esCreador: true);
+          final viaje = viajesCreados[index];
+          return _buildViajeCard(viaje, esCreador: viaje.esCreador ?? true);
         },
       ),
     );
@@ -213,7 +223,7 @@ Future<void> _cargarViajes() async {
             ),
             const SizedBox(height: 8),
             Text(
-              'Busca viajes en el mapa para encontrar compañeros de ruta',
+              'Busca viajes disponibles en el mapa para unirte',
               style: TextStyle(
                 fontSize: 14,
                 color: Colors.grey[500],
@@ -223,7 +233,7 @@ Future<void> _cargarViajes() async {
             const SizedBox(height: 24),
             ElevatedButton(
               onPressed: () {
-                Navigator.pushNamed(context, '/viajes');
+                Navigator.pushNamed(context, '/mapa');
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF854937),
@@ -235,6 +245,7 @@ Future<void> _cargarViajes() async {
               ),
               child: const Text('Buscar Viajes'),
             ),
+
           ],
         ),
       );
@@ -246,13 +257,17 @@ Future<void> _cargarViajes() async {
         padding: const EdgeInsets.all(16),
         itemCount: viajesUnidos.length,
         itemBuilder: (context, index) {
-          return _buildViajeCard(viajesUnidos[index], esCreador: false);
+          final viaje = viajesUnidos[index];
+          return _buildViajeCard(viaje, esCreador: viaje.esCreador ?? false);
         },
       ),
     );
   }
 
   Widget _buildViajeCard(Viaje viaje, {required bool esCreador}) {
+    // Usar la propiedad del modelo si está disponible, sino usar el parámetro
+    final esCreadorReal = viaje.esCreador ?? esCreador;
+    
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       elevation: 2,
@@ -272,11 +287,11 @@ Future<void> _cargarViajes() async {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: esCreador ? const Color(0xFF854937) : Colors.green,
+                    color: esCreadorReal ? const Color(0xFF854937) : Colors.green,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    esCreador ? 'Mi Viaje' : 'Unido',
+                    esCreadorReal ? 'Mi Viaje' : 'Unido',
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 12,
@@ -295,6 +310,25 @@ Future<void> _cargarViajes() async {
               ],
             ),
             const SizedBox(height: 12),
+            
+            // Mostrar información del conductor si es un viaje al que se unió
+            if (!esCreadorReal && viaje.conductor != null) ...[
+              Row(
+                children: [
+                  const Icon(Icons.person, color: Color(0xFF854937), size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Conductor: ${viaje.conductor!.nombre}',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF854937),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+            ],
             
             // Origen y destino
             Row(
@@ -395,7 +429,7 @@ Future<void> _cargarViajes() async {
                       },
                     ),
                     // Botones de editar y borrar solo para el creador
-                    if (esCreador) ...[
+                    if (esCreadorReal) ...[
                       IconButton(
                         icon: const Icon(Icons.edit, size: 20),
                         onPressed: () {

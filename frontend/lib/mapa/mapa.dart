@@ -1,11 +1,14 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_osm_plugin/flutter_osm_plugin.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../navbar_widget.dart';
 import '../models/direccion_sugerida.dart';
+import '../models/marcador_viaje_model.dart';
 import '../services/ubicacion_service.dart';
 import '../services/busqueda_service.dart';
+import '../services/viaje_service.dart';
 import 'mapa_widget.dart';
 import '../buscar/barra_busqueda_widget.dart';
 import '../mis_viajes/mis_viajes_screen.dart';
@@ -26,6 +29,11 @@ class _MapPageState extends State<MapPage> {
   bool _mostrandoSugerencias = false;
   Timer? _debounceTimer;
   String _regionActual = "Desconocida";
+  
+  // Variables para los marcadores de viajes
+  List<MarcadorViaje> _marcadoresViajes = [];
+  bool _cargandoViajes = false;
+  Map<String, GeoPoint> _marcadoresEnMapa = {};
 
   @override
   void initState() {
@@ -37,6 +45,7 @@ class _MapPageState extends State<MapPage> {
       ),
     );
     _inicializarUbicacion();
+    _cargarMarcadoresViajes();
   }
 
   Future<void> _inicializarUbicacion() async {
@@ -218,6 +227,276 @@ class _MapPageState extends State<MapPage> {
     }
   }
 
+  Future<void> _cargarMarcadoresViajes() async {
+    try {
+      setState(() {
+        _cargandoViajes = true;
+      });
+
+      final marcadoresObtenidos = await ViajeService.obtenerMarcadoresViajes();
+      
+      setState(() {
+        _marcadoresViajes = marcadoresObtenidos;
+        _cargandoViajes = false;
+      });
+
+      await _agregarMarcadoresAlMapa();
+    } catch (e) {
+      debugPrint('❌ Error al cargar marcadores de viajes: $e');
+      setState(() {
+        _cargandoViajes = false;
+      });
+    }
+  }
+
+  Future<void> _agregarMarcadoresAlMapa() async {
+    try {
+      // Limpiar marcadores existentes
+      for (final punto in _marcadoresEnMapa.values) {
+        await controller.removeMarker(punto);
+      }
+      _marcadoresEnMapa.clear();
+
+      // Agregar nuevos marcadores
+      for (final marcador in _marcadoresViajes) {
+        final geoPoint = GeoPoint(
+          latitude: marcador.origen.latitud,
+          longitude: marcador.origen.longitud,
+        );
+
+        await controller.addMarker(
+          geoPoint,
+          markerIcon: const MarkerIcon(
+            icon: Icon(
+              Icons.directions_car,
+              color: Color(0xFF854937),
+              size: 32,
+            ),
+          ),
+        );
+
+        _marcadoresEnMapa[marcador.id] = geoPoint;
+      }
+    } catch (e) {
+      debugPrint('❌ Error al agregar marcadores al mapa: $e');
+    }
+  }
+
+  Future<void> _mostrarDetallesViaje(String marcadorId) async {
+    final marcador = _marcadoresViajes.firstWhere(
+      (m) => m.id == marcadorId,
+      orElse: () => throw Exception('Marcador no encontrado'),
+    );
+
+    if (!mounted) return;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: Color(0xFFF2EEED),
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Indicador de arrastre
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              
+              // Título del viaje
+              Text(
+                'Viaje Disponible',
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF854937),
+                ),
+              ),
+              const SizedBox(height: 16),
+              
+              // Información del conductor
+              if (marcador.detallesViaje.conductor != null)
+                _buildInfoRow(Icons.person, 'Conductor', marcador.detallesViaje.conductor!.nombre),
+              
+              // Origen y destino
+              _buildInfoRow(Icons.location_on, 'Origen', marcador.origen.nombre),
+              _buildInfoRow(Icons.flag, 'Destino', marcador.destino.nombre),
+              
+              // Fecha y hora
+              _buildInfoRow(Icons.calendar_today, 'Fecha', 
+                '${marcador.detallesViaje.fecha.day}/${marcador.detallesViaje.fecha.month}/${marcador.detallesViaje.fecha.year}'),
+              _buildInfoRow(Icons.access_time, 'Hora', marcador.detallesViaje.hora),
+              
+              // Plazas disponibles
+              _buildInfoRow(Icons.airline_seat_recline_normal, 'Plazas disponibles', 
+                '${marcador.detallesViaje.plazasDisponibles}'),
+              
+              // Precio
+              _buildInfoRow(Icons.attach_money, 'Precio', '\$${marcador.detallesViaje.precio.toStringAsFixed(0)}'),
+              
+              // Vehículo
+              if (marcador.detallesViaje.vehiculo != null)
+                _buildInfoRow(Icons.directions_car, 'Vehículo', 
+                  '${marcador.detallesViaje.vehiculo!.modelo} (${marcador.detallesViaje.vehiculo!.color})'),
+              
+              const SizedBox(height: 20),
+              
+              // Botón para unirse al viaje
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => _unirseAlViaje(marcador),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF854937),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Text(
+                    'Unirse al Viaje',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+              
+              const SizedBox(height: 20),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: const Color(0xFF854937)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Row(
+              children: [
+                Text(
+                  '$label: ',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF854937),
+                  ),
+                ),
+                Expanded(
+                  child: Text(
+                    value,
+                    style: const TextStyle(color: Color(0xFF070505)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _unirseAlViaje(MarcadorViaje marcador) async {
+    try {
+      // Cerrar el modal
+      Navigator.pop(context);
+      
+      // Mostrar indicador de carga
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Enviando solicitud...'),
+            backgroundColor: Color(0xFF854937),
+          ),
+        );
+      }
+
+      final resultado = await ViajeService.unirseAViaje(marcador.id);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(resultado['message'] ?? 'Solicitud enviada'),
+            backgroundColor: resultado['success'] == true 
+                ? const Color(0xFF854937) 
+                : Colors.red,
+          ),
+        );
+      }
+
+      // Recargar marcadores para actualizar plazas disponibles
+      if (resultado['success'] == true) {
+        await _cargarMarcadoresViajes();
+      }
+    } catch (e) {
+      debugPrint('❌ Error al unirse al viaje: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al unirse al viaje: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _onMapTap(GeoPoint geoPoint) {
+    // Buscar si el tap está cerca de algún marcador de viaje
+    for (final entry in _marcadoresEnMapa.entries) {
+      final marcadorId = entry.key;
+      final marcadorPunto = entry.value;
+      
+      // Calcular distancia entre el tap y el marcador
+      final distancia = _calcularDistancia(
+        geoPoint.latitude, geoPoint.longitude,
+        marcadorPunto.latitude, marcadorPunto.longitude,
+      );
+      
+      // Si el tap está cerca del marcador (dentro de 100 metros)
+      if (distancia < 100) {
+        _mostrarDetallesViaje(marcadorId);
+        return;
+      }
+    }
+  }
+
+  double _calcularDistancia(double lat1, double lon1, double lat2, double lon2) {
+    const double p = 0.017453292519943295; // Math.PI / 180
+    const double c = 6371000; // Radio de la Tierra en metros
+    
+    final double a = 0.5 - math.cos((lat2 - lat1) * p) / 2 +
+        math.cos(lat1 * p) * math.cos(lat2 * p) *
+        (1 - math.cos((lon2 - lon1) * p)) / 2;
+    
+    return c * 2 * math.asin(math.sqrt(a));
+  }
+
   @override
   void dispose() {
     destinoController.dispose();
@@ -245,7 +524,47 @@ class _MapPageState extends State<MapPage> {
       ),
       body: Stack(
         children: [
-          MapaWidget(controller: controller),
+          MapaWidget(
+            controller: controller,
+            onMapTap: _onMapTap,
+          ),
+          
+          // Indicador de carga de viajes
+          if (_cargandoViajes)
+            Positioned(
+              top: 80,
+              left: 16,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF854937),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    ),
+                    SizedBox(width: 8),
+                    Text(
+                      'Cargando viajes...',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          
           Positioned(
             top: 12,
             left: 12,
@@ -283,7 +602,18 @@ class _MapPageState extends State<MapPage> {
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       floatingActionButton: Column(
-        mainAxisSize: MainAxisSize.min,        children: [
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FloatingActionButton(
+            heroTag: "refreshTrips",
+            onPressed: _cargarMarcadoresViajes,
+            tooltip: 'Actualizar viajes disponibles',
+            backgroundColor: const Color(0xFF854937),
+            foregroundColor: Colors.white,
+            child: const Icon(Icons.refresh),
+          ),
+          const SizedBox(height: 12),
+          
           FloatingActionButton(
             heroTag: "myTrips",
             onPressed: () {
@@ -299,17 +629,6 @@ class _MapPageState extends State<MapPage> {
           ),
           const SizedBox(height: 12),
           
-          FloatingActionButton(
-            heroTag: "searchTrips",
-            onPressed: () {
-              Navigator.pushNamed(context, '/viajes');
-            },
-            tooltip: 'Buscar viajes disponibles',
-            backgroundColor: const Color(0xFF854937),
-            foregroundColor: Colors.white,
-            child: const Icon(Icons.directions_car),
-          ),
-          const SizedBox(height: 12),
           FloatingActionButton(
             heroTag: "centerLocation",
             onPressed: _centrarEnMiUbicacionConRegion,

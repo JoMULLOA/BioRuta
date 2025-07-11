@@ -7,7 +7,8 @@ import {
   unirseAViaje,
   obtenerViajesUsuario,
   cancelarViaje,
-  eliminarViaje // Agregar esta importación
+  eliminarViaje,
+  confirmarPasajero
 } from "../controllers/viaje.controller.js";
 import { 
   viajeBodyValidation,
@@ -56,6 +57,13 @@ router.get(
   "/mis-viajes", 
   authenticateJwt,
   obtenerViajesUsuario
+);
+
+// Confirmar pasajero - PUT /api/viajes/:viajeId/confirmar/:usuarioRut
+router.put(
+  "/:viajeId/confirmar/:usuarioRut",
+  authenticateJwt,
+  confirmarPasajero
 );
 
 router.delete("/:viajeId/eliminar", authenticateJwt, eliminarViaje);
