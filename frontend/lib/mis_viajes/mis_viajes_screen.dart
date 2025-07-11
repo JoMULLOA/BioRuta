@@ -5,6 +5,8 @@ import '../services/viaje_service.dart';
 import '../services/pago_service.dart';
 import '../models/viaje_model.dart';
 import '../navbar_widget.dart';
+import 'detalle_viaje_conductor_screen.dart';
+import 'detalle_viaje_pasajero_screen.dart';
 
 class MisViajesScreen extends StatefulWidget {
   const MisViajesScreen({super.key});
@@ -275,29 +277,72 @@ Future<void> _cargarViajes() async {
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(color: const Color(0xFFEDCAB6), width: 1),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () {
+          // Navegar a la pantalla de detalle correspondiente
+          if (esCreadorReal) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => DetalleViajeConductorScreen(viaje: viaje),
+              ),
+            );
+          } else {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => DetalleViajePasajeroScreen(viaje: viaje),
+              ),
+            );
+          }
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Header con estado y precio
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: esCreadorReal ? const Color(0xFF854937) : Colors.green,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    esCreadorReal ? 'Mi Viaje' : 'Unido',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: esCreadorReal ? const Color(0xFF854937) : Colors.green,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        esCreadorReal ? 'Mi Viaje' : 'Unido',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
                     ),
-                  ),
+                    // Mostrar estado solo para el conductor
+                    if (esCreadorReal) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: _getEstadoColor(viaje.estado),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          _getEstadoTexto(viaje.estado),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
                 Text(
                   '\$${viaje.precio.toInt()}',
@@ -443,11 +488,22 @@ Future<void> _cargarViajes() async {
                         },
                       ),
                     ],
+                    // Botón de abandonar viaje solo para los pasajeros
+                    if (!esCreadorReal) ...[
+                      IconButton(
+                        icon: const Icon(Icons.exit_to_app, size: 20, color: Colors.orange),
+                        tooltip: 'Abandonar viaje',
+                        onPressed: () {
+                          _mostrarDialogoAbandonar(viaje);
+                        },
+                      ),
+                    ],
                   ],
                 ),
               ],
             ),
           ],
+        ),
         ),
       ),
     );
@@ -785,4 +841,139 @@ Future<void> _mostrarDialogoCancelar(Viaje viaje) async {
     }
   }
 
+  // Función para mostrar diálogo de abandonar viaje (para pasajeros)
+  Future<void> _mostrarDialogoAbandonar(Viaje viaje) async {
+    final confirmado = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Abandonar Viaje'),
+          content: const Text(
+            '¿Estás seguro de que quieres abandonar este viaje? Ya no serás parte de este viaje.'
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('No'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: TextButton.styleFrom(foregroundColor: Colors.orange),
+              child: const Text('Sí, abandonar'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmado == true) {
+      try {
+        // Mostrar indicador de carga
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Row(
+                children: [
+                  SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  ),
+                  SizedBox(width: 16),
+                  Text('Abandonando viaje...'),
+                ],
+              ),
+              duration: Duration(seconds: 10),
+            ),
+          );
+        }
+
+        // Llamar al servicio para abandonar el viaje
+        final resultado = await ViajeService.abandonarViaje(viaje.id);
+        
+        // Ocultar el snackbar de carga
+        if (mounted) {
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        }
+
+        if (resultado['success']) {
+          // Recargar la lista de viajes
+          await _cargarViajes();
+          
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(resultado['message'] ?? 'Has abandonado el viaje exitosamente'),
+                backgroundColor: Colors.green,
+                duration: const Duration(seconds: 3),
+              ),
+            );
+          }
+        } else {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(resultado['message'] ?? 'Error al abandonar el viaje'),
+                backgroundColor: Colors.red,
+                duration: const Duration(seconds: 4),
+              ),
+            );
+          }
+        }
+      } catch (e) {
+        // Ocultar el snackbar de carga en caso de error
+        if (mounted) {
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        }
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error al abandonar viaje: $e'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  // Métodos auxiliares para estados
+  Color _getEstadoColor(String estado) {
+    switch (estado.toLowerCase()) {
+      case 'pendiente':
+        return Colors.orange;
+      case 'confirmado':
+        return Colors.blue;
+      case 'en_curso':
+        return Colors.green;
+      case 'completado':
+        return const Color(0xFF4CAF50);
+      case 'cancelado':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  String _getEstadoTexto(String estado) {
+    switch (estado.toLowerCase()) {
+      case 'pendiente':
+        return 'Pendiente';
+      case 'confirmado':
+        return 'Confirmado';
+      case 'en_curso':
+        return 'En Curso';
+      case 'completado':
+        return 'Completado';
+      case 'cancelado':
+        return 'Cancelado';
+      default:
+        return estado;
+    }
+  }
 }

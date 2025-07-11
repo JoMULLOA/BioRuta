@@ -859,3 +859,148 @@ export async function confirmarPasajero(req, res) {
     handleErrorServer(res, "Error interno del servidor");
   }
 }
+
+/**
+ * Cambiar el estado de un viaje (solo el conductor)
+ */
+export async function cambiarEstadoViaje(req, res) {
+  try {
+    const { viajeId } = req.params;
+    const { nuevoEstado } = req.body;
+    const conductorRut = req.user.rut;
+
+    // Estados válidos
+    const estadosValidos = ['activo', 'en_curso', 'completado', 'cancelado'];
+    if (!estadosValidos.includes(nuevoEstado)) {
+      return handleErrorServer(res, 400, "Estado no válido");
+    }
+
+    // Buscar el viaje
+    const viaje = await Viaje.findById(viajeId);
+    if (!viaje) {
+      return handleErrorServer(res, 404, "Viaje no encontrado");
+    }
+
+    // Verificar que el usuario autenticado es el conductor del viaje
+    if (viaje.usuario_rut !== conductorRut) {
+      return handleErrorServer(res, 403, "Solo el conductor puede cambiar el estado del viaje");
+    }
+
+    // Validar transiciones de estado
+    const estadoActual = viaje.estado;
+    
+    // Lógica de transiciones válidas
+    const transicionesValidas = {
+      'activo': ['en_curso', 'cancelado'],
+      'en_curso': ['completado', 'cancelado'],
+      'completado': [], // Estado final
+      'cancelado': [] // Estado final
+    };
+
+    if (!transicionesValidas[estadoActual]?.includes(nuevoEstado)) {
+      return handleErrorServer(res, 400, `No se puede cambiar de "${estadoActual}" a "${nuevoEstado}"`);
+    }
+
+    // Actualizar el estado
+    viaje.estado = nuevoEstado;
+    viaje.fecha_actualizacion = new Date();
+    
+    // Si se completa el viaje, marcar fecha de finalización
+    if (nuevoEstado === 'completado') {
+      viaje.fecha_finalizacion = new Date();
+    }
+
+    await viaje.save();
+
+    let mensaje = '';
+    switch (nuevoEstado) {
+      case 'en_curso':
+        mensaje = 'Viaje iniciado exitosamente';
+        break;
+      case 'completado':
+        mensaje = 'Viaje completado exitosamente';
+        break;
+      case 'cancelado':
+        mensaje = 'Viaje cancelado';
+        break;
+      default:
+        mensaje = 'Estado del viaje actualizado';
+    }
+
+    handleSuccess(res, 200, mensaje, {
+      viajeId: viaje._id,
+      estadoAnterior: estadoActual,
+      estadoNuevo: nuevoEstado,
+      fechaActualizacion: viaje.fecha_actualizacion
+    });
+
+  } catch (error) {
+    console.error("Error al cambiar estado del viaje:", error);
+    handleErrorServer(res, 500, "Error interno del servidor");
+  }
+}
+
+/**
+ * Abandonar viaje - permite a un pasajero salir del viaje
+ */
+export async function abandonarViaje(req, res) {
+  try {
+    const { viajeId } = req.params;
+    const userRut = req.user.rut;
+
+    console.log(`🚪 Intentando abandonar viaje ${viajeId} por usuario ${userRut}`);
+
+    // Buscar el viaje en MongoDB
+    const viaje = await Viaje.findById(viajeId);
+    if (!viaje) {
+      console.log(`❌ Viaje ${viajeId} no encontrado`);
+      return handleErrorServer(res, 404, "Viaje no encontrado");
+    }
+
+    console.log(`📋 Viaje encontrado. Conductor: ${viaje.usuario_rut}`);
+    console.log(`👥 Pasajeros en el viaje (${viaje.pasajeros.length}):`);
+    viaje.pasajeros.forEach((p, index) => {
+      console.log(`   ${index}: RUT="${p.usuario_rut}" Estado="${p.estado}"`);
+    });
+
+    // Verificar que el usuario no es el conductor
+    if (viaje.usuario_rut === userRut) {
+      console.log(`❌ Usuario ${userRut} es el conductor, no puede abandonar`);
+      return handleErrorServer(res, 400, "El conductor no puede abandonar su propio viaje. Debe cancelarlo desde eliminar viaje.");
+    }
+
+    // Verificar que el usuario está realmente en el viaje como pasajero
+    const pasajeroIndex = viaje.pasajeros.findIndex(p => p.usuario_rut === userRut);
+    console.log(`🔍 Buscando pasajero con RUT "${userRut}". Índice encontrado: ${pasajeroIndex}`);
+    
+    if (pasajeroIndex === -1) {
+      console.log(`❌ Usuario ${userRut} no está registrado en este viaje`);
+      return handleErrorServer(res, 400, "No estás registrado en este viaje");
+    }
+
+    const pasajeroAEliminar = viaje.pasajeros[pasajeroIndex];
+    console.log(`🗑️ Eliminando pasajero: RUT="${pasajeroAEliminar.usuario_rut}" Estado="${pasajeroAEliminar.estado}"`);
+
+    // Remover al usuario de la lista de pasajeros
+    viaje.pasajeros.splice(pasajeroIndex, 1);
+    
+    // Actualizar fecha de modificación
+    viaje.fecha_actualizacion = new Date();
+
+    // Guardar los cambios
+    await viaje.save();
+
+    console.log(`✅ Usuario ${userRut} abandonó el viaje ${viajeId} exitosamente`);
+    console.log(`📊 Pasajeros restantes: ${viaje.pasajeros.length}/${viaje.maxPasajeros}`);
+
+    handleSuccess(res, 200, "Has abandonado el viaje exitosamente", {
+      viajeId: viaje._id,
+      pasajerosRestantes: viaje.pasajeros.length,
+      plazasDisponibles: viaje.maxPasajeros - viaje.pasajeros.length
+    });
+
+  } catch (error) {
+    console.error("Error al abandonar viaje:", error);
+    handleErrorServer(res, 500, "Error interno del servidor");
+  }
+}

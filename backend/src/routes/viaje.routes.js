@@ -8,7 +8,9 @@ import {
   obtenerViajesUsuario,
   cancelarViaje,
   eliminarViaje,
-  confirmarPasajero
+  confirmarPasajero,
+  cambiarEstadoViaje,
+  abandonarViaje
 } from "../controllers/viaje.controller.js";
 import { 
   viajeBodyValidation,
@@ -64,6 +66,20 @@ router.put(
   "/:viajeId/confirmar/:usuarioRut",
   authenticateJwt,
   confirmarPasajero
+);
+
+// Cambiar estado del viaje - PUT /api/viajes/:viajeId/estado
+router.put(
+  "/:viajeId/estado",
+  authenticateJwt,
+  cambiarEstadoViaje
+);
+
+// Abandonar viaje (pasajero) - POST /api/viajes/:viajeId/abandonar
+router.post(
+  "/:viajeId/abandonar",
+  authenticateJwt,
+  abandonarViaje
 );
 
 router.delete("/:viajeId/eliminar", authenticateJwt, eliminarViaje);
