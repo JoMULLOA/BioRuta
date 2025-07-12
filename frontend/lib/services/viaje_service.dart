@@ -2,11 +2,11 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/viaje_model.dart';
 import '../models/marcador_viaje_model.dart';
-import '../config/api_config.dart';
+import '../config/confGlobal.dart';
 import '../utils/token_manager.dart';
 
 class ViajeService {
-  static String get baseUrl => ApiConfig.baseUrl;
+  static String get baseUrl => confGlobal.baseUrl;
   
   // Headers por defecto con autenticación
   static Future<Map<String, String>?> _getHeaders() async {
@@ -292,6 +292,152 @@ class ViajeService {
         return {
           'success': false,
           'message': data['message'] ?? 'Error al eliminar el viaje'
+        };
+      }
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Error de conexión: $e'
+      };
+    }
+  }
+
+  /// Cambiar estado de un viaje (para conductores)
+  static Future<Map<String, dynamic>> cambiarEstadoViaje(String viajeId, String nuevoEstado) async {
+    try {
+      // Verificar si necesitamos login antes de hacer la petición
+      if (await TokenManager.needsLogin()) {
+        return {
+          'success': false,
+          'message': 'Sesión expirada. Por favor, inicia sesión nuevamente.'
+        };
+      }
+
+      final headers = await _getHeaders();
+      if (headers == null) {
+        return {
+          'success': false,
+          'message': 'No se pudo obtener el token de autenticación'
+        };
+      }
+
+      final response = await http.put(
+        Uri.parse('$baseUrl/viajes/$viajeId/estado'),
+        headers: headers,
+        body: json.encode({
+          'nuevoEstado': nuevoEstado,
+        }),
+      );
+
+      final data = json.decode(response.body);
+
+      if (response.statusCode == 200) {
+        return {
+          'success': true,
+          'message': data['message'] ?? 'Estado del viaje actualizado exitosamente',
+          'data': data['data']
+        };
+      } else if (response.statusCode == 401) {
+        // Token expirado o inválido
+        await TokenManager.clearAuthData();
+        return {
+          'success': false,
+          'message': 'Sesión expirada. Por favor, inicia sesión nuevamente.'
+        };
+      } else {
+        return {
+          'success': false,
+          'message': data['message'] ?? 'Error al cambiar el estado del viaje'
+        };
+      }
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Error de conexión: $e'
+      };
+    }
+  }
+
+  /// Confirmar un pasajero en un viaje (para conductores)
+  static Future<Map<String, dynamic>> confirmarPasajero(String viajeId, String usuarioRut) async {
+    try {
+      // Verificar si necesitamos login antes de hacer la petición
+      if (await TokenManager.needsLogin()) {
+        return {
+          'success': false,
+          'message': 'Sesión expirada. Por favor, inicia sesión nuevamente.'
+        };
+      }
+
+      final headers = await _getHeaders();
+      if (headers == null) {
+        return {
+          'success': false,
+          'message': 'No se pudo obtener el token de autenticación'
+        };
+      }
+
+      final response = await http.put(
+        Uri.parse('$baseUrl/viajes/$viajeId/confirmar/$usuarioRut'),
+        headers: headers,
+      );
+
+      final data = json.decode(response.body);
+
+      if (response.statusCode == 200) {
+        return {
+          'success': true,
+          'message': data['message'] ?? 'Pasajero confirmado exitosamente',
+          'data': data['data']
+        };
+      } else if (response.statusCode == 401) {
+        // Token expirado o inválido
+        await TokenManager.clearAuthData();
+        return {
+          'success': false,
+          'message': 'Sesión expirada. Por favor, inicia sesión nuevamente.'
+        };
+      } else {
+        return {
+          'success': false,
+          'message': data['message'] ?? 'Error al confirmar el pasajero'
+        };
+      }
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Error de conexión: $e'
+      };
+    }
+  }
+
+  /// Abandonar un viaje (pasajero deja el viaje)
+  static Future<Map<String, dynamic>> abandonarViaje(String viajeId) async {
+    try {
+      final headers = await _getHeaders();
+      if (headers == null) {
+        return {
+          'success': false,
+          'message': 'No se pudo obtener el token de autenticación'
+        };
+      }
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/viajes/$viajeId/abandonar'),
+        headers: headers,
+      );
+
+      final data = json.decode(response.body);
+
+      if (response.statusCode == 200 && data['success'] == true) {
+        return {
+          'success': true,
+          'message': data['message'] ?? 'Has abandonado el viaje exitosamente'
+        };
+      } else {
+        return {
+          'success': false,
+          'message': data['message'] ?? 'Error al abandonar el viaje'
         };
       }
     } catch (e) {

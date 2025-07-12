@@ -155,6 +155,10 @@ const viajeSchema = new mongoose.Schema({
   fecha_actualizacion: { 
     type: Date, 
     default: Date.now 
+  },
+  fecha_finalizacion: {
+    type: Date,
+    default: null
   }
 }, {
   timestamps: { 

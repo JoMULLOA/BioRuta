@@ -39,6 +39,7 @@ dependencies:
   geolocator: ^10.1.0
   socket_io_client: ^2.0.0
   shared_preferences: ^2.0.13
+  url_launcher: ^6.2.2
 
 
 dev_dependencies:

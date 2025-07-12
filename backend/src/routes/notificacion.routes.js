@@ -3,7 +3,9 @@ import express from "express";
 import { authenticateJwt } from "../middlewares/authentication.middleware.js";
 import {
   obtenerNotificaciones,
-  contarNotificacionesPendientes
+  contarNotificacionesPendientes,
+  marcarComoLeida,
+  responderSolicitudViaje
 } from "../controllers/notificacion.controller.js";
 
 const router = express.Router();
@@ -13,6 +15,9 @@ router.use(authenticateJwt);
 
 // Rutas de notificaciones
 router.get("/", obtenerNotificaciones);
+router.get("/pendientes", obtenerNotificaciones); // Alias para compatibilidad con frontend
 router.get("/count", contarNotificacionesPendientes);
+router.patch("/:id/leer", marcarComoLeida);
+router.post("/:id/responder", responderSolicitudViaje);
 
 export default router;
