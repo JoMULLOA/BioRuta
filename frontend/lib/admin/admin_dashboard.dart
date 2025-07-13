@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../widgets/admin_navbar.dart';
 import 'admin_profile.dart';
+import 'admin_stats.dart';
 import '../services/user_service.dart';
 
 class AdminDashboard extends StatefulWidget {
@@ -251,40 +252,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
   }
 
   Widget _buildStatsPage() {
-    final Color fondo = Color(0xFFF8F2EF);
-    final Color primario = Color(0xFF6B3B2D);
-
-    return Scaffold(
-      backgroundColor: fondo,
-      appBar: AppBar(
-        backgroundColor: primario,
-        elevation: 0,
-        title: const Text(
-          'Estadísticas',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
-        centerTitle: true,
-        automaticallyImplyLeading: false,
-      ),
-      body: const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.analytics, size: 64, color: Colors.grey),
-            SizedBox(height: 16),
-            Text(
-              'Estadísticas Detalladas',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Próximamente...',
-              style: TextStyle(color: Colors.grey),
-            ),
-          ],
-        ),
-      ),
-    );
+    return const AdminStats();
   }
 
   Widget _buildUsersPage() {

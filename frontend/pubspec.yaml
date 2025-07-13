@@ -40,6 +40,7 @@ dependencies:
   socket_io_client: ^2.0.0
   shared_preferences: ^2.0.13
   url_launcher: ^6.2.2
+  fl_chart: ^0.69.0
 
 
 dev_dependencies:
