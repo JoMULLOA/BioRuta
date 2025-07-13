@@ -84,9 +84,10 @@ export async function obtenerConversacion(rutUsuario1, rutUsuario2) {
       return [];
     }
 
-    // Retornar todos los mensajes, incluyendo los eliminados
-    // para que se muestren como "Mensaje eliminado" en el frontend
-    return chatPersonal.chatCompleto;
+    // Filtrar mensajes no eliminados
+    const mensajesFiltrados = chatPersonal.chatCompleto.filter(mensaje => !mensaje.eliminado);
+    
+    return mensajesFiltrados;
   } catch (error) {
     console.error("Error al obtener la conversación 1 a 1:", error.message);
     throw new Error(`Error al obtener la conversación 1 a 1: ${error.message}`);
@@ -121,9 +122,9 @@ export async function obtenerMensajesViaje(idViajeMongo, rutUsuarioSolicitante) 
       return [];
     }
 
-    // Retornar todos los mensajes, incluyendo los eliminados
-    // para que se muestren como "Mensaje eliminado" en el frontend
-    return chatGrupal.chatCompleto;
+    const mensajesFiltrados = chatGrupal.chatCompleto.filter(mensaje => !mensaje.eliminado);
+    
+    return mensajesFiltrados;
   } catch (error) {
     console.error("Error al obtener los mensajes del viaje:", error.message);
     throw new Error(`Error al obtener los mensajes del viaje: ${error.message}`);
@@ -156,15 +157,7 @@ export async function editarMensaje(idMensaje, rutEmisor, nuevoContenido) {
           fechaUltimaActualizacion: new Date()
         });
 
-        // Retornar mensaje editado con información del receptor
-        const mensajeEditado = mensajes[mensajeIndex];
-        const receptor = chat.rutUsuario1 === rutEmisor ? chat.rutUsuario2 : chat.rutUsuario1;
-        
-        return {
-          ...mensajeEditado,
-          receptor: receptor,
-          idViajeMongo: null
-        };
+        return mensajes[mensajeIndex];
       }
     }
 
@@ -195,14 +188,7 @@ export async function editarMensaje(idMensaje, rutEmisor, nuevoContenido) {
           fechaUltimaActualizacion: new Date()
         });
 
-        // Retornar mensaje editado con información del viaje
-        const mensajeEditado = mensajes[mensajeIndex];
-        
-        return {
-          ...mensajeEditado,
-          receptor: null,
-          idViajeMongo: chat.idViajeMongo
-        };
+        return mensajes[mensajeIndex];
       }
     }
 
@@ -238,19 +224,7 @@ export async function eliminarMensaje(idMensaje, rutEmisor) {
           fechaUltimaActualizacion: new Date()
         });
 
-        // Retornar información del mensaje eliminado incluyendo receptor
-        const mensajeEliminado = mensajes[mensajeIndex];
-        const receptor = chat.rutUsuario1 === rutEmisor ? chat.rutUsuario2 : chat.rutUsuario1;
-        
-        return { 
-          mensaje: "Mensaje eliminado exitosamente",
-          mensajeEliminado: {
-            id: mensajeEliminado.id,
-            emisor: mensajeEliminado.emisor,
-            receptor: receptor,
-            esChat1a1: true
-          }
-        };
+        return { mensaje: "Mensaje eliminado exitosamente" };
       }
     }
 
@@ -280,18 +254,7 @@ export async function eliminarMensaje(idMensaje, rutEmisor) {
           fechaUltimaActualizacion: new Date()
         });
 
-        // Retornar información del mensaje eliminado para chat grupal
-        const mensajeEliminado = mensajes[mensajeIndex];
-        
-        return { 
-          mensaje: "Mensaje eliminado exitosamente",
-          mensajeEliminado: {
-            id: mensajeEliminado.id,
-            emisor: mensajeEliminado.emisor,
-            idViajeMongo: chat.idViajeMongo,
-            esChat1a1: false
-          }
-        };
+        return { mensaje: "Mensaje eliminado exitosamente" };
       }
     }
 

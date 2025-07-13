@@ -109,13 +109,14 @@ async function procesarMensajeGrupal(mensajeTemporal) {
     const idViajeMongo = mensajeTemporal.idViajeMongo;
     const rutEmisor = mensajeTemporal.emisor.rut;
     
-    // Buscar o crear chat grupal
+    // Buscar chat grupal existente (debe existir previamente)
     let chatGrupal = await chatGrupalRepository.findOne({
       where: { idViajeMongo }
     });
 
+    // Si no existe, significa que el viaje no tiene chat grupal establecido
     if (!chatGrupal) {
-      throw new Error("Chat grupal no encontrado. Debe crearse cuando se inicia el viaje.");
+      throw new Error(`Chat grupal no encontrado para viaje ${idViajeMongo}. El chat debe crearse al establecer el viaje.`);
     }
 
     // Preparar mensaje para agregar al chat
@@ -197,34 +198,6 @@ function crearIdentificadorChat(rutUsuario1, rutUsuario2) {
   const rutMenor = rutUsuario1 < rutUsuario2 ? rutUsuario1 : rutUsuario2;
   const rutMayor = rutUsuario1 < rutUsuario2 ? rutUsuario2 : rutUsuario1;
   return `${rutMenor}-${rutMayor}`;
-}
-
-/**
- * Crea un nuevo chat grupal para un viaje
- * @param {string} idViajeMongo 
- * @param {string} rutConductor 
- * @param {Array} participantes 
- * @returns {Promise<Object>}
- */
-export async function crearChatGrupal(idViajeMongo, rutConductor, participantes = []) {
-  try {
-    const nuevoChat = chatGrupalRepository.create({
-      idViajeMongo,
-      rutConductor,
-      participantes,
-      chatCompleto: [],
-      totalMensajes: 0,
-      estadoChat: "activo"
-    });
-
-    const chatGuardado = await chatGrupalRepository.save(nuevoChat);
-    console.log(`📁 Nuevo chat grupal creado para viaje: ${idViajeMongo}`);
-    
-    return chatGuardado;
-  } catch (error) {
-    console.error("Error al crear chat grupal:", error.message);
-    throw error;
-  }
 }
 
 /**

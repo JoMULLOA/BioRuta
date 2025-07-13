@@ -2,6 +2,13 @@
 import Viaje from "../entity/viaje.entity.js";
 import { AppDataSource } from "../config/configDb.js";
 import { handleErrorServer, handleSuccess } from "../handlers/responseHandlers.js";
+import { crearChatGrupal, agregarParticipante, eliminarParticipante, finalizarChatGrupal } from "../services/chatGrupal.service.js";
+import { 
+  notificarChatGrupalCreado, 
+  notificarParticipanteAgregado, 
+  notificarParticipanteEliminado, 
+  notificarChatGrupalFinalizado 
+} from "../socket.js";
 
 // Obtener repositorios de PostgreSQL
 const userRepository = AppDataSource.getRepository("User");
@@ -103,6 +110,18 @@ export async function crearViaje(req, res) {
     });
 
     await nuevoViaje.save();
+
+    // Crear chat grupal para el viaje
+    try {
+      await crearChatGrupal(nuevoViaje._id.toString(), req.user.rut);
+      console.log(`✅ Chat grupal creado para viaje ${nuevoViaje._id}`);
+      
+      // Notificar al conductor que se creó el chat grupal
+      notificarChatGrupalCreado(nuevoViaje._id.toString(), req.user.rut);
+    } catch (chatError) {
+      console.error(`⚠️ Error al crear chat grupal para viaje ${nuevoViaje._id}:`, chatError.message);
+      // No fallar la creación del viaje si falla el chat
+    }
 
     // Obtener datos completos para la respuesta
     const viajeCompleto = await obtenerViajeConDatos(nuevoViaje._id);
@@ -709,6 +728,18 @@ export async function cancelarViaje(req, res) {
 
     await viaje.save();
 
+    // Finalizar chat grupal cuando se cancela el viaje
+    try {
+      await finalizarChatGrupal(viajeId);
+      console.log(`✅ Chat grupal finalizado para viaje cancelado ${viajeId}`);
+      
+      // Notificar a todos que el chat grupal fue finalizado por cancelación
+      notificarChatGrupalFinalizado(viajeId, "cancelado");
+    } catch (chatError) {
+      console.error(`⚠️ Error al finalizar chat grupal:`, chatError.message);
+      // No fallar la cancelación si falla el chat
+    }
+
     handleSuccess(res, 200, "Viaje cancelado exitosamente");
 
   } catch (error) {
@@ -738,6 +769,18 @@ export async function eliminarViaje(req, res) {
 
     // Eliminar el viaje
     await Viaje.deleteOne({ _id: viajeId });
+
+    // Finalizar chat grupal
+    try {
+      await finalizarChatGrupal(viajeId);
+      console.log(`✅ Chat grupal finalizado para viaje eliminado ${viajeId}`);
+      
+      // Notificar a todos que el chat grupal fue finalizado por eliminación
+      notificarChatGrupalFinalizado(viajeId, "eliminado");
+    } catch (chatError) {
+      console.error(`⚠️ Error al finalizar chat grupal:`, chatError.message);
+      // No fallar la eliminación si falla el chat
+    }
 
     handleSuccess(res, 200, "Viaje eliminado exitosamente");
 
@@ -787,6 +830,18 @@ export async function confirmarPasajero(req, res) {
     // Confirmar el pasajero
     viaje.pasajeros[pasajeroIndex].estado = 'confirmado';
     await viaje.save();
+
+    // Agregar pasajero al chat grupal
+    try {
+      const participantes = await agregarParticipante(viajeId, usuarioRut);
+      console.log(`✅ Pasajero ${usuarioRut} agregado al chat grupal del viaje ${viajeId}`);
+      
+      // Notificar a todos sobre el nuevo participante
+      notificarParticipanteAgregado(viajeId, usuarioRut, participantes);
+    } catch (chatError) {
+      console.error(`⚠️ Error al agregar pasajero al chat grupal:`, chatError.message);
+      // No fallar la confirmación si falla el chat
+    }
 
     handleSuccess(res, 200, "Pasajero confirmado exitosamente", {
       usuarioRut: usuarioRut,
@@ -850,6 +905,20 @@ export async function cambiarEstadoViaje(req, res) {
     }
 
     await viaje.save();
+
+    // Finalizar chat grupal cuando se completa o cancela el viaje
+    if (nuevoEstado === 'completado' || nuevoEstado === 'cancelado') {
+      try {
+        await finalizarChatGrupal(viajeId);
+        console.log(`✅ Chat grupal finalizado para viaje ${nuevoEstado} ${viajeId}`);
+        
+        // Notificar a todos que el chat grupal fue finalizado
+        notificarChatGrupalFinalizado(viajeId, nuevoEstado);
+      } catch (chatError) {
+        console.error(`⚠️ Error al finalizar chat grupal:`, chatError.message);
+        // No fallar el cambio de estado si falla el chat
+      }
+    }
 
     let mensaje = '';
     switch (nuevoEstado) {
@@ -996,6 +1065,18 @@ export async function abandonarViaje(req, res) {
 
     // Guardar los cambios
     await viaje.save();
+
+    // Eliminar del chat grupal
+    try {
+      const participantes = await eliminarParticipante(viajeId, userRut);
+      console.log(`✅ Pasajero ${userRut} eliminado del chat grupal del viaje ${viajeId}`);
+      
+      // Notificar a todos sobre la eliminación del participante
+      notificarParticipanteEliminado(viajeId, userRut, participantes);
+    } catch (chatError) {
+      console.error(`⚠️ Error al eliminar pasajero del chat grupal:`, chatError.message);
+      // No fallar el abandono si falla el chat
+    }
 
     console.log(`✅ Usuario ${userRut} abandonó el viaje ${viajeId} exitosamente`);
     console.log(`📊 Pasajeros restantes: ${viaje.pasajeros.length}/${viaje.maxPasajeros}`);
