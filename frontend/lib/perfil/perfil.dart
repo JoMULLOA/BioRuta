@@ -22,6 +22,7 @@ class Perfil_ extends State<Perfil> {
   // Variables para almacenar datos del usuario
   String _userEmail = 'Cargando...';
   String _userName = 'Cargando...';
+  String _userRut = 'Cargando...';
   String _userAge = 'Cargando...';
   String _userCareer = 'Cargando...';
   String _userDescription = 'Cargando...';
@@ -88,7 +89,7 @@ class Perfil_ extends State<Perfil> {
             try {
               DateTime birthDate = DateTime.parse(userData['fechaNacimiento']);
               int age = DateTime.now().year - birthDate.year;
-              userAge = '$age años';
+              userAge = '$age';
             } catch (e) {
               print('Error calculando edad: $e');
             }
@@ -119,6 +120,7 @@ class Perfil_ extends State<Perfil> {
           setState(() {
             _userEmail = userData['email'] ?? 'Sin email';
             _userName = userData['nombreCompleto'] ?? 'Nombre no especificado';
+            _userRut = userData['rut'] ?? 'RUT no especificado';
             _userAge = userAge;
             _userCareer = userData['carrera'] ?? 'Carrera no especificada';
             _userDescription = userData['descripcion'] ?? 'Sin descripción';
@@ -527,7 +529,11 @@ class Perfil_ extends State<Perfil> {
                         ),
                         SizedBox(height: 12),
                         Text(
-                          _userName.isNotEmpty ? _userName : _userEmail,
+                          _userName.isNotEmpty 
+                            ? _userAge != 'Edad no especificada' 
+                              ? '$_userName, $_userAge'  // Nombre + edad si existe
+                              : _userName                // Solo nombre si no hay edad
+                            : _userEmail,                // Email como fallback
                           style: TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.bold,
@@ -543,7 +549,7 @@ class Perfil_ extends State<Perfil> {
                         ),
                         SizedBox(height: 4),
                         Text(
-                          _userAge, 
+                          _userRut, 
                           style: TextStyle(
                             color: Colors.white.withOpacity(0.9),
                             fontSize: 16,
@@ -552,12 +558,17 @@ class Perfil_ extends State<Perfil> {
                         if (_userEmail.isNotEmpty && _userName.isNotEmpty)
                           Padding(
                             padding: const EdgeInsets.only(top: 6),
-                            child: Text(
-                              _userEmail,
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.8), 
-                                fontSize: 13,
-                              ),
+                            child: Column(
+                              children: [
+                                Text(
+                                  _userEmail,
+                                  style: TextStyle(
+                                    color: Colors.white.withOpacity(0.7), 
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         SizedBox(height: 12),
@@ -582,7 +593,7 @@ class Perfil_ extends State<Perfil> {
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Text(
-                                    'Clasificación',
+                                    'Calificación',
                                     style: TextStyle(
                                       color: Colors.white.withOpacity(0.9), 
                                       fontSize: 12, 

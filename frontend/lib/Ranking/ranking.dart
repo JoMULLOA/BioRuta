@@ -100,7 +100,7 @@ class _RankingState extends State<ranking> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              _isClasificaciones ? 'Top Clasificaciones' : 'Top Usuarios',
+              _isClasificaciones ? 'Top Calificaciones' : 'Top Usuarios',
               style: TextStyle(color: principal, fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
@@ -176,7 +176,7 @@ class _RankingState extends State<ranking> {
                             ),
                             SizedBox(width: 8),
                             Text(
-                              'Clasificaciones',
+                              'Calificaciones',
                               style: TextStyle(
                                 color: _isClasificaciones ? Colors.white : secundario,
                                 fontWeight: FontWeight.bold,
@@ -357,7 +357,7 @@ class _RankingState extends State<ranking> {
                 ),
               ),
               subtitle: Text(
-                isClasificacion ? 'Clasificación: $valorTexto ⭐' : 'Puntos: $valorTexto', 
+                isClasificacion ? 'Calificación: $valorTexto ⭐' : 'Puntos: $valorTexto', 
                 style: TextStyle(
                   color: secundario,
                   fontWeight: isCurrentUser ? FontWeight.w600 : FontWeight.normal,
