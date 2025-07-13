@@ -110,6 +110,46 @@ class SocketService {
         _handleDeletedMessage(data);
       });
 
+      // Escuchar confirmación de edición exitosa
+      socket!.on('edicion_exitosa', (data) {
+        print('✅ Edición exitosa confirmada: $data');
+      });
+
+      // Escuchar confirmación de eliminación exitosa
+      socket!.on('eliminacion_exitosa', (data) {
+        print('✅ Eliminación exitosa confirmada: $data');
+      });
+
+      // Escuchar errores de edición
+      socket!.on('error_edicion', (data) {
+        print('❌ Error de edición: $data');
+      });
+
+      // Escuchar errores de eliminación
+      socket!.on('error_eliminacion', (data) {
+        print('❌ Error de eliminación: $data');
+      });
+
+      // === EVENTOS ESPECÍFICOS PARA CHAT GRUPAL ===
+
+      // Edición grupal
+      socket!.on('edicion_grupal_exitosa', (data) {
+        print('✅ Edición grupal exitosa: $data');
+      });
+
+      socket!.on('error_edicion_grupal', (data) {
+        print('❌ Error edición grupal: $data');
+      });
+
+      // Eliminación grupal
+      socket!.on('eliminacion_grupal_exitosa', (data) {
+        print('✅ Eliminación grupal exitosa: $data');
+      });
+
+      socket!.on('error_eliminacion_grupal', (data) {
+        print('❌ Error eliminación grupal: $data');
+      });
+
       // Escuchar confirmación de mensaje enviado
       socket!.on('mensaje_enviado', (data) {
         print('✅ Mensaje enviado confirmado: $data');
@@ -174,6 +214,29 @@ class SocketService {
     socket!.emit('editar_mensaje', messageData);
   }
 
+  // Editar mensaje grupal via WebSocket
+  void editGroupMessage({
+    required int idMensaje,
+    required String nuevoContenido,
+    required String idViaje,
+  }) {
+    print('🔍 DEBUG: editGroupMessage llamado con idMensaje=$idMensaje, nuevoContenido=$nuevoContenido, idViaje=$idViaje');
+    
+    if (socket?.connected != true) {
+      print('❌ Socket no conectado, no se puede editar mensaje grupal');
+      return;
+    }
+
+    final messageData = {
+      'idMensaje': idMensaje,
+      'nuevoContenido': nuevoContenido,
+      'idViaje': idViaje,
+    };
+
+    print('✏️ Editando mensaje grupal via socket: $messageData');
+    socket!.emit('editar_mensaje_grupal', messageData);
+  }
+
   // Eliminar mensaje via WebSocket
   void deleteMessage({
     required int idMensaje,
@@ -191,6 +254,27 @@ class SocketService {
 
     print('🗑️ Eliminando mensaje via socket: $messageData');
     socket!.emit('eliminar_mensaje', messageData);
+  }
+
+  // Eliminar mensaje grupal via WebSocket
+  void deleteGroupMessage({
+    required int idMensaje,
+    required String idViaje,
+  }) {
+    print('🔍 DEBUG: deleteGroupMessage llamado con idMensaje=$idMensaje, idViaje=$idViaje');
+    
+    if (socket?.connected != true) {
+      print('❌ Socket no conectado, no se puede eliminar mensaje grupal');
+      return;
+    }
+
+    final messageData = {
+      'idMensaje': idMensaje,
+      'idViaje': idViaje,
+    };
+
+    print('🗑️ Eliminando mensaje grupal via socket: $messageData');
+    socket!.emit('eliminar_mensaje_grupal', messageData);
   }
 
   // Unirse a chat de viaje

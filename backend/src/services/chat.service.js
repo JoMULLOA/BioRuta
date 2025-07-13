@@ -157,7 +157,13 @@ export async function editarMensaje(idMensaje, rutEmisor, nuevoContenido) {
           fechaUltimaActualizacion: new Date()
         });
 
-        return mensajes[mensajeIndex];
+        // Retornar mensaje con información del chat
+        return {
+          ...mensajes[mensajeIndex],
+          receptor: chat.rutUsuario1 === rutEmisor ? chat.rutUsuario2 : chat.rutUsuario1,
+          idViajeMongo: null,
+          tipo: "personal"
+        };
       }
     }
 
@@ -188,7 +194,13 @@ export async function editarMensaje(idMensaje, rutEmisor, nuevoContenido) {
           fechaUltimaActualizacion: new Date()
         });
 
-        return mensajes[mensajeIndex];
+        // Retornar mensaje con información del chat
+        return {
+          ...mensajes[mensajeIndex],
+          receptor: null,
+          idViajeMongo: chat.idViajeMongo,
+          tipo: "grupal"
+        };
       }
     }
 
@@ -262,6 +274,76 @@ export async function eliminarMensaje(idMensaje, rutEmisor) {
   } catch (error) {
     console.error("Error al eliminar el mensaje:", error.message);
     throw new Error(`Error al eliminar el mensaje: ${error.message}`);
+  }
+}
+
+/**
+ * Obtiene información del mensaje antes de eliminarlo (para WebSocket)
+ * @param {number} idMensaje 
+ * @param {string} rutEmisor 
+ * @returns {Promise<Object|null>}
+ */
+export async function obtenerInfoMensajeParaEliminacion(idMensaje, rutEmisor) {
+  try {
+    // Buscar en chat personal primero
+    const chatPersonal = await chatPersonalRepository
+      .createQueryBuilder("chat")
+      .where("(chat.rutUsuario1 = :rut OR chat.rutUsuario2 = :rut)", { rut: rutEmisor })
+      .getMany();
+
+    // Buscar el mensaje en los chats personales
+    for (const chat of chatPersonal) {
+      const mensajes = [...chat.chatCompleto];
+      const mensaje = mensajes.find(m => m.id == idMensaje);
+      
+      if (mensaje) {
+        if (mensaje.emisor !== rutEmisor) {
+          return null; // No tiene permisos
+        }
+
+        return {
+          id: mensaje.id,
+          tipo: "personal",
+          emisor: mensaje.emisor,
+          receptor: mensaje.receptor || (chat.rutUsuario1 === rutEmisor ? chat.rutUsuario2 : chat.rutUsuario1),
+          idViajeMongo: null
+        };
+      }
+    }
+
+    // Buscar en chat grupal
+    const chatGrupal = await chatGrupalRepository
+      .createQueryBuilder("chat")
+      .getMany();
+
+    for (const chat of chatGrupal) {
+      const mensajes = [...chat.chatCompleto];
+      const mensaje = mensajes.find(m => m.id == idMensaje);
+      
+      if (mensaje) {
+        const viaje = await Viaje.findById(chat.idViajeMongo);
+        if (!viaje || (viaje.estado !== "activo" && viaje.estado !== "en_curso")) {
+          return null; // Viaje no activo
+        }
+
+        if (mensaje.emisor !== rutEmisor) {
+          return null; // No tiene permisos
+        }
+
+        return {
+          id: mensaje.id,
+          tipo: "grupal",
+          emisor: mensaje.emisor,
+          receptor: null,
+          idViajeMongo: chat.idViajeMongo
+        };
+      }
+    }
+
+    return null; // No encontrado
+  } catch (error) {
+    console.error("Error al obtener info del mensaje:", error.message);
+    return null;
   }
 }
 

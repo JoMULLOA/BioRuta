@@ -71,6 +71,8 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
   String? _rutUsuarioAutenticadoReal;
   late SocketService _socketService;
   late StreamSubscription<Map<String, dynamic>> _messageSubscription;
+  late StreamSubscription<Map<String, dynamic>> _editedMessageSubscription;
+  late StreamSubscription<Map<String, dynamic>> _deletedMessageSubscription;
   late StreamSubscription<bool> _connectionSubscription;
   bool _isConnected = false;
   
@@ -87,6 +89,8 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
   @override
   void dispose() {
     _messageSubscription.cancel();
+    _editedMessageSubscription.cancel();
+    _deletedMessageSubscription.cancel();
     _connectionSubscription.cancel();
     _messageController.dispose();
     _scrollController.dispose();
@@ -154,6 +158,55 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
           _handleNewSocketMessage(messageData);
         }
       });
+
+      // Escuchar mensajes editados específicamente
+      _editedMessageSubscription = _socketService.editedMessageStream.listen((messageData) {
+        print('📝 Escuchando mensaje editado desde stream específico: $messageData');
+        _handleEditedMessage(messageData);
+      });
+
+      // Escuchar mensajes eliminados específicamente
+      _deletedMessageSubscription = _socketService.deletedMessageStream.listen((messageData) {
+        print('🗑️ Escuchando mensaje eliminado desde stream específico: $messageData');
+        _handleDeletedMessage(messageData);
+      });
+
+      // Escuchar confirmaciones y errores de WebSocket
+      _socketService.socket?.on('edicion_exitosa', (data) {
+        print('✅ Confirmación de edición recibida: $data');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Mensaje editado correctamente')),
+          );
+        }
+      });
+
+      _socketService.socket?.on('eliminacion_exitosa', (data) {
+        print('✅ Confirmación de eliminación recibida: $data');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Mensaje eliminado correctamente')),
+          );
+        }
+      });
+
+      _socketService.socket?.on('error_edicion', (data) {
+        print('❌ Error de edición recibido: $data');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error al editar: ${data['error'] ?? 'Error desconocido'}')),
+          );
+        }
+      });
+
+      _socketService.socket?.on('error_eliminacion', (data) {
+        print('❌ Error de eliminación recibido: $data');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error al eliminar: ${data['error'] ?? 'Error desconocido'}')),
+          );
+        }
+      });
       
     } catch (e) {
       print('ERROR conectando socket: $e');
@@ -218,43 +271,43 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
     if (!mounted) return;
     
     try {
-      // Buscar ID del mensaje - puede venir como 'id' o 'idMensaje'
-      final messageId = messageData['id'] is String ? int.tryParse(messageData['id']) : messageData['id'] ??
-                        messageData['idMensaje'] is String ? int.tryParse(messageData['idMensaje']) : messageData['idMensaje'];
+      print('📝 DEBUG: Procesando mensaje editado: $messageData');
+      
+      // Buscar ID del mensaje
+      dynamic messageIdDynamic = messageData['id'] ?? messageData['idMensaje'];
       final newContent = messageData['contenido'] ?? messageData['nuevoContenido'];
       
-      if (messageId == null) {
+      int? messageId;
+      if (messageIdDynamic is int) {
+        messageId = messageIdDynamic;
+      } else if (messageIdDynamic is String) {
+        messageId = int.tryParse(messageIdDynamic);
+      }
+      
+      if (messageId == null || newContent == null) {
+        print('📝 ERROR: Datos incompletos - ID: $messageIdDynamic, Contenido: $newContent');
         return;
       }
       
-      // Verificar si el mensaje pertenece a esta conversación
-      final emisorRut = messageData['emisor']?.toString();
-      final receptorRut = messageData['receptor']?.toString();
+      print('📝 DEBUG: Actualizando mensaje ID=$messageId con contenido="$newContent"');
       
-      bool esParaEstaConversacion = false;
-      if (emisorRut != null && receptorRut != null) {
-        esParaEstaConversacion = (emisorRut == widget.rutAmigo && receptorRut == _rutUsuarioAutenticadoReal) ||
-                                (emisorRut == _rutUsuarioAutenticadoReal && receptorRut == widget.rutAmigo);
-      }
-      
-      if (!esParaEstaConversacion) {
-        return;
-      }
-      
+      // Buscar y actualizar el mensaje directamente sin verificación de conversación
+      // (ya que el backend solo envía eventos a usuarios relevantes)
       setState(() {
         final index = _messages.indexWhere((m) => m.id == messageId);
         if (index != -1) {
           _messages[index] = _messages[index].copyWith(
-            text: newContent,
+            text: newContent.toString(),
             isEdited: true,
           );
+          print('📝 SUCCESS: Mensaje actualizado en posición $index');
         } else {
-          _reloadMessages();
+          print('📝 WARNING: Mensaje no encontrado localmente, ID=$messageId');
         }
       });
       
     } catch (e) {
-      print('ERROR procesando mensaje editado: $e');
+      print('📝 ERROR procesando mensaje editado: $e');
     }
   }
 
@@ -262,28 +315,26 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
     if (!mounted) return;
     
     try {
-      // Buscar ID del mensaje - puede venir como 'id' o 'idMensaje'
-      final messageId = messageData['id'] is String ? int.tryParse(messageData['id']) : messageData['id'] ??
-                        messageData['idMensaje'] is String ? int.tryParse(messageData['idMensaje']) : messageData['idMensaje'];
+      print('🗑️ DEBUG: Procesando mensaje eliminado: $messageData');
+      
+      // Buscar ID del mensaje
+      dynamic messageIdDynamic = messageData['id'] ?? messageData['idMensaje'];
+      
+      int? messageId;
+      if (messageIdDynamic is int) {
+        messageId = messageIdDynamic;
+      } else if (messageIdDynamic is String) {
+        messageId = int.tryParse(messageIdDynamic);
+      }
       
       if (messageId == null) {
+        print('🗑️ ERROR: No se pudo obtener ID del mensaje: $messageIdDynamic');
         return;
       }
       
-      // Verificar si el mensaje pertenece a esta conversación
-      final emisorRut = messageData['emisor']?.toString();
-      final receptorRut = messageData['receptor']?.toString();
+      print('🗑️ DEBUG: Eliminando mensaje ID=$messageId');
       
-      bool esParaEstaConversacion = false;
-      if (emisorRut != null && receptorRut != null) {
-        esParaEstaConversacion = (emisorRut == widget.rutAmigo && receptorRut == _rutUsuarioAutenticadoReal) ||
-                                (emisorRut == _rutUsuarioAutenticadoReal && receptorRut == widget.rutAmigo);
-      }
-      
-      if (!esParaEstaConversacion) {
-        return;
-      }
-      
+      // Buscar y actualizar el mensaje directamente
       setState(() {
         final index = _messages.indexWhere((m) => m.id == messageId);
         if (index != -1) {
@@ -291,21 +342,15 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
             text: "Mensaje eliminado",
             isDeleted: true,
           );
+          print('🗑️ SUCCESS: Mensaje marcado como eliminado en posición $index');
         } else {
-          _reloadMessages();
+          print('🗑️ WARNING: Mensaje no encontrado localmente, ID=$messageId');
         }
       });
       
     } catch (e) {
-      print('ERROR procesando mensaje eliminado: $e');
+      print('🗑️ ERROR procesando mensaje eliminado: $e');
     }
-  }
-
-  Future<void> _reloadMessages() async {
-    setState(() {
-      _messages.clear();
-    });
-    await _fetchMessages();
   }
 
   Future<void> _fetchMessages() async {
@@ -484,72 +529,49 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
     );
   }
 
-  // Función para editar mensaje
-  Future<void> _editMessage(int messageId, String newContent) async {
-    if (_jwtToken == null) return;
-
-    try {
-      final Uri requestUri = Uri.parse('${confGlobal.baseUrl}/chat/mensaje');
-      
-      final response = await http.put(
-        requestUri,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $_jwtToken',
-        },
-        body: json.encode({
-          'idMensaje': messageId,
-          'nuevoContenido': newContent,
-        }),
-      );
-
-      if (response.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Mensaje editado correctamente')),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error editando mensaje: ${response.statusCode}')),
-        );
-      }
-    } catch (e) {
-      print('ERROR editando mensaje: $e');
+  // Función para editar mensaje (usando WebSocket)
+  void _editMessage(int messageId, String newContent) {
+    // Verificar que el socket esté conectado
+    if (!_socketService.isConnected) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al editar mensaje: $e')),
+        const SnackBar(content: Text('Error de conexión. Intenta nuevamente.')),
       );
+      return;
     }
+
+    print('📝 Enviando edición via WebSocket: ID=$messageId, Contenido=$newContent');
+    
+    // Usar WebSocket para editar mensaje (instantáneo)
+    _socketService.editMessage(
+      idMensaje: messageId,
+      nuevoContenido: newContent,
+    );
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Editando mensaje...')),
+    );
   }
 
-  // Función para eliminar mensaje
-  Future<void> _deleteMessage(int messageId) async {
-    if (_jwtToken == null) return;
-
-    try {
-      final Uri requestUri = Uri.parse('${confGlobal.baseUrl}/chat/mensaje/$messageId');
-      
-      final response = await http.delete(
-        requestUri,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $_jwtToken',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Mensaje eliminado correctamente')),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error eliminando mensaje: ${response.statusCode}')),
-        );
-      }
-    } catch (e) {
-      print('ERROR eliminando mensaje: $e');
+  // Función para eliminar mensaje (usando WebSocket)
+  void _deleteMessage(int messageId) {
+    // Verificar que el socket esté conectado
+    if (!_socketService.isConnected) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al eliminar mensaje: $e')),
+        const SnackBar(content: Text('Error de conexión. Intenta nuevamente.')),
       );
+      return;
     }
+
+    print('🗑️ Enviando eliminación via WebSocket: ID=$messageId');
+    
+    // Usar WebSocket para eliminar mensaje (instantáneo)
+    _socketService.deleteMessage(
+      idMensaje: messageId,
+    );
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Eliminando mensaje...')),
+    );
   }
 
   void _scrollToBottom() {

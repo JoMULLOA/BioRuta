@@ -1,6 +1,6 @@
 // src/socket.js
 import { Server } from "socket.io";
-import { enviarMensaje, editarMensaje, eliminarMensaje } from "./services/chat.service.js";
+import { enviarMensaje, editarMensaje, eliminarMensaje, obtenerInfoMensajeParaEliminacion } from "./services/chat.service.js";
 import { agregarParticipante, eliminarParticipante, obtenerParticipantes } from "./services/chatGrupal.service.js";
 import jwt from "jsonwebtoken";
 import { ACCESS_TOKEN_SECRET } from "./config/configEnv.js";
@@ -112,14 +112,20 @@ export function initSocket(server) {
         const mensajeEditado = await editarMensaje(idMensaje, socket.userId, nuevoContenido);
 
         console.log(`✏️ Mensaje editado por usuario ${socket.userId}: ${idMensaje}`);
+        console.log(`✏️ DEBUG: Mensaje editado completo:`, mensajeEditado);
 
         const mensajeParaEnviar = {
           id: mensajeEditado.id,
           contenido: mensajeEditado.contenido,
           emisor: mensajeEditado.emisor,
+          receptor: mensajeEditado.receptor || null,
+          idViajeMongo: mensajeEditado.idViajeMongo || null,
           fecha: mensajeEditado.fecha,
-          editado: true
+          editado: true,
+          tipo: mensajeEditado.tipo || (mensajeEditado.receptor ? "personal" : "grupal")
         };
+
+        console.log(`✏️ DEBUG: Mensaje para enviar via socket:`, mensajeParaEnviar);
 
         // Determinar salas para enviar la actualización
         if (mensajeEditado.receptor) {
@@ -152,6 +158,14 @@ export function initSocket(server) {
       }
 
       try {
+        // Necesitamos obtener la información del mensaje antes de eliminarlo
+        const infoMensaje = await obtenerInfoMensajeParaEliminacion(idMensaje, socket.userId);
+        
+        if (!infoMensaje) {
+          throw new Error("Mensaje no encontrado o no tienes permisos para eliminarlo");
+        }
+
+        // Eliminar el mensaje
         await eliminarMensaje(idMensaje, socket.userId);
 
         console.log(`🗑️ Mensaje eliminado por usuario ${socket.userId}: ${idMensaje}`);
@@ -159,14 +173,21 @@ export function initSocket(server) {
         const eventoEliminacion = {
           idMensaje,
           eliminadoPor: socket.userId,
-          fecha: new Date()
+          fecha: new Date(),
+          tipo: infoMensaje.tipo
         };
 
         // Enviar notificación de eliminación a las salas correspondientes
-        // Nota: Necesitamos determinar si es chat 1 a 1 o grupal
-        // Por ahora enviamos a sala personal del usuario
-        io.to(`usuario_${socket.userId}`).emit("mensaje_eliminado", eventoEliminacion);
-        console.log(`🗑️ Notificación de eliminación enviada a usuario ${socket.userId}`);
+        if (infoMensaje.tipo === "personal") {
+          // Chat 1 a 1
+          io.to(`usuario_${socket.userId}`).emit("mensaje_eliminado", eventoEliminacion);
+          io.to(`usuario_${infoMensaje.receptor}`).emit("mensaje_eliminado", eventoEliminacion);
+          console.log(`🗑️ Eliminación enviada a chat 1 a 1: ${socket.userId} ↔ ${infoMensaje.receptor}`);
+        } else if (infoMensaje.tipo === "grupal") {
+          // Chat grupal
+          io.to(`viaje_${infoMensaje.idViajeMongo}`).emit("mensaje_eliminado", eventoEliminacion);
+          console.log(`🗑️ Eliminación enviada a chat de viaje: ${infoMensaje.idViajeMongo}`);
+        }
 
         socket.emit("eliminacion_exitosa", { success: true, idMensaje });
 
@@ -356,6 +377,99 @@ export function initSocket(server) {
       } catch (error) {
         console.error("❌ Error al enviar mensaje grupal:", error.message);
         socket.emit("error_mensaje_grupal", { error: error.message });
+      }
+    });
+
+    // Editar mensaje en chat grupal
+    socket.on("editar_mensaje_grupal", async (data) => {
+      const { idMensaje, nuevoContenido, idViaje } = data;
+      
+      if (!idMensaje || !nuevoContenido || !idViaje) {
+        console.error("❌ ID del mensaje, nuevo contenido e ID de viaje son requeridos");
+        socket.emit("error_edicion_grupal", { error: "ID del mensaje, nuevo contenido e ID de viaje son requeridos" });
+        return;
+      }
+
+      try {
+        // Verificar que el usuario esté en el chat grupal
+        const participantes = await obtenerParticipantes(idViaje);
+        if (!participantes.includes(socket.userId)) {
+          socket.emit("error_edicion_grupal", { error: "No tienes permisos para editar mensajes en este chat grupal" });
+          return;
+        }
+
+        const mensajeEditado = await editarMensaje(idMensaje, socket.userId, nuevoContenido);
+
+        console.log(`✏️ Mensaje grupal editado por usuario ${socket.userId}: ${idMensaje}`);
+
+        const mensajeParaEnviar = {
+          id: mensajeEditado.id,
+          contenido: mensajeEditado.contenido,
+          emisor: mensajeEditado.emisor,
+          idViajeMongo: idViaje,
+          fecha: mensajeEditado.fecha,
+          editado: true,
+          tipo: "grupal"
+        };
+
+        // Enviar a todos los usuarios en el chat grupal
+        io.to(`viaje_${idViaje}`).emit("mensaje_editado", mensajeParaEnviar);
+        console.log(`📝 Edición grupal enviada a chat de viaje: ${idViaje}`);
+
+        socket.emit("edicion_grupal_exitosa", { success: true, mensaje: mensajeParaEnviar });
+
+      } catch (error) {
+        console.error("❌ Error al editar mensaje grupal:", error.message);
+        socket.emit("error_edicion_grupal", { error: error.message });
+      }
+    });
+
+    // Eliminar mensaje en chat grupal
+    socket.on("eliminar_mensaje_grupal", async (data) => {
+      const { idMensaje, idViaje } = data;
+      
+      if (!idMensaje || !idViaje) {
+        console.error("❌ ID del mensaje e ID de viaje son requeridos");
+        socket.emit("error_eliminacion_grupal", { error: "ID del mensaje e ID de viaje son requeridos" });
+        return;
+      }
+
+      try {
+        // Verificar que el usuario esté en el chat grupal
+        const participantes = await obtenerParticipantes(idViaje);
+        if (!participantes.includes(socket.userId)) {
+          socket.emit("error_eliminacion_grupal", { error: "No tienes permisos para eliminar mensajes en este chat grupal" });
+          return;
+        }
+
+        // Obtener info del mensaje antes de eliminarlo
+        const infoMensaje = await obtenerInfoMensajeParaEliminacion(idMensaje, socket.userId);
+        
+        if (!infoMensaje || infoMensaje.tipo !== "grupal") {
+          throw new Error("Mensaje no encontrado o no es de tipo grupal");
+        }
+
+        // Eliminar el mensaje
+        await eliminarMensaje(idMensaje, socket.userId);
+
+        console.log(`🗑️ Mensaje grupal eliminado por usuario ${socket.userId}: ${idMensaje}`);
+
+        const eventoEliminacion = {
+          idMensaje,
+          eliminadoPor: socket.userId,
+          fecha: new Date(),
+          tipo: "grupal"
+        };
+
+        // Enviar a todos los usuarios en el chat grupal
+        io.to(`viaje_${idViaje}`).emit("mensaje_eliminado", eventoEliminacion);
+        console.log(`🗑️ Eliminación grupal enviada a chat de viaje: ${idViaje}`);
+
+        socket.emit("eliminacion_grupal_exitosa", { success: true, idMensaje });
+
+      } catch (error) {
+        console.error("❌ Error al eliminar mensaje grupal:", error.message);
+        socket.emit("error_eliminacion_grupal", { error: error.message });
       }
     });
 

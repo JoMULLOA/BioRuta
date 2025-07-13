@@ -4,6 +4,7 @@ import Mensaje from "../entity/mensaje.entity.js";
 import ChatPersonal from "../entity/chatPersonal.entity.js";
 import ChatGrupal from "../entity/chatGrupal.entity.js";
 import User from "../entity/user.entity.js";
+import { emitToUser, emitToViaje } from "../socket.js";
 
 // Repositorios
 const mensajeRepository = AppDataSource.getRepository(Mensaje);
@@ -219,5 +220,66 @@ export async function obtenerEstadisticasDistribuidor() {
   } catch (error) {
     console.error("Error al obtener estadísticas:", error.message);
     throw error;
+  }
+}
+
+/**
+ * Notifica la edición de un mensaje a través de WebSocket
+ * @param {Object} mensajeEditado 
+ * @param {string} tipo - "personal" o "grupal"
+ */
+export function notificarEdicionMensaje(mensajeEditado, tipo) {
+  try {
+    const mensajeParaEnviar = {
+      id: mensajeEditado.id,
+      contenido: mensajeEditado.contenido,
+      emisor: mensajeEditado.emisor,
+      receptor: mensajeEditado.receptor || null,
+      idViajeMongo: mensajeEditado.idViajeMongo || null,
+      fecha: mensajeEditado.fecha,
+      editado: true,
+      tipo
+    };
+
+    if (tipo === "personal" && mensajeEditado.receptor) {
+      emitToUser(mensajeEditado.emisor, "mensaje_editado", mensajeParaEnviar);
+      emitToUser(mensajeEditado.receptor, "mensaje_editado", mensajeParaEnviar);
+      console.log(`📝 Notificación de edición enviada a chat personal: ${mensajeEditado.emisor} ↔ ${mensajeEditado.receptor}`);
+    } else if (tipo === "grupal" && mensajeEditado.idViajeMongo) {
+      emitToViaje(mensajeEditado.idViajeMongo, "mensaje_editado", mensajeParaEnviar);
+      console.log(`📝 Notificación de edición enviada a chat grupal: ${mensajeEditado.idViajeMongo}`);
+    }
+  } catch (error) {
+    console.error("Error al notificar edición de mensaje:", error.message);
+  }
+}
+
+/**
+ * Notifica la eliminación de un mensaje a través de WebSocket
+ * @param {number} idMensaje 
+ * @param {string} eliminadoPor 
+ * @param {string} tipo - "personal" o "grupal"
+ * @param {string|null} receptor - RUT del receptor para chats personales
+ * @param {string|null} idViajeMongo - ID del viaje para chats grupales
+ */
+export function notificarEliminacionMensaje(idMensaje, eliminadoPor, tipo, receptor = null, idViajeMongo = null) {
+  try {
+    const eventoEliminacion = {
+      idMensaje,
+      eliminadoPor,
+      fecha: new Date(),
+      tipo
+    };
+
+    if (tipo === "personal" && receptor) {
+      emitToUser(eliminadoPor, "mensaje_eliminado", eventoEliminacion);
+      emitToUser(receptor, "mensaje_eliminado", eventoEliminacion);
+      console.log(`🗑️ Notificación de eliminación enviada a chat personal: ${eliminadoPor} ↔ ${receptor}`);
+    } else if (tipo === "grupal" && idViajeMongo) {
+      emitToViaje(idViajeMongo, "mensaje_eliminado", eventoEliminacion);
+      console.log(`🗑️ Notificación de eliminación enviada a chat grupal: ${idViajeMongo}`);
+    }
+  } catch (error) {
+    console.error("Error al notificar eliminación de mensaje:", error.message);
   }
 }
