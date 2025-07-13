@@ -1,5 +1,5 @@
 "use strict";
-import { crearNotificacionService } from "./notificacion.service.js";
+import { crearNotificacionService } from "../services/notificacion.service.js";
 
 export async function crearNotificacionSolicitudViaje(datosViaje, rutSolicitante, nombreSolicitante, rutConductor) {
   try {
