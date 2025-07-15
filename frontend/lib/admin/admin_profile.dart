@@ -5,6 +5,7 @@ import 'dart:convert';
 import '../config/confGlobal.dart';
 import '../utils/token_manager.dart';
 import '../auth/login.dart';
+import '../services/socket_service.dart';
 
 class AdminProfile extends StatefulWidget {
   const AdminProfile({super.key});
@@ -176,6 +177,10 @@ class _AdminProfileState extends State<AdminProfile> {
         },
       );
 
+      // IMPORTANTE: Desconectar WebSocket antes de limpiar datos
+      print('🔌 Desconectando WebSocket...');
+      SocketService.instance.disconnect();
+
       // Intentar hacer logout en el backend primero
       await _logoutFromBackend();
 
@@ -215,6 +220,10 @@ class _AdminProfileState extends State<AdminProfile> {
       Navigator.of(context).pop();
       
       print('Error durante el logout: $e');
+      
+      // IMPORTANTE: Incluso si hay error, asegurar desconexión del WebSocket
+      print('🔌 Desconectando WebSocket por seguridad tras error...');
+      SocketService.instance.disconnect();
       
       // Incluso si hay error en el backend, limpiar datos locales
       await TokenManager.clearAuthData();
