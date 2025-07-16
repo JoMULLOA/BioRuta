@@ -75,7 +75,7 @@ class Perfil_ extends State<Perfil> {
       }
 
       final response = await http.get(
-        Uri.parse('${confGlobal.baseUrl}/users/busqueda?email=$email'),
+        Uri.parse('${confGlobal.baseUrl}/user/busqueda?email=$email'),
         headers: {
           ...headers,
           'Cache-Control': 'no-cache',
@@ -180,7 +180,7 @@ class Perfil_ extends State<Perfil> {
       }
       
       final response = await http.post(
-        Uri.parse('${confGlobal.baseUrl}/users/calcularCalificacion'),
+        Uri.parse('${confGlobal.baseUrl}/user/calcularCalificacion'),
         headers: headers,
         body: json.encode({
           'promedioUsuario': promedioUsuario,
@@ -217,7 +217,7 @@ class Perfil_ extends State<Perfil> {
       }
       
       final response = await http.get(
-        Uri.parse('${confGlobal.baseUrl}/users/promedioGlobal'),
+        Uri.parse('${confGlobal.baseUrl}/user/promedioGlobal'),
         headers: headers,
       );
 
