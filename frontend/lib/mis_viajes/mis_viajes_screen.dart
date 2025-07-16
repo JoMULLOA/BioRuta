@@ -22,14 +22,14 @@ class _MisViajesScreenState extends State<MisViajesScreen>
   List<Viaje> viajesCreados = [];
   List<Viaje> viajesUnidos = [];
   bool cargando = true;
-  int _selectedIndex = 5; // Perfil section
+  int _selectedIndex = 0; // Mis viajes ahora está en índice 0
   int numeroSolicitudesPendientes = 0;
   late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 2, vsync: this, initialIndex: 1); // Iniciar en "Viajes unidos"
     _tabController.addListener(() {
       setState(() {}); // Actualizar el FAB cuando cambie de pestaña
     });
@@ -121,7 +121,7 @@ void _mostrarSolicitudesPasajeros() {
 
     switch (index) {
       case 0:
-        Navigator.pushReplacementNamed(context, '/inicio');
+        // Ya estamos en mis viajes, no hacer nada
         break;
       case 1:
         Navigator.pushReplacementNamed(context, '/mapa');
@@ -151,6 +151,7 @@ void _mostrarSolicitudesPasajeros() {
         foregroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
+        automaticallyImplyLeading: false, // Quitar el botón de volver atrás
         bottom: cargando
             ? null
             : TabBar(

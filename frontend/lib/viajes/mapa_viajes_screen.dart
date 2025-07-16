@@ -10,7 +10,7 @@ class MapaViajesScreen extends StatefulWidget {
 }
 
 class _MapaViajesScreenState extends State<MapaViajesScreen> {
-  int _selectedIndex = 1; // Mapa is index 1 in navbar
+  int _selectedIndex = 1; // Buscar ahora está en index 1
   
   void _onItemTapped(int index) {
     setState(() {
@@ -19,10 +19,10 @@ class _MapaViajesScreenState extends State<MapaViajesScreen> {
     
     switch (index) {
       case 0:
-        Navigator.pushReplacementNamed(context, '/inicio');
+        Navigator.pushReplacementNamed(context, '/mis-viajes');
         break;
       case 1:
-        // Ya estamos en mapa
+        Navigator.pushReplacementNamed(context, '/mapa');
         break;
       case 2:
         Navigator.pushReplacementNamed(context, '/publicar');

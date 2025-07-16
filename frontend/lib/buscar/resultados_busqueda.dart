@@ -30,7 +30,7 @@ class ResultadosBusquedaScreen extends StatefulWidget {
 }
 
 class _ResultadosBusquedaScreenState extends State<ResultadosBusquedaScreen> {
-  int _selectedIndex = 0;
+  int _selectedIndex = 1; // Mapa está en índice 1
   List<ViajeProximidad> _viajes = [];
   bool _cargando = true;
   String? _error;
@@ -114,7 +114,7 @@ class _ResultadosBusquedaScreenState extends State<ResultadosBusquedaScreen> {
           
           switch (index) {
             case 0:
-              Navigator.pushReplacementNamed(context, '/inicio');
+              Navigator.pushReplacementNamed(context, '/mis-viajes');
               break;
             case 1:
               Navigator.pushReplacementNamed(context, '/mapa');

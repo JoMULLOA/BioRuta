@@ -93,7 +93,7 @@ class _CustomNavbarConNotificacionesState extends State<CustomNavbarConNotificac
       elevation: 8,
       onTap: widget.onTap,
       items: [
-        BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Buscar'),
+        BottomNavigationBarItem(icon: Icon(Icons.directions_car), label: 'Viajes'),
         BottomNavigationBarItem(icon: Icon(Icons.map), label: 'Mapa'),
         BottomNavigationBarItem(icon: Icon(Icons.add), label: 'Publicar'),
         BottomNavigationBarItem(icon: Icon(Icons.chat), label: 'Chat'),

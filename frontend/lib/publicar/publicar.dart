@@ -90,7 +90,7 @@ class PublicarPageState extends State<PublicarPage> {
             if (Navigator.canPop(context)) {
               Navigator.pop(context);
             } else {
-              Navigator.pushReplacementNamed(context, '/inicio');
+              Navigator.pushReplacementNamed(context, '/mapa');
             }
           },
         ),
@@ -107,7 +107,7 @@ class PublicarPageState extends State<PublicarPage> {
 
           switch (index) {
             case 0:
-              Navigator.pushReplacementNamed(context, '/inicio');
+              Navigator.pushReplacementNamed(context, '/mis-viajes');
               break;
             case 1:
               Navigator.pushReplacementNamed(context, '/mapa');

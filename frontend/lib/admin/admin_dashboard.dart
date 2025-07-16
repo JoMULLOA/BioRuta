@@ -822,17 +822,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     children: [
                       Icon(Icons.visibility),
                       SizedBox(width: 8),
-                      Text('Ver detalles'),
-                    ],
-                  ),
-                ),
-                const PopupMenuItem(
-                  value: 'editar',
-                  child: Row(
-                    children: [
-                      Icon(Icons.edit),
-                      SizedBox(width: 8),
-                      Text('Editar'),
+                      Text('Ver Detalles'),
                     ],
                   ),
                 ),

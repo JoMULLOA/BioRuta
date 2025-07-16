@@ -783,7 +783,7 @@ class Perfil_ extends State<Perfil> {
 
           switch (index) {
             case 0:
-              Navigator.pushReplacementNamed(context, '/inicio');
+              Navigator.pushReplacementNamed(context, '/mis-viajes');
               break;
             case 1:
               // Ir al mapa
@@ -797,7 +797,7 @@ class Perfil_ extends State<Perfil> {
               Navigator.pushReplacementNamed(context, '/chat');
               break;
             case 4:
-              // Perfil (por implementar)
+              // Ranking
               Navigator.pushReplacementNamed(context, '/ranking');
               break;
             case 5:

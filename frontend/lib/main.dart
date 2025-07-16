@@ -1,4 +1,3 @@
-import 'package:BioRuta/Ranking/ranking.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'auth/login.dart';
@@ -9,6 +8,7 @@ import 'buscar/inicio.dart';
 import 'publicar/publicar.dart';
 import 'chat/chat.dart';
 import 'perfil/perfil.dart';
+import 'Ranking/ranking.dart';
 void main() {
   runApp(const MyApp());
 }
@@ -34,9 +34,12 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF2E7D32)),
         useMaterial3: true,
       ),
-      home: const LoginPage(),      routes: {
+      initialRoute: '/login', // Ruta inicial
+      routes: {
+        '/': (context) => const MisViajesScreen(), // Ruta principal ahora es mis viajes
         '/login': (context) => const LoginPage(),
         '/inicio': (context) => const InicioScreen(),
+        '/buscar': (context) => const InicioScreen(),
         '/mapa': (context) => const MapPage(),
         '/viajes': (context) => const MapaViajesScreen(),
         '/mis-viajes': (context) => const MisViajesScreen(),

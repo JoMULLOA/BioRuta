@@ -20,7 +20,7 @@ class CustomNavbar extends StatelessWidget {
       elevation: 8,
       onTap: onTap,
       items: const [
-        BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Buscar'),
+        BottomNavigationBarItem(icon: Icon(Icons.directions_car), label: 'Mis viajes'),
         BottomNavigationBarItem(icon: Icon(Icons.map), label: 'Mapa'),
         BottomNavigationBarItem(icon: Icon(Icons.add), label: 'Publicar'),
         BottomNavigationBarItem(icon: Icon(Icons.chat), label: 'Chat'),

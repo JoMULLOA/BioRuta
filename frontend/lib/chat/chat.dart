@@ -262,10 +262,10 @@ class ChatState extends State<Chat> {
 
           switch (index) {
             case 0:
-              Navigator.pushReplacementNamed(context, '/inicio');
+              Navigator.pushReplacementNamed(context, '/mis-viajes');
               break;
             case 1:
-              Navigator.pushReplacementNamed(context, '/mapa');
+              Navigator.pushReplacementNamed(context, '/buscar');
               break;
             case 2:
               Navigator.pushReplacementNamed(context, '/publicar');

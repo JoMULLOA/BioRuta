@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../navbar_widget.dart';
 import '../models/direccion_sugerida.dart';
-import '../mapa/mapa_seleccion_simple.dart';
+import '../mapa/mapa_seleccion.dart';
 import 'resultados_busqueda.dart';
 
 class InicioScreen extends StatefulWidget {
@@ -12,7 +12,7 @@ class InicioScreen extends StatefulWidget {
 }
 
 class _InicioScreenState extends State<InicioScreen> {
-  int _selectedIndex = 0;
+  int _selectedIndex = -1; // No hay selección por defecto, ya que no es pantalla principal
     // Variables para almacenar los datos del viaje
   String? direccionOrigen;
   String? direccionDestino;
@@ -534,10 +534,9 @@ class _InicioScreenState extends State<InicioScreen> {
           // Navegación según el índice seleccionado
           switch (index) {
             case 0:
-              // Ya estamos en inicio, no hacer nada
+              Navigator.pushReplacementNamed(context, '/mis-viajes');
               break;
             case 1:
-              // Ir al mapa
               Navigator.pushReplacementNamed(context, '/mapa');
               break;
             case 2:
