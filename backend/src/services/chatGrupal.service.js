@@ -75,19 +75,26 @@ export async function crearChatGrupal(idViajeMongo, rutConductor) {
  */
 export async function agregarParticipante(idViajeMongo, rutParticipante) {
   try {
+    console.log(`🔍 INICIANDO AGREGAR PARTICIPANTE: RUT=${rutParticipante} al viaje=${idViajeMongo}`);
+    
     // Validar que el ID de viaje sea válido
     if (!mongoose.Types.ObjectId.isValid(idViajeMongo)) {
+      console.error(`❌ ID de viaje inválido: ${idViajeMongo}`);
       throw new Error("El ID de viaje proporcionado no es un ObjectId válido.");
     }
 
     // Buscar el chat grupal
+    console.log(`🔍 Buscando chat grupal para viaje: ${idViajeMongo}`);
     const chatGrupal = await chatGrupalRepository.findOne({
       where: { idViajeMongo }
     });
 
     if (!chatGrupal) {
+      console.error(`❌ Chat grupal NO ENCONTRADO para viaje: ${idViajeMongo}`);
       throw new Error("Chat grupal no encontrado para este viaje.");
     }
+
+    console.log(`✅ Chat grupal encontrado (ID: ${chatGrupal.id}) con ${chatGrupal.participantes.length} participantes actuales`);
 
     // Verificar que el participante no esté ya en la lista
     if (chatGrupal.participantes.includes(rutParticipante)) {
@@ -97,8 +104,11 @@ export async function agregarParticipante(idViajeMongo, rutParticipante) {
 
     // Agregar participante
     const nuevosParticipantes = [...chatGrupal.participantes, rutParticipante];
+    console.log(`🔄 Agregando participante. Participantes antes: [${chatGrupal.participantes.join(', ')}]`);
+    console.log(`🔄 Participantes después: [${nuevosParticipantes.join(', ')}]`);
 
     // Actualizar chat grupal
+    console.log(`💾 Guardando cambios en la base de datos...`);
     await chatGrupalRepository.update(chatGrupal.id, {
       participantes: nuevosParticipantes,
       fechaUltimaActualizacion: new Date()
@@ -108,7 +118,8 @@ export async function agregarParticipante(idViajeMongo, rutParticipante) {
       where: { idViajeMongo }
     });
 
-    console.log(`✅ Participante ${rutParticipante} agregado al chat grupal del viaje ${idViajeMongo}`);
+    console.log(`✅ ÉXITO: Participante ${rutParticipante} agregado al chat grupal del viaje ${idViajeMongo}`);
+    console.log(`📊 Total de participantes ahora: ${chatActualizado.participantes.length}`);
     
     return chatActualizado;
   } catch (error) {

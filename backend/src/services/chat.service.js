@@ -15,24 +15,42 @@ const chatGrupalRepository = AppDataSource.getRepository(ChatGrupal);
 
 export async function enviarMensaje(rutEmisor, contenido, rutReceptor = null, idViajeMongo = null) {
   try {
+    console.log(`📩 ENVIANDO MENSAJE: ${rutEmisor} → ${rutReceptor || idViajeMongo}`);
+    console.log(`📱 DEVICE DEBUG - Parámetros recibidos:`, {
+      rutEmisor,
+      contenido,
+      rutReceptor,
+      idViajeMongo,
+      timestamp: new Date().toISOString()
+    });
+    
     const emisor = await userRepository.findOne({ where: { rut: rutEmisor } });
     if (!emisor) {
+      console.error(`❌ DEVICE DEBUG - Emisor no encontrado: ${rutEmisor}`);
       throw new Error("El emisor no existe.");
     }
+    console.log(`✅ DEVICE DEBUG - Emisor encontrado: ${emisor.rut}`);
+    
 
     const nuevoMensaje = mensajeRepository.create({ contenido, emisor });
 
     if (rutReceptor && idViajeMongo) {
+      console.error(`❌ DEVICE DEBUG - Error: receptor y viaje especificados al mismo tiempo`);
       throw new Error("No se puede especificar un receptor y un ID de viaje a la vez. Un mensaje debe ser 1 a 1 o de viaje.");
     } else if (rutReceptor) {
+      console.log(`📱 DEVICE DEBUG - Procesando mensaje personal a ${rutReceptor}`);
       const receptor = await userRepository.findOne({ where: { rut: rutReceptor } });
       if (!receptor) {
+        console.error(`❌ DEVICE DEBUG - Receptor no encontrado: ${rutReceptor}`);
         throw new Error("El receptor no existe.");
       }
+      console.log(`✅ DEVICE DEBUG - Receptor encontrado: ${receptor.rut}`);
       nuevoMensaje.receptor = receptor;
       nuevoMensaje.idViajeMongo = null;
     } else if (idViajeMongo) {
+      console.log(`📱 DEVICE DEBUG - Procesando mensaje grupal para viaje ${idViajeMongo}`);
       if (!mongoose.Types.ObjectId.isValid(idViajeMongo)) {
+        console.error(`❌ DEVICE DEBUG - ID de viaje inválido: ${idViajeMongo}`);
         throw new Error("El ID de viaje proporcionado no es un ObjectId válido.");
       }
 
@@ -53,17 +71,31 @@ export async function enviarMensaje(rutEmisor, contenido, rutReceptor = null, id
       nuevoMensaje.idViajeMongo = idViajeMongo;
       nuevoMensaje.receptor = null;
     } else {
+      console.error(`❌ DEVICE DEBUG - No se especificó receptor ni viaje`);
       throw new Error("Se debe especificar un 'rutReceptor' (para chat 1 a 1) o un 'idViajeMongo' (para chat grupal de viaje).");
     }
 
     // Guardar en temporal
+    console.log(`📱 DEVICE DEBUG - Guardando mensaje en BD temporal...`);
     const mensajeGuardado = await mensajeRepository.save(nuevoMensaje);
+    console.log(`💾 MENSAJE GUARDADO: ID=${mensajeGuardado.id}, Emisor=${rutEmisor}, Receptor=${rutReceptor || idViajeMongo}`);
+    console.log(`📱 DEVICE DEBUG - Mensaje guardado exitosamente, ID: ${mensajeGuardado.id}`);
 
     // Procesar inmediatamente con el distribuidor
+    console.log(`📱 DEVICE DEBUG - Iniciando procesamiento del mensaje...`);
     const mensajeProcesado = await procesarMensajeTemporal(mensajeGuardado);
+    console.log(`📱 DEVICE DEBUG - Resultado del procesamiento:`, mensajeProcesado);
+    console.log(`✅ MENSAJE PROCESADO: ID=${mensajeProcesado.id}, Tipo=${mensajeProcesado.tipo}`);
 
     return mensajeProcesado;
   } catch (error) {
+    console.error(`❌ DEVICE DEBUG - Error en enviarMensaje:`, {
+      rutEmisor,
+      rutReceptor,
+      idViajeMongo,
+      error: error.message,
+      stack: error.stack
+    });
     console.error("Error al enviar el mensaje:", error.message);
     throw new Error(`Error al enviar el mensaje: ${error.message}`);
   }
@@ -133,29 +165,46 @@ export async function obtenerMensajesViaje(idViajeMongo, rutUsuarioSolicitante) 
 
 export async function editarMensaje(idMensaje, rutEmisor, nuevoContenido) {
   try {
-    // Buscar en chat personal primero
+    console.log(`📝 EDITANDO MENSAJE: ID=${idMensaje}, Editor=${rutEmisor}`);
+    console.log(`📱 DEVICE DEBUG - Editando mensaje: ID=${idMensaje}, Editor=${rutEmisor}, Contenido="${nuevoContenido}"`);
+    
+    // BÚSQUEDA OPTIMIZADA: Buscar en todos los chats pero con lógica mejorada
     const chatPersonal = await chatPersonalRepository
       .createQueryBuilder("chat")
       .where("(chat.rutUsuario1 = :rut OR chat.rutUsuario2 = :rut)", { rut: rutEmisor })
       .getMany();
 
+    console.log(`🔍 Chats encontrados para ${rutEmisor}: ${chatPersonal.length}`);
+    console.log(`📱 DEVICE DEBUG - Chats personales encontrados: ${chatPersonal.length}`);
+
     // Buscar el mensaje en los chats personales
     for (const chat of chatPersonal) {
+      console.log(`📱 DEVICE DEBUG - Buscando en chat: ${chat.idChat}`);
       const mensajes = [...chat.chatCompleto];
       const mensajeIndex = mensajes.findIndex(m => m.id == idMensaje);
       
+      console.log(`🔍 Buscando mensaje ${idMensaje} en chat ${chat.identificadorChat}: ${mensajeIndex !== -1 ? 'ENCONTRADO' : 'NO ENCONTRADO'}`);
+      console.log(`📱 DEVICE DEBUG - Mensaje ${idMensaje} en chat ${chat.identificadorChat}: ${mensajeIndex !== -1 ? 'ENCONTRADO' : 'NO ENCONTRADO'}`);
+      
       if (mensajeIndex !== -1) {
+        console.log(`📋 Mensaje encontrado: Emisor=${mensajes[mensajeIndex].emisor}, Editor=${rutEmisor}`);
+        console.log(`📱 DEVICE DEBUG - Mensaje encontrado: Emisor=${mensajes[mensajeIndex].emisor}, Editor=${rutEmisor}`);
+        
         if (mensajes[mensajeIndex].emisor !== rutEmisor) {
+          console.error(`❌ DEVICE DEBUG - Sin permisos para editar: Emisor=${mensajes[mensajeIndex].emisor}, Editor=${rutEmisor}`);
           throw new Error("No tienes permiso para editar este mensaje.");
         }
 
+        console.log(`📱 DEVICE DEBUG - Aplicando edición al mensaje ${idMensaje}`);
         mensajes[mensajeIndex].contenido = nuevoContenido;
         mensajes[mensajeIndex].editado = true;
 
+        console.log(`📱 DEVICE DEBUG - Actualizando chat en BD...`);
         await chatPersonalRepository.update(chat.id, {
           chatCompleto: mensajes,
           fechaUltimaActualizacion: new Date()
         });
+        console.log(`📱 DEVICE DEBUG - Chat actualizado exitosamente`);
 
         // Retornar mensaje con información del chat
         return {
