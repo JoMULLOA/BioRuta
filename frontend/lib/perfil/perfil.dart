@@ -64,11 +64,20 @@ class Perfil_ extends State<Perfil> {
         return;
       }
 
-      // Llamada al backend
+      // Llamada al backend con headers de autenticación
+      final headers = await TokenManager.getAuthHeaders();
+      if (headers == null) {
+        setState(() {
+          _isLoading = false;
+          _userEmail = 'Error de autenticación';
+        });
+        return;
+      }
+
       final response = await http.get(
         Uri.parse('${confGlobal.baseUrl}/user/busqueda?email=$email'),
         headers: {
-          'Content-Type': 'application/json',
+          ...headers,
           'Cache-Control': 'no-cache',
         },
       );
@@ -163,11 +172,16 @@ class Perfil_ extends State<Perfil> {
       
       const int minimoValoraciones = 2; // Mínimo de valoraciones para considerar confiable
       
+      // Obtener headers de autenticación
+      final headers = await TokenManager.getAuthHeaders();
+      if (headers == null) {
+        print('❌ No hay headers de autenticación para calcular calificación');
+        return null;
+      }
+      
       final response = await http.post(
         Uri.parse('${confGlobal.baseUrl}/user/calcularCalificacion'),
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: headers,
         body: json.encode({
           'promedioUsuario': promedioUsuario,
           'cantidadValoraciones': cantidadValoraciones,
@@ -195,11 +209,16 @@ class Perfil_ extends State<Perfil> {
   // Nuevo método para obtener el promedio global desde el backend
   Future<double> _obtenerPromedioGlobal() async {
     try {
+      // Obtener headers de autenticación
+      final headers = await TokenManager.getAuthHeaders();
+      if (headers == null) {
+        print('❌ No hay headers de autenticación para obtener promedio global');
+        return 3.0; // Valor por defecto
+      }
+      
       final response = await http.get(
         Uri.parse('${confGlobal.baseUrl}/user/promedioGlobal'),
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: headers,
       );
 
       if (response.statusCode == 200) {

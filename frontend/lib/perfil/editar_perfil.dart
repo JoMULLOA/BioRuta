@@ -61,11 +61,16 @@ class _EditarPerfilPageState extends State<EditarPerfilPage> {
         return;
       }
 
+      // Obtener headers de autenticación
+      final headers = await TokenManager.getAuthHeaders();
+      if (headers == null) {
+        _showError('Error de autenticación');
+        return;
+      }
+
       final response = await http.get(
         Uri.parse('${confGlobal.baseUrl}/user/busqueda?email=$email'),
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: headers,
       );
 
       if (response.statusCode == 200) {

@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../config/confGlobal.dart';
 import '../services/amistad_service.dart';
+import '../utils/token_manager.dart';
 
 class Solicitud extends StatefulWidget {
   @override
@@ -86,10 +87,21 @@ class _SolicitudState extends State<Solicitud> {
 
     try {
       String rutFormateado = _rutController.text.trim();
+      
+      // Obtener headers de autenticación
+      final headers = await TokenManager.getAuthHeaders();
+      if (headers == null) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'Error de autenticación';
+        });
+        return;
+      }
+      
       final response = await http.get(
         Uri.parse('${confGlobal.baseUrl}/user/busquedaRut?rut=$rutFormateado'),
         headers: {
-          'Content-Type': 'application/json',
+          ...headers,
           'Cache-Control': 'no-cache',
         },
       );

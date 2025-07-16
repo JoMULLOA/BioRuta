@@ -7,6 +7,12 @@ import { AppDataSource } from "../config/configDb.js";
 import User from "../entity/user.entity.js";
 
 const router = express.Router();
+
+// Middleware para autenticar y verificar si el usuario es administrador
+router.use(authenticateJwt);
+//router.use(isAdmin);
+
+// Rutas protegidas que requieren autenticación
 router.get("/busqueda", searchUser);
 router.get("/busquedaRut", buscarRut);
 
@@ -15,10 +21,6 @@ router.post("/calcularCalificacion", calcularCalificacion);
 
 // Nueva ruta para obtener el promedio global
 router.get("/promedioGlobal", obtenerPromedioGlobal);
-
-// Middleware para autenticar y verificar si el usuario es administrador
-router.use(authenticateJwt);
-//router.use(isAdmin);
 
 // Rutas de usuario
 router.get("/", getUsers);
