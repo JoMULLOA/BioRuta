@@ -54,11 +54,21 @@ class _AdminProfileState extends State<AdminProfile> {
         return;
       }
 
+      // Llamada al backend con headers de autenticación
+      final headers = await TokenManager.getAuthHeaders();
+      if (headers == null) {
+        setState(() {
+          _isLoading = false;
+          _userEmail = 'Error de autenticación';
+        });
+        return;
+      }
+      
       // Llamada al backend
       final response = await http.get(
         Uri.parse('${confGlobal.baseUrl}/user/busqueda?email=$email'),
         headers: {
-          'Content-Type': 'application/json',
+          ...headers,
           'Cache-Control': 'no-cache',
         },
       );

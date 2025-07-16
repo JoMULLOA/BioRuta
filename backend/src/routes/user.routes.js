@@ -27,6 +27,6 @@ router.get("/", getUsers);
 router.get("/detail/", getUser);
 router.get("/mis-vehiculos", getMisVehiculos); // Nueva ruta para obtener vehículos del usuario
 router.patch("/actualizar", updateUser);
-router.delete("/detail/", deleteUser);
+router.delete("/detail/", isAdmin, deleteUser); // Solo administradores pueden eliminar usuarios
 
 export default router;

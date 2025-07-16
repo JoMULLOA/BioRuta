@@ -155,37 +155,6 @@ export async function updateUser(req, res) {
   }
 }
 
-export async function deleteUser(req, res) {
-  try {
-    const { rut, email } = req.query;
-
-    const { error: queryError } = userQueryValidation.validate({
-      rut,
-      email,
-    });
-
-    if (queryError) {
-      return handleErrorClient(
-        res,
-        400,
-        "Error de validación en la consulta",
-        queryError.message,
-      );
-    }
-
-    const [userDelete, errorUserDelete] = await deleteUserService({
-      rut,
-      email,
-    });
-
-    if (errorUserDelete) return handleErrorClient(res, 404, "Error eliminado al usuario", errorUserDelete);
-
-    handleSuccess(res, 200, "Usuario eliminado correctamente", userDelete);
-  } catch (error) {
-    handleErrorServer(res, 500, error.message);
-  }
-}
-
 export async function getMisVehiculos(req, res) {
   try {
     const userRut = req.user.rut;
@@ -249,6 +218,25 @@ export async function obtenerPromedioGlobal(req, res) {
     });
   } catch (error) {
     console.error("Error en obtenerPromedioGlobal controller:", error);
+    handleErrorServer(res, 500, error.message);
+  }
+}
+
+export async function deleteUser(req, res) {
+  try {
+    const { rut, email } = req.query;
+
+    const { error } = userQueryValidation.validate({ rut, email });
+
+    if (error) return handleErrorClient(res, 400, error.message);
+
+    const [user, errorUser] = await deleteUserService({ rut, email });
+
+    if (errorUser) return handleErrorClient(res, 404, errorUser);
+
+    handleSuccess(res, 200, "Usuario y todas sus relaciones eliminadas exitosamente", user);
+  } catch (error) {
+    console.error("Error al eliminar usuario:", error);
     handleErrorServer(res, 500, error.message);
   }
 }

@@ -147,6 +147,102 @@ class UserService {
     }
   }
 
+  /// Eliminar un usuario y todas sus relaciones
+  static Future<Map<String, dynamic>> eliminarUsuarioCompleto(String rut) async {
+    try {
+      print('🗑️ Iniciando eliminación completa del usuario con RUT: $rut');
+      
+      // Paso 1: Obtener todas las amistades del usuario
+      // Nota: Necesitaríamos un endpoint específico para esto, 
+      // por ahora intentaremos eliminar directamente
+      
+      // Paso 2: Eliminar el usuario del backend
+      // El backend debería manejar la eliminación en cascada de relaciones
+      final response = await http.delete(
+        Uri.parse('$baseUrl/users/detail/?rut=$rut'),
+        headers: await _getHeaders(),
+      );
+
+      print('🗑️ Response status: ${response.statusCode}');
+      print('🗑️ Response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return {
+          'success': true,
+          'message': data['message'] ?? 'Usuario y todas sus relaciones eliminadas exitosamente',
+        };
+      } else if (response.statusCode == 401) {
+        await TokenManager.clearAuthData();
+        throw Exception('Sesión expirada. Por favor, inicia sesión nuevamente');
+      } else if (response.statusCode == 404) {
+        throw Exception('Usuario no encontrado');
+      } else if (response.statusCode == 403) {
+        throw Exception('No tienes permisos para eliminar este usuario');
+      } else {
+        final errorData = json.decode(response.body);
+        throw Exception(errorData['message'] ?? 'Error al eliminar usuario');
+      }
+    } catch (e) {
+      print('❌ Error eliminando usuario completo: $e');
+      
+      if (e.toString().contains('TimeoutException')) {
+        throw Exception('Tiempo de espera agotado. Verifica tu conexión a internet.');
+      } else if (e.toString().contains('SocketException')) {
+        throw Exception('No se pudo conectar al servidor. Verifica que el backend esté ejecutándose.');
+      } else if (e is Exception) {
+        rethrow;
+      } else {
+        throw Exception('Error inesperado: $e');
+      }
+    }
+  }
+
+  /// Eliminar un usuario por RUT
+  static Future<Map<String, dynamic>> eliminarUsuario(String rut) async {
+    try {
+      print('🗑️ Eliminando usuario con RUT: $rut');
+      
+      final response = await http.delete(
+        Uri.parse('$baseUrl/users/detail/?rut=$rut'),
+        headers: await _getHeaders(),
+      );
+
+      print('🗑️ Response status: ${response.statusCode}');
+      print('🗑️ Response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return {
+          'success': true,
+          'message': data['message'] ?? 'Usuario eliminado exitosamente',
+        };
+      } else if (response.statusCode == 401) {
+        await TokenManager.clearAuthData();
+        throw Exception('Sesión expirada. Por favor, inicia sesión nuevamente');
+      } else if (response.statusCode == 404) {
+        throw Exception('Usuario no encontrado');
+      } else if (response.statusCode == 403) {
+        throw Exception('No tienes permisos para eliminar este usuario');
+      } else {
+        final errorData = json.decode(response.body);
+        throw Exception(errorData['message'] ?? 'Error al eliminar usuario');
+      }
+    } catch (e) {
+      print('❌ Error eliminando usuario: $e');
+      
+      if (e.toString().contains('TimeoutException')) {
+        throw Exception('Tiempo de espera agotado. Verifica tu conexión a internet.');
+      } else if (e.toString().contains('SocketException')) {
+        throw Exception('No se pudo conectar al servidor. Verifica que el backend esté ejecutándose.');
+      } else if (e is Exception) {
+        rethrow;
+      } else {
+        throw Exception('Error inesperado: $e');
+      }
+    }
+  }
+
   /// Obtener estadísticas de usuarios
   static Future<EstadisticasUsuarios> obtenerEstadisticasUsuarios() async {
     try {
