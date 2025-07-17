@@ -362,6 +362,31 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                     child: const Text("🧪 Probar Notificaciones"),
                   ),
+                  const SizedBox(height: 8),
+                  // Botón para verificar permisos
+                  OutlinedButton(
+                    onPressed: () async {
+                      try {
+                        bool hasPermission = await WebSocketNotificationService.checkAndRequestPermissions();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(hasPermission 
+                              ? '✅ Permisos de notificación concedidos' 
+                              : '❌ Permisos de notificación denegados'),
+                            backgroundColor: hasPermission ? Colors.green : Colors.red,
+                          ),
+                        );
+                      } catch (e) {
+                        print('❌ Error verificando permisos: $e');
+                      }
+                    },
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.orange,
+                      side: const BorderSide(color: Colors.orange),
+                      minimumSize: const Size(double.infinity, 40),
+                    ),
+                    child: const Text("🔔 Verificar Permisos"),
+                  ),
                   const SizedBox(height: 20),
                   TextButton(
                     onPressed: () {

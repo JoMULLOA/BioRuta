@@ -106,54 +106,78 @@ export async function responderSolicitudAmistad(req, res) {
     }
 
     // Crear notificación para el emisor de la solicitud
-    if (resultado && resultado.rutEmisor) {
+    if (resultado && (resultado.rutEmisor || resultado.solicitud?.rutEmisor)) {
       try {
+        // Extraer rutEmisor de la estructura correcta
+        const rutEmisor = resultado.rutEmisor || resultado.solicitud?.rutEmisor;
+        
+        console.log(`🔧 INICIANDO creación de notificación para emisor: ${rutEmisor}`);
+        console.log(`🔧 Respuesta recibida: ${respuesta}`);
+        console.log(`🔧 Usuario receptor: ${req.user.nombreCompleto || req.user.nombre || rutReceptor}`);
+        console.log(`🔧 Estructura resultado completa:`, JSON.stringify(resultado, null, 2));
+        
         const tipoNotificacion = respuesta === "aceptada" ? 'amistad_aceptada' : 'amistad_rechazada';
-        const titulo = respuesta === "aceptada" ? '¡Nueva amistad!' : 'Solicitud rechazada';
+        const titulo = respuesta === "aceptada" ? '🎉 ¡Nueva amistad!' : 'Solicitud rechazada';
         const mensaje = respuesta === "aceptada" 
-          ? `${req.user.nombreCompleto || rutReceptor} aceptó tu solicitud de amistad. ¡Ahora son amigos!`
+          ? `Ahora eres amigo de ${req.user.nombreCompleto || req.user.nombre || rutReceptor}`
           : `${req.user.nombreCompleto || rutReceptor} rechazó tu solicitud de amistad`;
+
+        console.log(`🔧 Datos de notificación preparados:`, { tipoNotificacion, titulo, mensaje });
 
         await crearNotificacionService({
           tipo: tipoNotificacion,
           titulo: titulo,
           mensaje: mensaje,
-          rutReceptor: resultado.rutEmisor,
+          rutReceptor: rutEmisor,
           rutEmisor: rutReceptor,
           datos: {
             solicitudId: idSolicitud,
             respuesta: respuesta
           }
         });
-        console.log(`✅ Notificación de ${respuesta} enviada a ${resultado.rutEmisor}`);
+        console.log(`✅ Notificación de ${respuesta} guardada en BD para ${rutEmisor}`);
         
         // Enviar notificación WebSocket en tiempo real
         const getIo = req.app.get('io');
         const io = getIo ? getIo() : null;
         
+        console.log(`🔧 Socket.io disponible: ${io ? 'SÍ' : 'NO'}`);
+        console.log(`🔧 Respuesta: ${respuesta}, RUT emisor: ${rutEmisor}`);
+        
         if (io) {
           const nombreReceptor = req.user.nombreCompleto || req.user.nombre || rutReceptor;
+          console.log(`🔧 Nombre receptor: ${nombreReceptor}`);
+          console.log(`🔧 WebSocketNotificationService disponible: ${WebSocketNotificationService ? 'SÍ' : 'NO'}`);
           
           if (respuesta === "aceptada") {
-            await WebSocketNotificationService.enviarAmistadAceptada(
+            console.log(`🎉 EJECUTANDO enviarAmistadAceptada...`);
+            const resultado_notif = await WebSocketNotificationService.enviarAmistadAceptada(
               io,
-              resultado.rutEmisor,
+              rutEmisor,
               nombreReceptor,
               rutReceptor
             );
+            console.log(`🎉 RESULTADO envío amistad aceptada:`, resultado_notif);
           } else {
-            await WebSocketNotificationService.enviarAmistadRechazada(
+            console.log(`😔 EJECUTANDO enviarAmistadRechazada...`);
+            const resultado_notif = await WebSocketNotificationService.enviarAmistadRechazada(
               io,
-              resultado.rutEmisor,
+              rutEmisor,
               nombreReceptor,
               rutReceptor
             );
+            console.log(`😔 RESULTADO envío amistad rechazada:`, resultado_notif);
           }
+        } else {
+          console.warn(`⚠️ Socket.io no está disponible en el controlador`);
         }
       } catch (notifError) {
-        console.warn("⚠️ Error al crear notificación:", notifError);
+        console.error("❌ ERROR COMPLETO al crear notificación:", notifError);
+        console.error("❌ STACK TRACE:", notifError.stack);
         // No fallar la operación principal por error en notificación
       }
+    } else {
+      console.warn(`⚠️ No se puede crear notificación - resultado o rutEmisor faltante:`, resultado);
     }
 
     const mensaje = respuesta === "aceptada" 

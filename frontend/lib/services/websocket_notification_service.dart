@@ -139,14 +139,21 @@ class WebSocketNotificationService {
       // Escuchar TODOS los eventos para debugging
       _socket!.onAny((event, data) {
         print('🎧 Evento WebSocket recibido: $event con data: $data');
+        
+        // Debugging específico para eventos de amistad
+        if (event == 'solicitud_amistad') {
+          print('👋 *** EVENTO solicitud_amistad DETECTADO ***');
+        } else if (event == 'amistad_aceptada') {
+          print('🎉 *** EVENTO amistad_aceptada DETECTADO ***');
+        } else if (event == 'nueva_notificacion') {
+          print('📩 *** EVENTO nueva_notificacion DETECTADO ***');
+          final notification = data is String ? json.decode(data) : data;
+          final tipo = notification['datos']?['tipo'] ?? notification['tipo'];
+          print('📩 *** TIPO EN nueva_notificacion: $tipo ***');
+        }
       });
       
       // Escuchar notificaciones específicas
-      _socket!.on('nueva_notificacion', (data) {
-        print('📩 nueva_notificacion recibida: $data');
-        _handleIncomingNotification(data);
-      });
-      
       _socket!.on('solicitud_amistad', (data) {
         print('👋 solicitud_amistad recibida: $data');
         _handleFriendRequestNotification(data);
@@ -160,6 +167,30 @@ class WebSocketNotificationService {
       _socket!.on('amistad_rechazada', (data) {
         print('😔 amistad_rechazada recibida: $data');
         _handleFriendRejectedNotification(data);
+      });
+      
+      // Escuchar nueva_notificacion y procesar TODO para debugging
+      _socket!.on('nueva_notificacion', (data) {
+        print('📩 nueva_notificacion recibida: $data');
+        final notification = data is String ? json.decode(data) : data;
+        final tipo = notification['datos']?['tipo'] ?? notification['tipo'];
+        
+        print('🔍 Tipo de notificación detectado: $tipo');
+        
+        // PROCESAR TODAS para debugging - encontrar por qué aceptación no funciona
+        if (tipo == 'amistad_aceptada') {
+          print('🎉 *** PROCESANDO amistad_aceptada desde nueva_notificacion ***');
+          _handleFriendAcceptedNotification(data);
+        } else if (tipo == 'amistad_rechazada') {
+          print('😔 *** PROCESANDO amistad_rechazada desde nueva_notificacion ***');
+          _handleFriendRejectedNotification(data);
+        } else if (tipo == 'solicitud_amistad') {
+          print('👋 Saltando solicitud_amistad en nueva_notificacion (ya procesada)');
+          // No procesar para evitar duplicados
+        } else {
+          print('📝 Procesando notificación genérica');
+          _handleIncomingNotification(data);
+        }
       });
       
       // Escuchar confirmación de conexión
@@ -241,21 +272,38 @@ class WebSocketNotificationService {
   /// Manejar notificación de amistad aceptada
   static void _handleFriendAcceptedNotification(dynamic data) {
     try {
+      print('🔧 *** PROCESANDO AMISTAD ACEPTADA ***: $data');
+      
       final notification = data is String ? json.decode(data) : data;
+      print('🔧 *** DATOS PARSEADOS ACEPTADA ***: $notification');
+      
+      // El backend envía nombreReceptor (quien aceptó) al emisor original de la solicitud
+      final nombreReceptor = notification['nombreReceptor'] ?? 'Usuario desconocido';
+      final rutReceptor = notification['rutReceptor'] ?? '';
+      
+      print('🔧 *** MOSTRANDO NOTIFICACIÓN DE AMISTAD ACEPTADA para: $nombreReceptor (RUT: $rutReceptor) ***');
       
       _showLocalNotification(
-        title: '🎉 ¡Solicitud aceptada!',
-        body: '${notification['nombreReceptor']} aceptó tu solicitud de amistad',
+        title: '🎉 ¡Nueva amistad!',
+        body: 'Ahora eres amigo de $nombreReceptor',
         payload: json.encode({
           'tipo': 'amistad_aceptada',
-          'rutReceptor': notification['rutReceptor'],
-          'nombreReceptor': notification['nombreReceptor'],
+          'rutReceptor': rutReceptor,
+          'nombreReceptor': nombreReceptor,
         }),
       );
       
-      print('🎉 Amistad aceptada por: ${notification['nombreReceptor']}');
+      print('✅ *** NOTIFICACIÓN DE AMISTAD ACEPTADA PROCESADA CORRECTAMENTE ***');
     } catch (e) {
-      print('❌ Error procesando amistad aceptada: $e');
+      print('❌ *** ERROR PROCESANDO AMISTAD ACEPTADA ***: $e');
+      print('❌ *** DATA RECIBIDA ***: $data');
+      
+      // Notificación de respaldo
+      _showLocalNotification(
+        title: '🎉 ¡Nueva amistad!',
+        body: 'Tu solicitud de amistad fue aceptada',
+        payload: json.encode({'tipo': 'amistad_aceptada_fallback'}),
+      );
     }
   }
   
@@ -286,55 +334,78 @@ class WebSocketNotificationService {
     required String body,
     String? payload,
   }) async {
-    if (_flutterLocalNotificationsPlugin == null) return;
-    
-    const AndroidNotificationDetails androidNotificationDetails =
-        AndroidNotificationDetails(
-      'bioruta_channel',
-      'BioRuta Notificaciones',
-      channelDescription: 'Notificaciones de la aplicación BioRuta',
-      importance: Importance.max,
-      priority: Priority.high,
-      icon: '@mipmap/ic_launcher',
-      color: Color(0xFF2E7D32),
-      enableVibration: true,
-      playSound: true,
-      showWhen: true,
-      when: null,
-      usesChronometer: false,
-      channelShowBadge: true,
-      onlyAlertOnce: false,
-      autoCancel: true,
-      ongoing: false,
-      silent: false,
-      enableLights: true,
-      ledColor: Color(0xFF2E7D32),
-      ledOnMs: 1000,
-      ledOffMs: 500,
-    );
-    
-    const DarwinNotificationDetails iOSNotificationDetails =
-        DarwinNotificationDetails(
-      presentAlert: true,
-      presentBadge: true,
-      presentSound: true,
-      badgeNumber: 1,
-    );
-    
-    const NotificationDetails notificationDetails = NotificationDetails(
-      android: androidNotificationDetails,
-      iOS: iOSNotificationDetails,
-    );
-    
-    await _flutterLocalNotificationsPlugin!.show(
-      DateTime.now().millisecondsSinceEpoch.remainder(100000),
-      title,
-      body,
-      notificationDetails,
-      payload: payload,
-    );
-    
-    print('📱 Notificación local mostrada: $title - $body');
+    try {
+      print('🔔 *** INTENTANDO MOSTRAR NOTIFICACIÓN ***: $title - $body');
+      print('🔔 *** PAYLOAD ***: $payload');
+      
+      if (_flutterLocalNotificationsPlugin == null) {
+        print('❌ Plugin de notificaciones no inicializado');
+        return;
+      }
+      
+      // Verificar permisos antes de mostrar
+      final androidImplementation = _flutterLocalNotificationsPlugin!
+          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+      
+      if (androidImplementation != null) {
+        bool? enabled = await androidImplementation.areNotificationsEnabled();
+        print('🔔 *** PERMISOS DE NOTIFICACIONES HABILITADOS ***: $enabled');
+      }
+      
+      const AndroidNotificationDetails androidNotificationDetails =
+          AndroidNotificationDetails(
+        'bioruta_channel',
+        'BioRuta Notificaciones',
+        channelDescription: 'Notificaciones de la aplicación BioRuta',
+        importance: Importance.max,
+        priority: Priority.high,
+        icon: '@mipmap/ic_launcher',
+        color: Color(0xFF2E7D32),
+        enableVibration: true,
+        playSound: true,
+        showWhen: true,
+        channelShowBadge: true,
+        onlyAlertOnce: false,
+        autoCancel: true,
+        ongoing: false,
+        silent: false,
+        enableLights: true,
+        ledColor: Color(0xFF2E7D32),
+        ledOnMs: 1000,
+        ledOffMs: 500,
+        ticker: 'BioRuta',
+      );
+      
+      const DarwinNotificationDetails iOSNotificationDetails =
+          DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+        badgeNumber: 1,
+      );
+      
+      const NotificationDetails notificationDetails = NotificationDetails(
+        android: androidNotificationDetails,
+        iOS: iOSNotificationDetails,
+      );
+      
+      final notificationId = DateTime.now().millisecondsSinceEpoch.remainder(100000);
+      print('🔔 *** MOSTRANDO NOTIFICACIÓN CON ID ***: $notificationId');
+      
+      await _flutterLocalNotificationsPlugin!.show(
+        notificationId,
+        title,
+        body,
+        notificationDetails,
+        payload: payload,
+      );
+      
+      print('✅ *** NOTIFICACIÓN ENVIADA AL SISTEMA ANDROID CON ID ***: $notificationId');
+      
+    } catch (e, stackTrace) {
+      print('❌ *** ERROR MOSTRANDO NOTIFICACIÓN ***: $e');
+      print('❌ *** STACK TRACE ***: $stackTrace');
+    }
   }
   
   /// Manejar tap en notificación
@@ -378,5 +449,37 @@ class WebSocketNotificationService {
       body: 'Si ves esto, las notificaciones funcionan correctamente',
       payload: json.encode({'tipo': 'test'}),
     );
+  }
+  
+  /// Verificar y solicitar permisos de notificación
+  static Future<bool> checkAndRequestPermissions() async {
+    try {
+      if (!_isInitialized) {
+        await initialize();
+      }
+      
+      final androidImplementation = _flutterLocalNotificationsPlugin!
+          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+      
+      if (androidImplementation != null) {
+        // Verificar si están habilitadas
+        bool? enabled = await androidImplementation.areNotificationsEnabled();
+        print('🔔 Notificaciones habilitadas: $enabled');
+        
+        if (enabled == false) {
+          // Solicitar permisos
+          bool? granted = await androidImplementation.requestNotificationsPermission();
+          print('🔔 Permisos solicitados, resultado: $granted');
+          return granted ?? false;
+        }
+        
+        return enabled ?? false;
+      }
+      
+      return true; // Para iOS u otras plataformas
+    } catch (e) {
+      print('❌ Error verificando permisos: $e');
+      return false;
+    }
   }
 }

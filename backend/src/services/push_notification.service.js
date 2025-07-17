@@ -21,16 +21,25 @@ class WebSocketNotificationService {
         return { success: false, error: 'RUT de usuario no disponible' };
       }
 
-      const notificationData = {
+      const baseData = {
         titulo: titulo,
         mensaje: mensaje,
-        datos: datos,
         timestamp: new Date().toISOString(),
+        ...datos
       };
 
-      // Enviar a múltiples salas por compatibilidad
-      io.to(`user_${rutUsuario}`).emit('nueva_notificacion', notificationData);
-      io.to(`usuario_${rutUsuario}`).emit('nueva_notificacion', notificationData);
+      console.log(`📤 Enviando notificación a user_${rutUsuario}:`, baseData);
+
+      // Enviar evento genérico nueva_notificacion
+      io.to(`user_${rutUsuario}`).emit('nueva_notificacion', baseData);
+      io.to(`usuario_${rutUsuario}`).emit('nueva_notificacion', baseData);
+
+      // También emitir evento específico según el tipo
+      if (datos.tipo) {
+        console.log(`📤 Enviando evento específico '${datos.tipo}' a user_${rutUsuario}:`, baseData);
+        io.to(`user_${rutUsuario}`).emit(datos.tipo, baseData);
+        io.to(`usuario_${rutUsuario}`).emit(datos.tipo, baseData);
+      }
 
       // Verificar cuántos clientes están conectados
       const roomSize = io.sockets.adapter.rooms.get(`user_${rutUsuario}`)?.size || 0;
@@ -69,8 +78,8 @@ class WebSocketNotificationService {
     return await this.enviarNotificacionAUsuario(
       io,
       rutEmisor,
-      '🎉 ¡Solicitud aceptada!',
-      `${nombreReceptor} aceptó tu solicitud de amistad. ¡Ahora son amigos!`,
+      '🎉 ¡Nueva amistad!',
+      `Ahora eres amigo de ${nombreReceptor}`,
       {
         tipo: 'amistad_aceptada',
         rutReceptor: rutReceptor,
