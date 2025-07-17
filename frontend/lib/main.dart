@@ -9,7 +9,14 @@ import 'buscar/inicio.dart';
 import 'publicar/publicar.dart';
 import 'chat/chat.dart';
 import 'perfil/perfil.dart';
+import 'services/viaje_estado_service.dart';
+
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Inicializar servicio de estado de viaje
+  ViajeEstadoService.instance.initialize();
+  
   runApp(const MyApp());
 }
 
