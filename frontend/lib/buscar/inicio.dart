@@ -523,6 +523,7 @@ class _InicioScreenState extends State<InicioScreen> {
         ),
       ),      bottomNavigationBar: CustomNavbar(
         currentIndex: _selectedIndex,
+        showSOS: false, // ❌ No mostrar SOS en Buscar
         onTap: (index) {
           // Evitar navegación innecesaria si ya estamos en la pantalla actual
           if (index == _selectedIndex) return;
@@ -540,18 +541,17 @@ class _InicioScreenState extends State<InicioScreen> {
               Navigator.pushReplacementNamed(context, '/mapa');
               break;
             case 2:
-              // Publicar viaje (por implementar)
+              // Publicar viaje
               Navigator.pushReplacementNamed(context, '/publicar');
               break;
             case 3:
               Navigator.pushReplacementNamed(context, '/chat');
               break;
             case 4:
-              // Perfil (por implementar)
               Navigator.pushReplacementNamed(context, '/ranking');
               break;
             case 5:
-              Navigator.pushReplacementNamed(context, '/perfil');
+              Navigator.pushReplacementNamed(context, '/perfil'); // Perfil en índice 5 cuando no hay SOS
               break;
           }
         },

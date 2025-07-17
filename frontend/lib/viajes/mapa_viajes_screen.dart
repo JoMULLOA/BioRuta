@@ -34,7 +34,7 @@ class _MapaViajesScreenState extends State<MapaViajesScreen> {
         Navigator.pushReplacementNamed(context, '/ranking');
         break;
       case 5:
-        Navigator.pushReplacementNamed(context, '/perfil');
+        Navigator.pushReplacementNamed(context, '/perfil'); // Perfil en índice 5 cuando no hay SOS
         break;
     }
   }
@@ -53,6 +53,7 @@ class _MapaViajesScreenState extends State<MapaViajesScreen> {
       body: const MapaViajesInteractivo(),
       bottomNavigationBar: CustomNavbar(
         currentIndex: _selectedIndex,
+        showSOS: false, // ❌ No mostrar SOS en Mapa de Viajes (este es diferente al mapa principal)
         onTap: _onItemTapped,
       ),
     );

@@ -18,25 +18,13 @@ export const viajeBodyValidation = Joi.object({
       'array.length': 'Debe proporcionar exactamente 2 ubicaciones: origen y destino'
     }),
   
-  fechaIda: Joi.date().min('now').required().messages({
-    'date.min': 'La fecha de ida no puede ser anterior a hoy'
+  fechaHoraIda: Joi.date().min('now').required().messages({
+    'date.min': 'La fecha y hora de ida no puede ser anterior al momento actual'
   }),
   
-  horaIda: Joi.string()
-    .pattern(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/)
-    .required()
-    .messages({
-      'string.pattern.base': 'La hora de ida debe tener formato HH:MM'
-    }),
-  
-  fechaVuelta: Joi.date().min(Joi.ref('fechaIda')).allow(null),
-  
-  horaVuelta: Joi.string()
-    .pattern(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/)
-    .allow(null)
-    .messages({
-      'string.pattern.base': 'La hora de vuelta debe tener formato HH:MM'
-    }),
+  fechaHoraVuelta: Joi.date().min(Joi.ref('fechaHoraIda')).allow(null).messages({
+    'date.min': 'La fecha y hora de vuelta no puede ser anterior a la fecha de ida'
+  }),
   
   viajeIdaYVuelta: Joi.boolean().default(false),
   
@@ -71,7 +59,7 @@ export const viajeBodyValidation = Joi.object({
   }
   
   // Validar que si es ida y vuelta, debe tener fecha y hora de vuelta
-  if (value.viajeIdaYVuelta && (!value.fechaVuelta || !value.horaVuelta)) {
+  if (value.viajeIdaYVuelta && !value.fechaHoraVuelta) {
     return helpers.error('custom.idaVuelta');
   }
   

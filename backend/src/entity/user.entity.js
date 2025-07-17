@@ -61,6 +61,11 @@ const UserSchema = new EntitySchema({
       type: "varchar",
       nullable: false,
     },
+    genero: {
+      type: "enum",
+      enum: ["masculino", "femenino", "no_binario", "prefiero_no_decir"],
+      nullable: true,
+    },
     createdAt: {
       type: "timestamp with time zone",
       default: () => "CURRENT_TIMESTAMP",

@@ -136,7 +136,7 @@ void _mostrarSolicitudesPasajeros() {
         Navigator.pushReplacementNamed(context, '/ranking');
         break;
       case 5:
-        Navigator.pushReplacementNamed(context, '/perfil');
+        Navigator.pushReplacementNamed(context, '/perfil'); // Perfil en índice 5 cuando no hay SOS
         break;
     }
   }
@@ -181,6 +181,7 @@ void _mostrarSolicitudesPasajeros() {
       floatingActionButton: _buildFloatingActionButton(),
       bottomNavigationBar: CustomNavbar(
         currentIndex: _selectedIndex,
+        showSOS: false, // ❌ No mostrar SOS en Mis Viajes
         onTap: _onItemTapped,
       ),
     );

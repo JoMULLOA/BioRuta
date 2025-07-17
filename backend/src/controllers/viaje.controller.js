@@ -21,10 +21,8 @@ export async function crearViaje(req, res) {
   try {
     const {
       ubicaciones,
-      fechaIda,
-      horaIda,
-      fechaVuelta,
-      horaVuelta,
+      fechaHoraIda,
+      fechaHoraVuelta,
       viajeIdaYVuelta,
       maxPasajeros,
       soloMujeres,
@@ -69,14 +67,37 @@ export async function crearViaje(req, res) {
       return handleErrorServer(res, 404, "Vehículo no encontrado o no le pertenece");
     }
 
-    // Validar fecha no sea pasada
-    const fechaViajeIda = new Date(fechaIda);
-    const ahora = new Date();
-    ahora.setHours(0, 0, 0, 0);
-    
-    if (fechaViajeIda < ahora) {
-      return handleErrorServer(res, 400, "No se pueden crear viajes en fechas pasadas");
+    // Validar fecha y hora no sea pasada - usar zona horaria de Chile
+    console.log("📅 DEBUG - Fecha y hora de ida recibida:", fechaHoraIda);
+    if (viajeIdaYVuelta && fechaHoraVuelta) {
+      console.log("📅 DEBUG - Fecha y hora de vuelta recibida:", fechaHoraVuelta);
     }
+
+    // Convertir fecha y hora de ida a Date
+    const fechaHoraIdaDate = new Date(fechaHoraIda);
+    console.log("📅 DEBUG - Fecha y hora de ida convertida:", fechaHoraIdaDate.toISOString());
+
+    // Obtener fecha y hora actual
+    const ahora = new Date();
+    console.log("📅 DEBUG - Fecha y hora actual:", ahora.toISOString());
+
+    // Comparar las fechas
+    if (fechaHoraIdaDate <= ahora) {
+      console.log("❌ DEBUG - La fecha y hora de ida ya pasó");
+      return handleErrorClient(res, 400, "La fecha y hora de ida no puede ser anterior o igual a la actual");
+    }
+
+    if (viajeIdaYVuelta && fechaHoraVuelta) {
+      const fechaHoraVueltaDate = new Date(fechaHoraVuelta);
+      console.log("📅 DEBUG - Fecha y hora de vuelta convertida:", fechaHoraVueltaDate.toISOString());
+
+      if (fechaHoraVueltaDate <= fechaHoraIdaDate) {
+        console.log("❌ DEBUG - La fecha y hora de vuelta es anterior o igual a la de ida");
+        return handleErrorClient(res, 400, "La fecha y hora de vuelta no puede ser anterior o igual a la de ida");
+      }
+    }
+
+    console.log("✅ DEBUG - Fechas y horas válidas");
 
     // Crear el viaje en MongoDB
     const nuevoViaje = new Viaje({
@@ -95,10 +116,10 @@ export async function crearViaje(req, res) {
           coordinates: [destino.lon, destino.lat]
         }
       },
-      fecha_ida: new Date(fechaIda),
-      hora_ida: horaIda,
-      fecha_vuelta: fechaVuelta ? new Date(fechaVuelta) : null,
-      hora_vuelta: horaVuelta,
+      fecha_ida: new Date(fechaHoraIda),
+      hora_ida: new Date(fechaHoraIda).toTimeString().substring(0, 5), // Extraer solo HH:mm
+      fecha_vuelta: fechaHoraVuelta ? new Date(fechaHoraVuelta) : null,
+      hora_vuelta: fechaHoraVuelta ? new Date(fechaHoraVuelta).toTimeString().substring(0, 5) : null,
       viaje_ida_vuelta: viajeIdaYVuelta,
       max_pasajeros: maxPasajeros,
       solo_mujeres: soloMujeres,

@@ -276,6 +276,9 @@ class ChatState extends State<Chat> {
               Navigator.pushReplacementNamed(context, '/ranking');
               break;
             case 5:
+              Navigator.pushReplacementNamed(context, '/sos');
+              break;
+            case 6:
               Navigator.pushReplacementNamed(context, '/perfil');
               break;
           }

@@ -4,19 +4,15 @@ import 'publicar_viaje_final.dart';
 
 class PublicarViajePaso3 extends StatefulWidget {
   final List<DireccionSugerida> ubicaciones;
-  final DateTime fechaIda;
-  final TimeOfDay horaIda;
-  final DateTime? fechaVuelta;
-  final TimeOfDay? horaVuelta;
+  final DateTime fechaHoraIda;
+  final DateTime? fechaHoraVuelta;
   final bool viajeIdaYVuelta;
 
   const PublicarViajePaso3({
     super.key,
     required this.ubicaciones,
-    required this.fechaIda,
-    required this.horaIda,
-    this.fechaVuelta,
-    this.horaVuelta,
+    required this.fechaHoraIda,
+    this.fechaHoraVuelta,
     required this.viajeIdaYVuelta,
   });
 
@@ -254,10 +250,8 @@ class _PublicarViajePaso3State extends State<PublicarViajePaso3> {
       MaterialPageRoute(
         builder: (context) => PublicarViajeFinal(
           ubicaciones: widget.ubicaciones,
-          fechaIda: widget.fechaIda,
-          horaIda: widget.horaIda,
-          fechaVuelta: widget.fechaVuelta,
-          horaVuelta: widget.horaVuelta,
+          fechaHoraIda: widget.fechaHoraIda,
+          fechaHoraVuelta: widget.fechaHoraVuelta,
           viajeIdaYVuelta: widget.viajeIdaYVuelta,
           soloMujeres: _soloMujeres,
           flexibilidadSalida: _flexibilidadSalida,

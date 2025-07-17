@@ -1236,6 +1236,7 @@ class _MapPageState extends State<MapPage> {
       ),
       bottomNavigationBar: CustomNavbar(
         currentIndex: _selectedIndex,
+        showSOS: true, // ✅ Mostrar SOS solo en la pantalla del mapa
         onTap: (index) {
           // Evitar navegación innecesaria si ya estamos en la pantalla actual
           if (index == _selectedIndex) return;
@@ -1262,6 +1263,9 @@ class _MapPageState extends State<MapPage> {
               Navigator.pushReplacementNamed(context, '/ranking');
               break;
             case 5:
+              Navigator.pushReplacementNamed(context, '/sos'); // SOS está en índice 5 cuando showSOS = true
+              break;
+            case 6:
               Navigator.pushReplacementNamed(context, '/perfil');
               break;
           }        },

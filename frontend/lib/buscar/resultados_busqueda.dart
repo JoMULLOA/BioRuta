@@ -105,6 +105,7 @@ class _ResultadosBusquedaScreenState extends State<ResultadosBusquedaScreen> {
       body: _buildBody(),
       bottomNavigationBar: CustomNavbar(
         currentIndex: _selectedIndex,
+        showSOS: false, // ❌ No mostrar SOS en Resultados de Búsqueda
         onTap: (index) {
           if (index == _selectedIndex) return;
           
@@ -129,7 +130,7 @@ class _ResultadosBusquedaScreenState extends State<ResultadosBusquedaScreen> {
               Navigator.pushReplacementNamed(context, '/ranking');
               break;
             case 5:
-              Navigator.pushReplacementNamed(context, '/perfil');
+              Navigator.pushReplacementNamed(context, '/perfil'); // Perfil en índice 5 cuando no hay SOS
               break;
           }
         },

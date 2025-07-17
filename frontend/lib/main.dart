@@ -9,6 +9,7 @@ import 'publicar/publicar.dart';
 import 'chat/chat.dart';
 import 'perfil/perfil.dart';
 import 'Ranking/ranking.dart';
+import 'sos/sos_screen.dart';
 void main() {
   runApp(const MyApp());
 }
@@ -46,6 +47,7 @@ class MyApp extends StatelessWidget {
         '/publicar': (context) => const PublicarPage(),
         '/chat': (context) => Chat(),
         '/ranking': (context) => ranking(),
+        '/sos': (context) => const SOSScreen(),
         '/perfil': (context) => Perfil(),
       },
     );

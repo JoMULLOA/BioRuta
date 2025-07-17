@@ -6,10 +6,8 @@ import '../models/viaje_model.dart';
 
 class PublicarViajeFinal extends StatefulWidget {
   final List<DireccionSugerida> ubicaciones;
-  final DateTime fechaIda;
-  final TimeOfDay horaIda;
-  final DateTime? fechaVuelta;
-  final TimeOfDay? horaVuelta;
+  final DateTime fechaHoraIda;
+  final DateTime? fechaHoraVuelta;
   final bool viajeIdaYVuelta;
   final bool soloMujeres;
   final String flexibilidadSalida;
@@ -17,10 +15,8 @@ class PublicarViajeFinal extends StatefulWidget {
   const PublicarViajeFinal({
     super.key,
     required this.ubicaciones,
-    required this.fechaIda,
-    required this.horaIda,
-    this.fechaVuelta,
-    this.horaVuelta,
+    required this.fechaHoraIda,
+    this.fechaHoraVuelta,
     required this.viajeIdaYVuelta,
     required this.soloMujeres,
     required this.flexibilidadSalida,
@@ -134,8 +130,8 @@ class _PublicarViajeFinalState extends State<PublicarViajeFinal> {
     return distanciaTotal.clamp(50, 500); // Entre 50 y 500 km estimados
   }
 
-  String _formatearHora(TimeOfDay hora) {
-    return '${hora.hour.toString().padLeft(2, '0')}:${hora.minute.toString().padLeft(2, '0')}';
+  String _formatearHora(DateTime fechaHora) {
+    return '${fechaHora.hour.toString().padLeft(2, '0')}:${fechaHora.minute.toString().padLeft(2, '0')}';
   }
 
   String _formatearFecha(DateTime fecha) {
@@ -167,17 +163,15 @@ class _PublicarViajeFinalState extends State<PublicarViajeFinal> {
       }).toList();
 
       print('📍 Ubicaciones a enviar: $ubicaciones');
-      print('📅 Fecha ida: ${widget.fechaIda}');
-      print('🕐 Hora ida: ${widget.horaIda}');
+      print('📅 Fecha y hora ida: ${widget.fechaHoraIda}');
+      if (widget.viajeIdaYVuelta && widget.fechaHoraVuelta != null) {
+        print('� Fecha y hora vuelta: ${widget.fechaHoraVuelta}');
+      }
 
       final resultado = await ViajeService.crearViaje(
         ubicaciones: ubicaciones,
-        fechaIda: widget.fechaIda.toIso8601String().split('T')[0], // Solo la fecha sin hora
-        horaIda: '${widget.horaIda.hour.toString().padLeft(2, '0')}:${widget.horaIda.minute.toString().padLeft(2, '0')}',
-        fechaVuelta: widget.fechaVuelta?.toIso8601String().split('T')[0],
-        horaVuelta: widget.horaVuelta != null 
-            ? '${widget.horaVuelta!.hour.toString().padLeft(2, '0')}:${widget.horaVuelta!.minute.toString().padLeft(2, '0')}' 
-            : null,
+        fechaHoraIda: widget.fechaHoraIda.toIso8601String(),
+        fechaHoraVuelta: widget.fechaHoraVuelta?.toIso8601String(),
         viajeIdaYVuelta: widget.viajeIdaYVuelta,
         maxPasajeros: vehiculoSeleccionado!.nroAsientos - 1, // Sin contar conductor
         soloMujeres: widget.soloMujeres,
@@ -326,7 +320,7 @@ class _PublicarViajeFinalState extends State<PublicarViajeFinal> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    '${_formatearFecha(widget.fechaIda)} a las ${_formatearHora(widget.horaIda)}',
+                    '${_formatearFecha(widget.fechaHoraIda)} a las ${_formatearHora(widget.fechaHoraIda)}',
                     style: const TextStyle(
                       fontSize: 14,
                       color: Colors.grey,

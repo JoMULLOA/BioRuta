@@ -98,6 +98,7 @@ class PublicarPageState extends State<PublicarPage> {
       body: _buildBody(),
       bottomNavigationBar: CustomNavbar(
         currentIndex: _selectedIndex,
+        showSOS: false, // ❌ No mostrar SOS en Publicar
         onTap: (index) {
           if (index == _selectedIndex) return;
 
@@ -113,7 +114,7 @@ class PublicarPageState extends State<PublicarPage> {
               Navigator.pushReplacementNamed(context, '/mapa');
               break;
             case 2:
-              break;
+              break; // Ya estamos en Publicar
             case 3:
               Navigator.pushReplacementNamed(context, '/chat');
               break;
@@ -121,7 +122,7 @@ class PublicarPageState extends State<PublicarPage> {
               Navigator.pushReplacementNamed(context, '/ranking');
               break;
             case 5:
-              Navigator.pushReplacementNamed(context, '/perfil');
+              Navigator.pushReplacementNamed(context, '/perfil'); // Perfil en índice 5 cuando no hay SOS
               break;
           }
         },
