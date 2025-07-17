@@ -8,6 +8,12 @@
     <!-- Permisos para url_launcher -->
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
     
+    <!-- Permisos para notificaciones push -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    
     <!-- Para permitir queries a otros paquetes (Android 11+) -->
     <queries>
         <intent>

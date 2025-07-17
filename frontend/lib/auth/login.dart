@@ -10,6 +10,7 @@ import 'dart:convert';
 import '../config/confGlobal.dart';
 import '../utils/token_manager.dart';
 import '../services/socket_service.dart'; // Importar SocketService
+import '../services/websocket_notification_service.dart'; // Importar WebSocket Notifications
 import '../admin/admin_dashboard.dart'; // Importar AdminDashboard
 
 class LoginPage extends StatefulWidget {
@@ -211,6 +212,15 @@ class _LoginPageState extends State<LoginPage> {
                 // No fallar el login por error de socket
               }
 
+              // Inicializar notificaciones WebSocket después del login exitoso
+              try {
+                await WebSocketNotificationService.connectToSocket(userRut);
+                print('🔔 Notificaciones WebSocket conectadas para $userRut');
+              } catch (e) {
+                print('⚠️ Error al conectar notificaciones WebSocket: $e');
+                // No fallar el login por error de notificaciones
+              }
+
               // Navegar según el rol del usuario
               if (userRole == 'administrador') {
                 Navigator.pushReplacement(
@@ -333,6 +343,24 @@ class _LoginPageState extends State<LoginPage> {
                     child: cargando
                         ? const CircularProgressIndicator(color: Colors.white70)
                         : const Text("Siguiente"),
+                  ),
+                  const SizedBox(height: 20),
+                  // Botón temporal para probar notificaciones
+                  OutlinedButton(
+                    onPressed: () async {
+                      try {
+                        await WebSocketNotificationService.testNotification();
+                        print('🧪 Notificación de prueba enviada');
+                      } catch (e) {
+                        print('❌ Error en notificación de prueba: $e');
+                      }
+                    },
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.white70,
+                      side: const BorderSide(color: Colors.white70),
+                      minimumSize: const Size(double.infinity, 40),
+                    ),
+                    child: const Text("🧪 Probar Notificaciones"),
                   ),
                   const SizedBox(height: 20),
                   TextButton(

@@ -147,6 +147,48 @@ class UserService {
     }
   }
 
+  /// Actualizar token FCM del usuario
+  static Future<Map<String, dynamic>> actualizarTokenFCM(String token) async {
+    try {
+      print('🔔 Actualizando token FCM: $token');
+      
+      final response = await http.patch(
+        Uri.parse('$baseUrl/users/fcm-token'),
+        headers: await _getHeaders(),
+        body: json.encode({'fcmToken': token}),
+      );
+
+      print('🔔 Response status: ${response.statusCode}');
+      print('🔔 Response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return {
+          'success': true,
+          'message': data['message'] ?? 'Token FCM actualizado exitosamente',
+        };
+      } else if (response.statusCode == 401) {
+        await TokenManager.clearAuthData();
+        throw Exception('Sesión expirada. Por favor, inicia sesión nuevamente');
+      } else {
+        final errorData = json.decode(response.body);
+        throw Exception(errorData['message'] ?? 'Error al actualizar token FCM');
+      }
+    } catch (e) {
+      print('❌ Error actualizando token FCM: $e');
+      
+      if (e.toString().contains('TimeoutException')) {
+        throw Exception('Tiempo de espera agotado. Verifica tu conexión a internet.');
+      } else if (e.toString().contains('SocketException')) {
+        throw Exception('No se pudo conectar al servidor. Verifica que el backend esté ejecutándose.');
+      } else if (e is Exception) {
+        rethrow;
+      } else {
+        throw Exception('Error inesperado: $e');
+      }
+    }
+  }
+
   /// Eliminar un usuario y todas sus relaciones
   static Future<Map<String, dynamic>> eliminarUsuarioCompleto(String rut) async {
     try {
