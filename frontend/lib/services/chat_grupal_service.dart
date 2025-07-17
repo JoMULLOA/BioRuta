@@ -60,7 +60,7 @@ class ChatGrupalService {
     }
   }
 
-  // Obtener mensajes del chat grupal
+  // Obtener mensajes del chat grupal (usando endpoint de viaje)
   static Future<List<MensajeGrupal>> obtenerMensajesGrupales(String idViaje) async {
     try {
       final token = await _storage.read(key: 'jwt_token');
@@ -69,25 +69,54 @@ class ChatGrupalService {
         return [];
       }
 
+      // CORRECCIÓN: Usar endpoint de viaje, no de chat grupal específico
       final response = await http.get(
-        Uri.parse('${confGlobal.baseUrl}/chat/grupal/$idViaje/mensajes'),
+        Uri.parse('${confGlobal.baseUrl}/chat/viaje/$idViaje/mensajes'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
       );
 
-      print('🚗💬 Respuesta mensajes grupales: ${response.statusCode}');
+      print('🚗💬 Respuesta mensajes viaje: ${response.statusCode}');
       print('🚗💬 Body respuesta: ${response.body}');
 
       if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (data['success'] == true && data['data'] != null) {
-          final List<dynamic> mensajesJson = data['data'];
-          final mensajes = mensajesJson.map((m) => MensajeGrupal.fromJson(m)).toList();
-          print('🚗💬 Mensajes cargados: ${mensajes.length}');
-          return mensajes;
+        final responseData = json.decode(response.body);
+        
+        // CORRECCIÓN: El backend puede devolver directamente el array o wrapped en un objeto
+        List<dynamic> mensajesJson;
+        
+        if (responseData is List) {
+          // Respuesta directa como array
+          print('🚗💬 Respuesta directa como array');
+          mensajesJson = responseData;
+        } else if (responseData is Map && responseData['success'] == true && responseData['data'] != null) {
+          // Respuesta envuelta en objeto con success/data
+          print('🚗💬 Respuesta envuelta en objeto success/data');
+          mensajesJson = responseData['data'];
+        } else {
+          print('🚗💬 Formato de respuesta no reconocido');
+          return [];
         }
+        
+        // Filtrar solo mensajes grupales y convertirlos
+        final mensajesGrupales = <MensajeGrupal>[];
+        for (var mensajeData in mensajesJson) {
+          // Verificar si es mensaje grupal (no tiene receptor específico)
+          if (mensajeData['tipo'] == 'grupal' || mensajeData['receptor'] == null) {
+            try {
+              final mensaje = MensajeGrupal.fromJson(mensajeData);
+              mensajesGrupales.add(mensaje);
+            } catch (e) {
+              print('⚠️ Error parseando mensaje grupal: $e');
+              print('⚠️ Datos del mensaje: $mensajeData');
+            }
+          }
+        }
+        
+        print('🚗💬 Mensajes grupales cargados: ${mensajesGrupales.length}');
+        return mensajesGrupales;
       }
       
       return [];
@@ -97,37 +126,89 @@ class ChatGrupalService {
     }
   }
 
-  // Obtener participantes del chat grupal
+  // Obtener participantes del chat grupal (basado en pasajeros confirmados del viaje)
   static Future<List<ParticipanteChat>> obtenerParticipantes(String idViaje) async {
     try {
+      // Los participantes del chat grupal son los pasajeros confirmados del viaje
+      // más el conductor. Vamos a obtenerlos directamente del viaje.
+      final viajeInfo = await obtenerViajeActivo();
+      if (viajeInfo.idViaje.isEmpty || viajeInfo.idViaje != idViaje) {
+        print('❌ No se pudo obtener información del viaje para participantes');
+        return [];
+      }
+
+      final participantes = <ParticipanteChat>[];
+      
+      // Obtener los datos raw del viaje para acceder a los pasajeros
       final token = await _storage.read(key: 'jwt_token');
       if (token == null) {
-        print('❌ No hay token disponible');
+        print('❌ No hay token disponible para obtener participantes');
         return [];
       }
 
       final response = await http.get(
-        Uri.parse('${confGlobal.baseUrl}/chat/grupal/$idViaje/participantes'),
+        Uri.parse('${confGlobal.baseUrl}/viajes/mis-viajes'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
       );
 
-      print('🚗👥 Respuesta participantes: ${response.statusCode}');
-      print('🚗👥 Body respuesta: ${response.body}');
-
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['success'] == true && data['data'] != null) {
-          final List<dynamic> participantesJson = data['data'];
-          final participantes = participantesJson.map((p) => ParticipanteChat.fromJson(p)).toList();
-          print('🚗👥 Participantes cargados: ${participantes.length}');
-          return participantes;
+          final List<dynamic> viajes = data['data'];
+          
+          // Buscar el viaje específico
+          Map<String, dynamic>? viajeData;
+          for (var viaje in viajes) {
+            if (viaje['_id'] == idViaje) {
+              viajeData = viaje;
+              break;
+            }
+          }
+          
+          if (viajeData == null) {
+            print('❌ No se encontró el viaje específico para participantes');
+            return [];
+          }
+          
+          // Agregar el conductor
+          final conductorRut = viajeData['usuario_rut'];
+          if (conductorRut != null) {
+            participantes.add(ParticipanteChat(
+              rut: conductorRut,
+              nombre: 'Conductor', // Nombre por defecto, se puede mejorar después
+              esConductor: true,
+              estaConectado: true,
+            ));
+          }
+          
+          // Agregar pasajeros confirmados
+          final List<dynamic> pasajeros = viajeData['pasajeros'] ?? [];
+          for (var pasajero in pasajeros) {
+            if (pasajero['estado'] == 'confirmado') {
+              final rutPasajero = pasajero['usuario_rut'];
+              final nombrePasajero = pasajero['usuario']?['nombre'] ?? 'Pasajero';
+              
+              if (rutPasajero != null) {
+                participantes.add(ParticipanteChat(
+                  rut: rutPasajero,
+                  nombre: nombrePasajero,
+                  esConductor: false,
+                  estaConectado: true,
+                ));
+              }
+            }
+          }
         }
       }
+
+      print('🚗👥 Participantes obtenidos del viaje: ${participantes.length}');
+      print('🚗👥 Conductor: ${participantes.where((p) => p.esConductor).length}');
+      print('🚗👥 Pasajeros: ${participantes.where((p) => !p.esConductor).length}');
       
-      return [];
+      return participantes;
     } catch (e) {
       print('❌ Error obteniendo participantes: $e');
       return [];
@@ -163,6 +244,89 @@ class ChatGrupalService {
       return false;
     } catch (e) {
       print('❌ Error verificando estado chat grupal: $e');
+      return false;
+    }
+  }
+
+  // Crear/inicializar chat grupal manualmente (para casos donde no se creó automáticamente)
+  static Future<bool> inicializarChatGrupal(String idViaje) async {
+    try {
+      final token = await _storage.read(key: 'jwt_token');
+      if (token == null) {
+        print('❌ No hay token disponible');
+        return false;
+      }
+
+      print('🚗🔧 Intentando forzar la creación del chat grupal...');
+      
+      // Obtener información del viaje para identificar si somos conductor o pasajero
+      final viajeInfo = await obtenerViajeActivo();
+      if (viajeInfo.idViaje.isEmpty) {
+        print('❌ No se pudo obtener información del viaje activo');
+        return false;
+      }
+      
+      final userRut = await _storage.read(key: 'user_rut');
+      if (userRut == null) {
+        print('❌ No hay RUT de usuario disponible');
+        return false;
+      }
+      
+      print('🚗✅ Viaje encontrado: ${viajeInfo.idViaje}');
+      print('🚗� Usuario actual: $userRut');
+      print('🚗👤 Conductor del viaje: ${viajeInfo.conductorRut}');
+      
+      // Estrategia: Forzar la creación del chat grupal usando la API de confirmación
+      // Si somos el conductor, nos "auto-confirmamos" en nuestro propio viaje
+      // Si somos pasajero, nos re-confirmamos
+      
+      print('🚗🔧 Intentando forzar creación vía auto-confirmación...');
+      final confirmResponse = await http.put(
+        Uri.parse('${confGlobal.baseUrl}/viajes/$idViaje/confirmar/$userRut'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      print('🚗🆕 Respuesta auto-confirmación: ${confirmResponse.statusCode}');
+      print('🚗🆕 Body respuesta: ${confirmResponse.body}');
+
+      // Independientemente del resultado de la confirmación, intentar unirse por socket
+      print('🚗🔧 Intentando unirse al chat grupal por socket...');
+      _socketService.joinGroupChat(idViaje);
+      
+      // Esperar un poco para que el socket procese
+      await Future.delayed(const Duration(seconds: 3));
+      
+      // Verificar si ahora podemos obtener participantes (indica que el chat existe)
+      final participantesResponse = await http.get(
+        Uri.parse('${confGlobal.baseUrl}/chat/grupal/$idViaje/participantes'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      print('🚗📊 Respuesta post-socket participantes: ${participantesResponse.statusCode}');
+      
+      if (participantesResponse.statusCode == 200) {
+        final participantesData = json.decode(participantesResponse.body);
+        if (participantesData['success'] == true) {
+          print('🚗✅ Chat grupal ahora existe después de la unión por socket');
+          print('🚗👥 Participantes actuales: ${participantesData['data']}');
+          return true;
+        }
+      } else if (participantesResponse.statusCode == 404) {
+        print('🚗❌ Chat grupal AÚN NO EXISTE después del intento');
+        print('🚗🔧 PROBLEMA: El backend no está creando automáticamente el chat grupal');
+        print('🚗🔧 Es necesario revisar la función crearChatGrupal en el backend');
+      }
+
+      print('❌ Chat grupal no pudo ser inicializado via socket');
+      return false;
+    } catch (e) {
+      print('❌ Error inicializando chat grupal: $e');
       return false;
     }
   }

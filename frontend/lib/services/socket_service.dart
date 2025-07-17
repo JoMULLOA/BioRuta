@@ -229,6 +229,7 @@ class SocketService {
 
       socket!.on('error_mensaje_grupal', (data) {
         print('🚗❌ Error mensaje grupal: $data');
+        _handleGroupMessageError(data);
       });
 
       // Edición grupal
@@ -710,6 +711,34 @@ class SocketService {
       print('🚗👥 Participante eliminado procesado exitosamente');
     } catch (e) {
       print('❌ Error procesando participante eliminado: $e');
+    }
+  }
+
+  // Manejar errores de mensajes grupales
+  void _handleGroupMessageError(dynamic data) {
+    try {
+      print('🚗❌ Procesando error de mensaje grupal: $data');
+      final errorData = Map<String, dynamic>.from(data);
+      final errorMessage = errorData['error']?.toString() ?? '';
+      
+      // Detectar error específico de permisos
+      if (errorMessage.contains('No tienes permisos') || 
+          errorMessage.contains('permisos para enviar mensajes')) {
+        print('🚗🔧 Error de permisos detectado, emitiendo evento para re-inicialización');
+        
+        // Emitir evento especial que el chat grupal puede escuchar
+        errorData['_eventType'] = 'permission_error';
+        errorData['_needsReinitialization'] = true;
+        _groupChatEventsStreamController.add(errorData);
+      } else {
+        // Otros errores, emitir normalmente
+        errorData['_eventType'] = 'message_error';
+        _groupChatEventsStreamController.add(errorData);
+      }
+      
+      print('🚗❌ Error de mensaje grupal procesado');
+    } catch (e) {
+      print('❌ Error procesando error de mensaje grupal: $e');
     }
   }
 

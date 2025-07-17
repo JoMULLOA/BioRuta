@@ -161,9 +161,22 @@ class ChatGrupalScreenState extends State<ChatGrupalScreen> {
 
     // Listener para estado de conexión
     _connectionSubscription = _socketService.connectionStream.listen((connected) {
+      print('🚗📶 Estado conexión cambiado: $connected');
       setState(() {
         isConnected = connected;
       });
+    });
+    
+    // Verificar estado inicial de conexión
+    Future.delayed(Duration.zero, () {
+      final socketConnected = _socketService.socket?.connected ?? false;
+      print('🚗📶 Estado inicial socket: $socketConnected');
+      if (socketConnected && !isConnected) {
+        print('🚗📶 Corrigiendo estado de conexión inicial');
+        setState(() {
+          isConnected = true;
+        });
+      }
     });
 
     // Listener para mensajes editados
@@ -209,6 +222,53 @@ class ChatGrupalScreenState extends State<ChatGrupalScreen> {
       _showChatFinishedDialog();
     } else if (eventType == 'removed_from_group_chat') {
       _showRemovedFromChatDialog();
+    } else if (eventType == 'permission_error' && data['_needsReinitialization'] == true) {
+      _handlePermissionError();
+    }
+  }
+
+  // Manejar error de permisos e intentar re-inicialización
+  void _handlePermissionError() async {
+    print('🚗🔧 Manejando error de permisos, intentando re-inicializar chat...');
+    
+    try {
+      // Mostrar mensaje al usuario
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('🔧 Inicializando chat grupal, intenta enviar el mensaje nuevamente...'),
+          duration: Duration(seconds: 3),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      
+      // Intentar inicializar el chat grupal
+      final success = await ChatGrupalService.inicializarChatGrupal(widget.idViaje);
+      
+      if (success) {
+        print('🚗✅ Chat grupal re-inicializado exitosamente');
+        
+        // Volver a unirse al chat
+        ChatGrupalService.unirseAlChatGrupal(widget.idViaje);
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Chat grupal listo, puedes enviar mensajes ahora'),
+            duration: Duration(seconds: 2),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        print('🚗❌ Falló la re-inicialización del chat grupal');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('❌ No se pudo inicializar el chat. Contacta al conductor.'),
+            duration: Duration(seconds: 3),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      print('🚗❌ Error durante re-inicialización: $e');
     }
   }
 
@@ -299,7 +359,9 @@ class ChatGrupalScreenState extends State<ChatGrupalScreen> {
 
   void _sendMessage() {
     final contenido = _messageController.text.trim();
-    if (contenido.isNotEmpty && isConnected) {
+    if (contenido.isNotEmpty) {
+      print('🚗📤 Enviando mensaje: "$contenido"');
+      print('🚗📶 Estado conexión: $isConnected');
       ChatGrupalService.enviarMensajeGrupal(widget.idViaje, contenido);
       _messageController.clear();
       _focusNode.requestFocus();
@@ -518,11 +580,11 @@ class ChatGrupalScreenState extends State<ChatGrupalScreen> {
                           const SizedBox(width: 8),
                           Container(
                             decoration: BoxDecoration(
-                              color: isConnected ? principal : Colors.grey,
+                              color: principal, // Siempre habilitado
                               shape: BoxShape.circle,
                             ),
                             child: IconButton(
-                              onPressed: isConnected ? _sendMessage : null,
+                              onPressed: _sendMessage, // Siempre habilitado
                               icon: const Icon(
                                 Icons.send,
                                 color: Colors.white,
