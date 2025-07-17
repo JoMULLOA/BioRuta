@@ -6,7 +6,7 @@ import 'chat_grupal.dart'; // Importar chat grupal
 import '../models/user_models.dart';
 import '../models/chat_grupal_models.dart'; // Importar modelos de chat grupal
 import '../services/amistad_service.dart'; // Importar el servicio de amistad
-import '../services/viaje_estado_service.dart'; // Importar servicio de estado de viaje
+import '../services/chat_grupal_service.dart'; // Importar servicio de chat grupal
 class Chat extends StatefulWidget {
   @override
   ChatState createState() => ChatState();
@@ -25,9 +25,6 @@ class ChatState extends State<Chat> {
 
   // --- Variables para el chat grupal ---
   ChatGrupalInfo? _viajeActivo;
-  
-  // --- Servicio de estado de viaje ---
-  final ViajeEstadoService _viajeEstadoService = ViajeEstadoService.instance;
 
   // Instancia de FlutterSecureStorage
   final FlutterSecureStorage _storage = FlutterSecureStorage();
@@ -37,22 +34,6 @@ class ChatState extends State<Chat> {
     super.initState();
     // Primero carga el token y el RUT, luego carga los amigos
     _initChatScreen();
-    
-    // Escuchar cambios en el estado del viaje
-    _viajeEstadoService.viajeEstadoStream.listen((viajeInfo) {
-      if (mounted) {
-        setState(() {
-          _viajeActivo = viajeInfo;
-        });
-      }
-    });
-    
-    // Escuchar eventos del viaje
-    _viajeEstadoService.viajeEventosStream.listen((evento) {
-      if (mounted) {
-        _handleViajeEvent(evento);
-      }
-    });
   }
 
   Future<void> _initChatScreen() async {
@@ -93,72 +74,20 @@ class ChatState extends State<Chat> {
   // --- Función para cargar el viaje activo ---
   Future<void> _cargarViajeActivo() async {
     try {
-      // Usar el servicio de estado de viaje
-      await _viajeEstadoService.actualizarEstado();
-      
-      // Obtener el estado actual del servicio
-      final viajeActivo = _viajeEstadoService.viajeActual;
+      // Usar directamente ChatGrupalService para evitar conflictos
+      final viajeActivo = await ChatGrupalService.obtenerViajeActivo();
       
       setState(() {
         _viajeActivo = viajeActivo;
       });
       
-      print('🚗 Viaje activo cargado: ${viajeActivo?.estaActivo}');
+      print('🚗 Viaje activo cargado: ${viajeActivo.estaActivo}');
       
     } catch (e) {
       print('ERROR: Error al cargar viaje activo: $e');
     }
   }
   
-  // --- Manejar eventos del viaje ---
-  void _handleViajeEvent(String evento) {
-    print('🚗📡 Evento de viaje recibido: $evento');
-    
-    String mensaje = '';
-    IconData icono = Icons.info;
-    Color color = Colors.blue;
-    
-    switch (evento) {
-      case 'joined_group_chat':
-        mensaje = 'Te has unido al chat del viaje';
-        icono = Icons.chat;
-        color = Colors.green;
-        break;
-      case 'left_group_chat':
-        mensaje = 'Has salido del chat del viaje';
-        icono = Icons.chat_bubble_outline;
-        color = Colors.orange;
-        break;
-      case 'trip_cancelled':
-        mensaje = 'El viaje ha sido cancelado';
-        icono = Icons.cancel;
-        color = Colors.red;
-        break;
-      case 'trip_finished':
-        mensaje = 'El viaje ha finalizado';
-        icono = Icons.check_circle;
-        color = Colors.green;
-        break;
-      default:
-        return;
-    }
-    
-    // Mostrar notificación
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(icono, color: color),
-            const SizedBox(width: 8),
-            Text(mensaje),
-          ],
-        ),
-        duration: const Duration(seconds: 3),
-        backgroundColor: Colors.grey[800],
-      ),
-    );
-  }
-
   // --- Función para cargar SOLO los amigos desde el backend ---
   Future<void> _cargarAmigosDisponibles() async {
     // Asegurarse de que el token esté disponible antes de la petición
@@ -454,6 +383,7 @@ class ChatState extends State<Chat> {
                   ),
                 ).then((_) {
                   // Refrescar información del viaje cuando se regrese
+                  print('🚗🔄 Regresando del chat grupal, actualizando estado...');
                   _cargarViajeActivo();
                 });
               }

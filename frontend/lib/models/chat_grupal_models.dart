@@ -27,19 +27,35 @@ class ChatGrupalInfo {
   });
 
   factory ChatGrupalInfo.fromJson(Map<String, dynamic> json) {
+    // Extraer origen y destino que vienen como objetos
+    String? origenNombre;
+    String? destinoNombre;
+    
+    if (json['origen'] is Map<String, dynamic>) {
+      origenNombre = json['origen']['nombre'];
+    } else if (json['origen'] is String) {
+      origenNombre = json['origen'];
+    }
+    
+    if (json['destino'] is Map<String, dynamic>) {
+      destinoNombre = json['destino']['nombre'];  
+    } else if (json['destino'] is String) {
+      destinoNombre = json['destino'];
+    }
+    
     return ChatGrupalInfo(
-      idViaje: json['idViaje'] ?? '',
-      origen: json['origen'],
-      destino: json['destino'],
-      fechaViaje: json['fechaViaje'] != null ? DateTime.parse(json['fechaViaje']) : null,
-      horaViaje: json['horaViaje'],
-      cantidadPasajeros: json['cantidadPasajeros'] ?? 0,
+      idViaje: json['_id'] ?? json['idViaje'] ?? '', // El backend usa '_id'
+      origen: origenNombre,
+      destino: destinoNombre,
+      fechaViaje: json['fecha_ida'] != null ? DateTime.parse(json['fecha_ida']) : null, // El backend usa 'fecha_ida'
+      horaViaje: json['hora_ida'], // El backend usa 'hora_ida'
+      cantidadPasajeros: (json['pasajeros'] as List<dynamic>?)?.length ?? 0, // Contar pasajeros
       participantes: (json['participantes'] as List<dynamic>?)
           ?.map((p) => ParticipanteChat.fromJson(p))
           .toList() ?? [],
-      estaActivo: json['estaActivo'] ?? false,
+      estaActivo: json['estado'] == 'activo' || json['estado'] == 'en_progreso' || json['estado'] == 'confirmado', // Basado en estado
       usuarioEstaEnChat: json['usuarioEstaEnChat'] ?? false,
-      conductorRut: json['conductorRut'],
+      conductorRut: json['usuario_rut'], // El backend usa 'usuario_rut' para el creador
       conductorNombre: json['conductorNombre'],
     );
   }

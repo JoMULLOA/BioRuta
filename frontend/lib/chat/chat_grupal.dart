@@ -10,17 +10,26 @@ class ChatGrupalScreen extends StatefulWidget {
   final String idViaje;
   final String? nombreViaje;
 
-  const ChatGrupalScreen({
+  ChatGrupalScreen({
     Key? key,
     required this.idViaje,
     this.nombreViaje,
-  }) : super(key: key);
+  }) : super(key: key) {
+    print('🚗🏗️ CONSTRUCTOR ChatGrupalScreen llamado para viaje: $idViaje');
+  }
 
   @override
-  ChatGrupalScreenState createState() => ChatGrupalScreenState();
+  ChatGrupalScreenState createState() {
+    print('🚗🏭 CREATESTATE ChatGrupalScreen llamado para viaje: $idViaje');
+    return ChatGrupalScreenState();
+  }
 }
 
 class ChatGrupalScreenState extends State<ChatGrupalScreen> {
+  ChatGrupalScreenState() {
+    print('🚗🏭 CONSTRUCTOR ChatGrupalScreenState llamado');
+  }
+  
   // --- Variables de Estado ---
   List<MensajeGrupal> mensajes = [];
   List<ParticipanteChat> participantes = [];
@@ -52,54 +61,78 @@ class ChatGrupalScreenState extends State<ChatGrupalScreen> {
   @override
   void initState() {
     super.initState();
-    _initializeChatGrupal();
+    print('🚗🔄 Inicializando chat grupal para viaje: ${widget.idViaje}');
+    _initializarDatos();
   }
 
-  Future<void> _initializeChatGrupal() async {
+  Future<void> _initializarDatos() async {
+    setState(() {
+      isLoading = true;
+    });
+
     try {
-      // Obtener RUT del usuario actual
+      print('🚗🔧 INICIANDO _initializarDatos para viaje: ${widget.idViaje}');
+      
+      // Obtener RUT del usuario actual (igual que chat 1 a 1)
+      print('🚗👤 Obteniendo RUT del usuario...');
       userRut = await ChatGrupalService.obtenerRutUsuarioActual();
+      print('🚗👤 RUT obtenido: $userRut');
       
       // Configurar listeners de socket
+      print('🚗🎧 Configurando listeners de socket...');
       _setupSocketListeners();
       
-      // Cargar datos iniciales
-      await _loadInitialData();
+      // Cargar mensajes históricos SIEMPRE (clave del patrón 1 a 1)
+      print('🚗📚 A punto de llamar a _fetchMessages...');
+      await _fetchMessages();
+      print('🚗📚 _fetchMessages completado');
       
       // Unirse al chat grupal
+      print('🚗🚪 Uniéndose al chat grupal...');
       ChatGrupalService.unirseAlChatGrupal(widget.idViaje);
       
       setState(() {
         isLoading = false;
       });
+      
+      print('✅ Chat grupal inicializado correctamente');
     } catch (e) {
       setState(() {
         errorMessage = 'Error al inicializar chat grupal: $e';
         isLoading = false;
       });
       print('❌ Error inicializando chat grupal: $e');
+      print('❌ Stack trace: ${e.toString()}');
     }
   }
 
-  Future<void> _loadInitialData() async {
+  // --- Método para cargar mensajes históricos (igual que chat 1 a 1) ---
+  Future<void> _fetchMessages() async {
     try {
-      // Cargar mensajes y participantes en paralelo
-      final futures = await Future.wait([
-        ChatGrupalService.obtenerMensajesGrupales(widget.idViaje),
-        ChatGrupalService.obtenerParticipantes(widget.idViaje),
-      ]);
+      print('🚗📥 Cargando mensajes históricos para viaje: ${widget.idViaje}');
+      
+      print('🚗🔄 Llamando a ChatGrupalService.obtenerMensajesGrupales...');
+      final mensajesResult = await ChatGrupalService.obtenerMensajesGrupales(widget.idViaje);
+      print('🚗📋 Mensajes obtenidos: ${mensajesResult.length}');
+      
+      print('🚗🔄 Llamando a ChatGrupalService.obtenerParticipantes...');
+      final participantesResult = await ChatGrupalService.obtenerParticipantes(widget.idViaje);
+      print('🚗👥 Participantes obtenidos: ${participantesResult.length}');
       
       setState(() {
-        mensajes = futures[0] as List<MensajeGrupal>;
-        participantes = futures[1] as List<ParticipanteChat>;
+        mensajes = mensajesResult;
+        participantes = participantesResult;
       });
+      
+      print('🚗✅ Mensajes históricos cargados: ${mensajes.length} mensajes, ${participantes.length} participantes');
       
       // Hacer scroll al final
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _scrollToBottom();
       });
     } catch (e) {
-      print('❌ Error cargando datos iniciales: $e');
+      print('❌ Error cargando mensajes históricos: $e');
+      print('❌ Stack trace completo: ${StackTrace.current}');
     }
   }
 
@@ -287,6 +320,14 @@ class ChatGrupalScreenState extends State<ChatGrupalScreen> {
 
   @override
   void dispose() {
+    print('🚗🧹 Limpiando chat grupal y saliendo del viaje: ${widget.idViaje}');
+    
+    // Limpiar mensajes de memoria antes de salir
+    setState(() {
+      mensajes.clear();
+      participantes.clear();
+    });
+    
     // Salir del chat grupal
     ChatGrupalService.salirDelChatGrupal(widget.idViaje);
     
@@ -366,7 +407,7 @@ class ChatGrupalScreenState extends State<ChatGrupalScreen> {
                             errorMessage = null;
                             isLoading = true;
                           });
-                          _initializeChatGrupal();
+                          _initializarDatos();
                         },
                         child: const Text('Reintentar'),
                       ),

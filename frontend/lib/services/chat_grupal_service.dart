@@ -19,20 +19,37 @@ class ChatGrupalService {
       }
 
       final response = await http.get(
-        Uri.parse('${confGlobal.baseUrl}/viaje/activo'),
+        Uri.parse('${confGlobal.baseUrl}/viajes/mis-viajes'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
       );
 
-      print('🚗 Respuesta viaje activo: ${response.statusCode}');
+      print('🚗 Respuesta mis-viajes: ${response.statusCode}');
       print('🚗 Body: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['success'] == true && data['data'] != null) {
-          return ChatGrupalInfo.fromJson(data['data']);
+          final List<dynamic> viajes = data['data'];
+          
+          // Buscar el primer viaje que esté activo/en progreso con pasajeros confirmados
+          for (var viajeData in viajes) {
+            final estado = viajeData['estado']?.toString().toLowerCase();
+            final List<dynamic> pasajeros = viajeData['pasajeros'] ?? [];
+            
+            // Verificar si hay pasajeros confirmados
+            bool hayPasajerosConfirmados = pasajeros.any((p) => p['estado'] == 'confirmado');
+            
+            if ((estado == 'activo' || estado == 'en_progreso' || estado == 'confirmado') && hayPasajerosConfirmados) {
+              print('🚗✅ Viaje activo con pasajeros encontrado: ${viajeData['_id']}');
+              print('🚗👥 Pasajeros confirmados: ${pasajeros.where((p) => p['estado'] == 'confirmado').length}');
+              return ChatGrupalInfo.fromJson(viajeData);
+            }
+          }
+          
+          print('🚗📴 No se encontraron viajes activos con pasajeros confirmados');
         }
       }
       
@@ -61,12 +78,15 @@ class ChatGrupalService {
       );
 
       print('🚗💬 Respuesta mensajes grupales: ${response.statusCode}');
+      print('🚗💬 Body respuesta: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['success'] == true && data['data'] != null) {
           final List<dynamic> mensajesJson = data['data'];
-          return mensajesJson.map((m) => MensajeGrupal.fromJson(m)).toList();
+          final mensajes = mensajesJson.map((m) => MensajeGrupal.fromJson(m)).toList();
+          print('🚗💬 Mensajes cargados: ${mensajes.length}');
+          return mensajes;
         }
       }
       
@@ -95,12 +115,15 @@ class ChatGrupalService {
       );
 
       print('🚗👥 Respuesta participantes: ${response.statusCode}');
+      print('🚗👥 Body respuesta: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['success'] == true && data['data'] != null) {
           final List<dynamic> participantesJson = data['data'];
-          return participantesJson.map((p) => ParticipanteChat.fromJson(p)).toList();
+          final participantes = participantesJson.map((p) => ParticipanteChat.fromJson(p)).toList();
+          print('🚗👥 Participantes cargados: ${participantes.length}');
+          return participantes;
         }
       }
       
