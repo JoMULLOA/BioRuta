@@ -65,6 +65,10 @@ const UserSchema = new EntitySchema({
       type: "enum",
       enum: ["masculino", "femenino", "no_binario", "prefiero_no_decir"],
       nullable: true,
+    fcmToken: {
+      type: "text",
+      nullable: true,
+      comment: "Token FCM para notificaciones push",
     },
     createdAt: {
       type: "timestamp with time zone",

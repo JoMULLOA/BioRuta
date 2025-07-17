@@ -9,6 +9,8 @@ import {
   buscarRutService,
   calcularCalificacionBayesiana,
   obtenerPromedioGlobalService,
+  actualizarTokenFCMService,
+  obtenerUserByRut,
 } from "../services/user.service.js";
 import {
   userBodyValidation,
@@ -237,6 +239,36 @@ export async function deleteUser(req, res) {
     handleSuccess(res, 200, "Usuario y todas sus relaciones eliminadas exitosamente", user);
   } catch (error) {
     console.error("Error al eliminar usuario:", error);
+    handleErrorServer(res, 500, error.message);
+  }
+}
+
+export async function actualizarTokenFCM(req, res) {
+  try {
+    const { fcmToken } = req.body;
+    const rutUsuario = req.user.rut;
+
+    // Validación básica
+    if (!fcmToken || typeof fcmToken !== 'string' || fcmToken.trim() === '') {
+      return handleErrorClient(res, 400, "Token FCM requerido y debe ser válido");
+    }
+
+    console.log(`🔄 Actualizando token FCM para usuario ${rutUsuario}`);
+
+    const [result, error] = await actualizarTokenFCMService(rutUsuario, fcmToken.trim());
+
+    if (error) {
+      console.error(`❌ Error actualizando token FCM: ${error}`);
+      return handleErrorClient(res, 400, error);
+    }
+
+    console.log(`✅ Token FCM actualizado exitosamente para ${rutUsuario}`);
+    handleSuccess(res, 200, "Token FCM actualizado correctamente", { 
+      rut: rutUsuario,
+      tokenActualizado: true 
+    });
+  } catch (error) {
+    console.error("💥 Error en actualizarTokenFCM:", error);
     handleErrorServer(res, 500, error.message);
   }
 }

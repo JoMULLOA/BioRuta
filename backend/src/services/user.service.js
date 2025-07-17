@@ -375,3 +375,49 @@ export async function obtenerPromedioGlobalService() {
     return [3.0, "Error al calcular promedio global, usando valor por defecto"];
   }
 }
+
+export async function actualizarTokenFCMService(rut, fcmToken) {
+  try {
+    const userRepository = AppDataSource.getRepository(User);
+
+    // Buscar el usuario por RUT
+    const user = await userRepository.findOne({
+      where: { rut: rut }
+    });
+
+    if (!user) {
+      return [null, "Usuario no encontrado"];
+    }
+
+    // Actualizar el token FCM
+    user.fcmToken = fcmToken;
+    
+    await userRepository.save(user);
+
+    console.log(`✅ Token FCM actualizado para usuario ${rut}`);
+    return [{ rut: rut, tokenActualizado: true }, null];
+  } catch (error) {
+    console.error("Error al actualizar token FCM:", error);
+    return [null, "Error interno del servidor al actualizar token FCM"];
+  }
+}
+
+export async function obtenerUserByRut(rut) {
+  try {
+    const userRepository = AppDataSource.getRepository(User);
+
+    const user = await userRepository.findOne({
+      where: { rut: rut }
+    });
+
+    if (!user) {
+      return [null, "Usuario no encontrado"];
+    }
+
+    const { password, ...userData } = user;
+    return [userData, null];
+  } catch (error) {
+    console.error("Error al obtener usuario por RUT:", error);
+    return [null, "Error interno del servidor"];
+  }
+}

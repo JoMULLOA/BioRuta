@@ -5,6 +5,7 @@ import 'dart:convert';
 import '../config/confGlobal.dart';
 import '../services/amistad_service.dart';
 import '../utils/token_manager.dart';
+import '../helpers/notificacion_helpers.dart';
 
 class Solicitud extends StatefulWidget {
   @override
@@ -154,23 +155,18 @@ class _SolicitudState extends State<Solicitud> {
         });
 
         if (resultado['success']) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('🤝 ${resultado['message']}'),
-              backgroundColor: Color(0xFF854937),
-              duration: Duration(seconds: 3),
-            ),
+          NotificacionHelpers.mostrarSolicitudEnviada(
+            context, 
+            _usuarioEncontrado!['data']['nombreCompleto'] ?? 'el usuario'
           );
           
           // Limpiar después de enviar solicitud exitosamente
           _limpiarBusqueda();
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('❌ ${resultado['message']}'),
-              backgroundColor: Colors.red,
-              duration: Duration(seconds: 3),
-            ),
+          NotificacionHelpers.mostrarError(
+            context,
+            titulo: '❌ Error al enviar solicitud',
+            mensaje: resultado['message'] ?? 'No se pudo enviar la solicitud',
           );
         }
       } catch (e) {
@@ -178,12 +174,10 @@ class _SolicitudState extends State<Solicitud> {
           _isLoading = false;
         });
         
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('❌ Error inesperado: $e'),
-            backgroundColor: Colors.red,
-            duration: Duration(seconds: 3),
-          ),
+        NotificacionHelpers.mostrarError(
+          context,
+          titulo: '❌ Error inesperado',
+          mensaje: e.toString(),
         );
       }
     }

@@ -35,13 +35,13 @@ dependencies:
   permission_handler: ^11.4.0
   http: ^0.13.6
   flutter_secure_storage: ^8.0.0
-  fluttertoast: ^8.2.1
   geolocator: ^10.1.0
   socket_io_client: ^2.0.0
   shared_preferences: ^2.0.13
   url_launcher: ^6.2.2
   fl_chart: ^0.69.0
   uuid: ^4.5.1
+  flutter_local_notifications: ^18.0.1
 
 
 dev_dependencies:

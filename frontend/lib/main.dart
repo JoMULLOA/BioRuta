@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'services/websocket_notification_service.dart';
 import 'auth/login.dart';
 import 'mapa/mapa.dart';
 import 'viajes/mapa_viajes_screen.dart';
@@ -10,7 +11,18 @@ import 'chat/chat.dart';
 import 'perfil/perfil.dart';
 import 'Ranking/ranking.dart';
 import 'sos/sos_screen.dart';
-void main() {
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  try {
+    // Inicializar sistema de notificaciones WebSocket
+    await WebSocketNotificationService.initialize();
+    print('🔔 Sistema de notificaciones WebSocket inicializado');
+  } catch (e) {
+    print('❌ Error inicializando notificaciones: $e');
+  }
+  
   runApp(const MyApp());
 }
 
