@@ -3,13 +3,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:jwt_decoder/jwt_decoder.dart'; // Importa el decodificador JWT
 import 'verificacion.dart';
-import '../buscar/inicio.dart';
+import '../mis_viajes/mis_viajes_screen.dart'; // Importar MisViajesScreen
 import './recuperacion.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../config/confGlobal.dart';
 import '../utils/token_manager.dart';
 import '../services/socket_service.dart'; // Importar SocketService
+import '../services/websocket_notification_service.dart'; // Importar WebSocket Notifications
 import '../admin/admin_dashboard.dart'; // Importar AdminDashboard
 
 class LoginPage extends StatefulWidget {
@@ -66,11 +67,11 @@ class _LoginPageState extends State<LoginPage> {
       final isValidInBackend = await _verifyTokenWithBackend(token);
       
       if (isValidInBackend) {
-        print('✅ Token válido en backend, redirigiendo a inicio');
+        print('✅ Token válido en backend, redirigiendo a mis viajes');
         if (mounted) {
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (_) => const InicioScreen()),
+            MaterialPageRoute(builder: (_) => const MisViajesScreen()),
           );
         }
       } else {
@@ -211,6 +212,15 @@ class _LoginPageState extends State<LoginPage> {
                 // No fallar el login por error de socket
               }
 
+              // Inicializar notificaciones WebSocket después del login exitoso
+              try {
+                await WebSocketNotificationService.connectToSocket(userRut);
+                print('🔔 Notificaciones WebSocket conectadas para $userRut');
+              } catch (e) {
+                print('⚠️ Error al conectar notificaciones WebSocket: $e');
+                // No fallar el login por error de notificaciones
+              }
+
               // Navegar según el rol del usuario
               if (userRole == 'administrador') {
                 Navigator.pushReplacement(
@@ -220,7 +230,7 @@ class _LoginPageState extends State<LoginPage> {
               } else {
                 Navigator.pushReplacement(
                   context,
-                  MaterialPageRoute(builder: (_) => const InicioScreen()),
+                  MaterialPageRoute(builder: (_) => const MisViajesScreen()),
                 );
               }
             } else {
@@ -333,6 +343,49 @@ class _LoginPageState extends State<LoginPage> {
                     child: cargando
                         ? const CircularProgressIndicator(color: Colors.white70)
                         : const Text("Siguiente"),
+                  ),
+                  const SizedBox(height: 20),
+                  // Botón temporal para probar notificaciones
+                  OutlinedButton(
+                    onPressed: () async {
+                      try {
+                        await WebSocketNotificationService.testNotification();
+                        print('🧪 Notificación de prueba enviada');
+                      } catch (e) {
+                        print('❌ Error en notificación de prueba: $e');
+                      }
+                    },
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.white70,
+                      side: const BorderSide(color: Colors.white70),
+                      minimumSize: const Size(double.infinity, 40),
+                    ),
+                    child: const Text("🧪 Probar Notificaciones"),
+                  ),
+                  const SizedBox(height: 8),
+                  // Botón para verificar permisos
+                  OutlinedButton(
+                    onPressed: () async {
+                      try {
+                        bool hasPermission = await WebSocketNotificationService.checkAndRequestPermissions();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(hasPermission 
+                              ? '✅ Permisos de notificación concedidos' 
+                              : '❌ Permisos de notificación denegados'),
+                            backgroundColor: hasPermission ? Colors.green : Colors.red,
+                          ),
+                        );
+                      } catch (e) {
+                        print('❌ Error verificando permisos: $e');
+                      }
+                    },
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.orange,
+                      side: const BorderSide(color: Colors.orange),
+                      minimumSize: const Size(double.infinity, 40),
+                    ),
+                    child: const Text("🔔 Verificar Permisos"),
                   ),
                   const SizedBox(height: 20),
                   TextButton(

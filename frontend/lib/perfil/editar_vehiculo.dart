@@ -103,71 +103,6 @@ class _EditarVehiculoPageState extends State<EditarVehiculoPage> {
     }
   }
 
-  Future<void> _eliminarVehiculo() async {
-    // Mostrar diálogo de confirmación
-    final bool? confirmar = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('Confirmar eliminación'),
-          content: Text('¿Estás seguro de que quieres eliminar este vehículo? Esta acción no se puede deshacer.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: Text('Cancelar'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              style: TextButton.styleFrom(foregroundColor: Colors.red),
-              child: Text('Eliminar'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (confirmar != true) return;
-
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      final headers = await TokenManager.getAuthHeaders();
-      if (headers == null) {
-        _showErrorDialog('No se pudo obtener token de autenticación');
-        return;
-      }
-
-      final response = await http.delete(
-        Uri.parse('${confGlobal.baseUrl}/vehiculos/${widget.vehiculo['patente']}'),
-        headers: headers,
-      );
-
-      final data = json.decode(response.body);
-
-      if (response.statusCode == 200 && data['success'] == true) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Vehículo eliminado exitosamente'),
-              backgroundColor: Colors.green,
-            ),
-          );
-          Navigator.pop(context, true); // Retornar true para indicar que se eliminó
-        }
-      } else {
-        _showErrorDialog(data['message'] ?? 'Error al eliminar vehículo');
-      }
-    } catch (e) {
-      _showErrorDialog('Error de conexión: $e');
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
-    }
-  }
-
   void _showErrorDialog(String message) {
     if (mounted) {
       showDialog(
@@ -200,13 +135,6 @@ class _EditarVehiculoPageState extends State<EditarVehiculoPage> {
         elevation: 0,
         title: Text('Editar Vehículo', style: TextStyle(color: primario)),
         iconTheme: IconThemeData(color: primario),
-        actions: [
-          IconButton(
-            onPressed: _isLoading ? null : _eliminarVehiculo,
-            icon: Icon(Icons.delete, color: Colors.red),
-            tooltip: 'Eliminar vehículo',
-          ),
-        ],
       ),
       body: _isLoading
           ? Center(

@@ -16,10 +16,8 @@ class ViajeService {
   /// Crear un nuevo viaje
   static Future<Map<String, dynamic>> crearViaje({
     required List<Map<String, dynamic>> ubicaciones,
-    required String fechaIda,
-    required String horaIda,
-    String? fechaVuelta,
-    String? horaVuelta,
+    required String fechaHoraIda,
+    String? fechaHoraVuelta,
     required bool viajeIdaYVuelta,
     required int maxPasajeros,
     required bool soloMujeres,
@@ -51,10 +49,8 @@ class ViajeService {
         headers: headers,
         body: json.encode({
           'ubicaciones': ubicaciones,
-          'fechaIda': fechaIda,
-          'horaIda': horaIda,
-          'fechaVuelta': fechaVuelta,
-          'horaVuelta': horaVuelta,
+          'fechaHoraIda': fechaHoraIda,
+          'fechaHoraVuelta': fechaHoraVuelta,
           'viajeIdaYVuelta': viajeIdaYVuelta,
           'maxPasajeros': maxPasajeros,
           'soloMujeres': soloMujeres,

@@ -7,6 +7,7 @@ import rankingRoutes from "./ranking.routes.js";
 import vehiculoRoutes from "./vehiculo.routes.js";
 import amistadRoutes from "./amistad.routes.js";
 import notificacionRoutes from "./notificacion.routes.js";
+import contactoEmergenciaRoutes from "./contactoEmergencia.routes.js";
 
 const router = Router();
 
@@ -17,5 +18,6 @@ router
     .use("/ranking", rankingRoutes)
     .use("/vehiculos", vehiculoRoutes)
     .use("/amistad", amistadRoutes)
-    .use("/notificaciones", notificacionRoutes);
+    .use("/notificaciones", notificacionRoutes)
+    .use("/contactos-emergencia", contactoEmergenciaRoutes);
 export default router;

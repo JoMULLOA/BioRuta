@@ -2,6 +2,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
+import '../services/socket_service.dart';
 
 class TokenManager {
   static const FlutterSecureStorage _storage = FlutterSecureStorage();
@@ -42,13 +43,17 @@ class TokenManager {
 
   // Limpiar todos los datos de autenticación
   static Future<void> clearAuthData() async {
+    // IMPORTANTE: Desconectar WebSocket antes de limpiar datos
+    print('🔌 Desconectando WebSocket durante clearAuthData...');
+    SocketService.instance.disconnect();
+    
     await _storage.delete(key: 'jwt_token');
     await _storage.delete(key: 'user_rut');
     
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('user_email');
     
-    print('🧹 Datos de autenticación limpiados');
+    print('🧹 Datos de autenticación limpiados y WebSocket desconectado');
   }
 
   // Obtener headers de autorización válidos

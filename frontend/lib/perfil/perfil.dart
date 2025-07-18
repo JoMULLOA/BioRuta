@@ -10,6 +10,7 @@ import 'editar_perfil.dart';
 import 'mis_vehiculos.dart';
 import '../utils/token_manager.dart';
 import '../auth/login.dart';
+import '../services/socket_service.dart';
 
 class Perfil extends StatefulWidget {
   @override
@@ -63,11 +64,20 @@ class Perfil_ extends State<Perfil> {
         return;
       }
 
-      // Llamada al backend
+      // Llamada al backend con headers de autenticación
+      final headers = await TokenManager.getAuthHeaders();
+      if (headers == null) {
+        setState(() {
+          _isLoading = false;
+          _userEmail = 'Error de autenticación';
+        });
+        return;
+      }
+
       final response = await http.get(
         Uri.parse('${confGlobal.baseUrl}/user/busqueda?email=$email'),
         headers: {
-          'Content-Type': 'application/json',
+          ...headers,
           'Cache-Control': 'no-cache',
         },
       );
@@ -162,11 +172,16 @@ class Perfil_ extends State<Perfil> {
       
       const int minimoValoraciones = 2; // Mínimo de valoraciones para considerar confiable
       
+      // Obtener headers de autenticación
+      final headers = await TokenManager.getAuthHeaders();
+      if (headers == null) {
+        print('❌ No hay headers de autenticación para calcular calificación');
+        return null;
+      }
+      
       final response = await http.post(
         Uri.parse('${confGlobal.baseUrl}/user/calcularCalificacion'),
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: headers,
         body: json.encode({
           'promedioUsuario': promedioUsuario,
           'cantidadValoraciones': cantidadValoraciones,
@@ -194,11 +209,16 @@ class Perfil_ extends State<Perfil> {
   // Nuevo método para obtener el promedio global desde el backend
   Future<double> _obtenerPromedioGlobal() async {
     try {
+      // Obtener headers de autenticación
+      final headers = await TokenManager.getAuthHeaders();
+      if (headers == null) {
+        print('❌ No hay headers de autenticación para obtener promedio global');
+        return 3.0; // Valor por defecto
+      }
+      
       final response = await http.get(
         Uri.parse('${confGlobal.baseUrl}/user/promedioGlobal'),
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: headers,
       );
 
       if (response.statusCode == 200) {
@@ -320,6 +340,10 @@ class Perfil_ extends State<Perfil> {
         },
       );
 
+      // IMPORTANTE: Desconectar WebSocket antes de limpiar datos
+      print('🔌 Desconectando WebSocket...');
+      SocketService.instance.disconnect();
+
       // Intentar hacer logout en el backend primero
       await _logoutFromBackend();
 
@@ -359,6 +383,10 @@ class Perfil_ extends State<Perfil> {
       Navigator.of(context).pop();
       
       print('Error durante el logout: $e');
+      
+      // IMPORTANTE: Incluso si hay error, asegurar desconexión del WebSocket
+      print('🔌 Desconectando WebSocket por seguridad tras error...');
+      SocketService.instance.disconnect();
       
       // Incluso si hay error en el backend, limpiar datos locales
       await TokenManager.clearAuthData();
@@ -755,7 +783,7 @@ class Perfil_ extends State<Perfil> {
 
           switch (index) {
             case 0:
-              Navigator.pushReplacementNamed(context, '/inicio');
+              Navigator.pushReplacementNamed(context, '/mis-viajes');
               break;
             case 1:
               // Ir al mapa
@@ -769,10 +797,13 @@ class Perfil_ extends State<Perfil> {
               Navigator.pushReplacementNamed(context, '/chat');
               break;
             case 4:
-              // Perfil (por implementar)
+              // Ranking
               Navigator.pushReplacementNamed(context, '/ranking');
               break;
             case 5:
+              Navigator.pushReplacementNamed(context, '/sos');
+              break;
+            case 6:
               Navigator.pushReplacementNamed(context, '/perfil');
               break;
           }

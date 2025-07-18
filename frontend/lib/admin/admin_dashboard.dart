@@ -822,30 +822,22 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     children: [
                       Icon(Icons.visibility),
                       SizedBox(width: 8),
-                      Text('Ver detalles'),
+                      Text('Ver Detalles'),
                     ],
                   ),
                 ),
-                const PopupMenuItem(
-                  value: 'editar',
-                  child: Row(
-                    children: [
-                      Icon(Icons.edit),
-                      SizedBox(width: 8),
-                      Text('Editar'),
-                    ],
+                // Solo mostrar opción de eliminar si no es administrador
+                if (usuario.rol != 'administrador')
+                  const PopupMenuItem(
+                    value: 'eliminar',
+                    child: Row(
+                      children: [
+                        Icon(Icons.delete, color: Colors.red),
+                        SizedBox(width: 8),
+                        Text('Eliminar', style: TextStyle(color: Colors.red)),
+                      ],
+                    ),
                   ),
-                ),
-                const PopupMenuItem(
-                  value: 'eliminar',
-                  child: Row(
-                    children: [
-                      Icon(Icons.delete, color: Colors.red),
-                      SizedBox(width: 8),
-                      Text('Eliminar', style: TextStyle(color: Colors.red)),
-                    ],
-                  ),
-                ),
               ],
               child: Icon(
                 Icons.more_vert,
@@ -942,12 +934,55 @@ class _AdminDashboardState extends State<AdminDashboard> {
   }
 
   void _confirmarEliminarUsuario(Usuario usuario) {
+    // Verificar si es seguro eliminar este usuario
+    if (usuario.rol == 'administrador') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No se puede eliminar un usuario administrador'),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Confirmar eliminación'),
-        content: Text(
-          '¿Estás seguro de que quieres eliminar al usuario ${usuario.nombreCompleto}?'
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '¿Estás seguro de que quieres eliminar al usuario ${usuario.nombreCompleto}?'
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.red[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.red[200]!),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.warning, color: Colors.red, size: 20),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Esta acción no se puede deshacer',
+                      style: TextStyle(
+                        color: Colors.red,
+                        fontWeight: FontWeight.w500,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
         actions: [
           TextButton(
@@ -967,13 +1002,67 @@ class _AdminDashboardState extends State<AdminDashboard> {
     );
   }
 
-  void _eliminarUsuario(Usuario usuario) {
-    // TODO: Implementar eliminación de usuario
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Función de eliminación en desarrollo'),
-        duration: Duration(seconds: 2),
-      ),
-    );
+  void _eliminarUsuario(Usuario usuario) async {
+    try {
+      // Mostrar indicador de carga
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(height: 16),
+              const Text('Eliminando usuario...'),
+              const SizedBox(height: 8),
+              Text(
+                'Se están eliminando todas las relaciones del usuario',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
+
+      // Llamar al servicio para eliminar el usuario completo
+      final result = await UserService.eliminarUsuarioCompleto(usuario.rut);
+      
+      // Cerrar indicador de carga
+      Navigator.of(context).pop();
+
+      // Mostrar mensaje de éxito
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result['message'] ?? 'Usuario eliminado exitosamente'),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+
+      // Refrescar la lista de usuarios
+      setState(() {
+        // Esto forzará una recarga de los datos
+      });
+
+    } catch (e) {
+      // Cerrar indicador de carga si está abierto
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+
+      // Mostrar mensaje de error
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al eliminar usuario: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    }
   }
 }

@@ -224,6 +224,7 @@ class _RankingState extends State<ranking> {
       ),
       bottomNavigationBar: CustomNavbar(
         currentIndex: _selectedIndex,
+        showSOS: false, // ❌ No mostrar SOS en Ranking
         onTap: (index) {
           if (index == _selectedIndex) return;
 
@@ -233,7 +234,7 @@ class _RankingState extends State<ranking> {
 
           switch (index) {
             case 0:
-              Navigator.pushReplacementNamed(context, '/inicio');
+              Navigator.pushReplacementNamed(context, '/mis-viajes');
               break;
             case 1:
               Navigator.pushReplacementNamed(context, '/mapa');
@@ -248,7 +249,7 @@ class _RankingState extends State<ranking> {
               Navigator.pushReplacementNamed(context, '/ranking');
               break;
             case 5:
-              Navigator.pushReplacementNamed(context, '/perfil');
+              Navigator.pushReplacementNamed(context, '/perfil'); // Perfil en índice 5 cuando no hay SOS
               break;
           }
         },

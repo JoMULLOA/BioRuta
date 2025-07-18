@@ -9,6 +9,8 @@ import {
   buscarRutService,
   calcularCalificacionBayesiana,
   obtenerPromedioGlobalService,
+  actualizarTokenFCMService,
+  obtenerUserByRut,
 } from "../services/user.service.js";
 import {
   userBodyValidation,
@@ -155,37 +157,6 @@ export async function updateUser(req, res) {
   }
 }
 
-export async function deleteUser(req, res) {
-  try {
-    const { rut, email } = req.query;
-
-    const { error: queryError } = userQueryValidation.validate({
-      rut,
-      email,
-    });
-
-    if (queryError) {
-      return handleErrorClient(
-        res,
-        400,
-        "Error de validación en la consulta",
-        queryError.message,
-      );
-    }
-
-    const [userDelete, errorUserDelete] = await deleteUserService({
-      rut,
-      email,
-    });
-
-    if (errorUserDelete) return handleErrorClient(res, 404, "Error eliminado al usuario", errorUserDelete);
-
-    handleSuccess(res, 200, "Usuario eliminado correctamente", userDelete);
-  } catch (error) {
-    handleErrorServer(res, 500, error.message);
-  }
-}
-
 export async function getMisVehiculos(req, res) {
   try {
     const userRut = req.user.rut;
@@ -249,6 +220,55 @@ export async function obtenerPromedioGlobal(req, res) {
     });
   } catch (error) {
     console.error("Error en obtenerPromedioGlobal controller:", error);
+    handleErrorServer(res, 500, error.message);
+  }
+}
+
+export async function deleteUser(req, res) {
+  try {
+    const { rut, email } = req.query;
+
+    const { error } = userQueryValidation.validate({ rut, email });
+
+    if (error) return handleErrorClient(res, 400, error.message);
+
+    const [user, errorUser] = await deleteUserService({ rut, email });
+
+    if (errorUser) return handleErrorClient(res, 404, errorUser);
+
+    handleSuccess(res, 200, "Usuario y todas sus relaciones eliminadas exitosamente", user);
+  } catch (error) {
+    console.error("Error al eliminar usuario:", error);
+    handleErrorServer(res, 500, error.message);
+  }
+}
+
+export async function actualizarTokenFCM(req, res) {
+  try {
+    const { fcmToken } = req.body;
+    const rutUsuario = req.user.rut;
+
+    // Validación básica
+    if (!fcmToken || typeof fcmToken !== 'string' || fcmToken.trim() === '') {
+      return handleErrorClient(res, 400, "Token FCM requerido y debe ser válido");
+    }
+
+    console.log(`🔄 Actualizando token FCM para usuario ${rutUsuario}`);
+
+    const [result, error] = await actualizarTokenFCMService(rutUsuario, fcmToken.trim());
+
+    if (error) {
+      console.error(`❌ Error actualizando token FCM: ${error}`);
+      return handleErrorClient(res, 400, error);
+    }
+
+    console.log(`✅ Token FCM actualizado exitosamente para ${rutUsuario}`);
+    handleSuccess(res, 200, "Token FCM actualizado correctamente", { 
+      rut: rutUsuario,
+      tokenActualizado: true 
+    });
+  } catch (error) {
+    console.error("💥 Error en actualizarTokenFCM:", error);
     handleErrorServer(res, 500, error.message);
   }
 }

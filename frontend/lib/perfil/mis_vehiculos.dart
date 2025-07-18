@@ -103,6 +103,105 @@ class _MisVehiculosPageState extends State<MisVehiculosPage> {
     }
   }
 
+  Future<void> _eliminarVehiculo(Map<String, dynamic> vehiculo) async {
+    // Mostrar diálogo de confirmación
+    final confirmado = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Eliminar Vehículo'),
+          content: Text(
+            '¿Estás seguro de que quieres eliminar el vehículo ${vehiculo['patente']}?\n\nEsta acción no se puede deshacer.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text('Cancelar'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: Text('Eliminar'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmado == true) {
+      try {
+        // Mostrar indicador de carga
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (BuildContext context) {
+            return Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF6B3B2D)),
+              ),
+            );
+          },
+        );
+
+        final headers = await TokenManager.getAuthHeaders();
+        if (headers == null) {
+          Navigator.of(context).pop(); // Cerrar indicador de carga
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error: No se pudo obtener token de autenticación'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
+
+        final response = await http.delete(
+          Uri.parse('${confGlobal.baseUrl}/user/vehiculos/${vehiculo['_id']}'),
+          headers: headers,
+        );
+
+        Navigator.of(context).pop(); // Cerrar indicador de carga
+
+        if (response.statusCode == 200) {
+          final data = json.decode(response.body);
+          if (data['success'] == true) {
+            // Recargar la lista de vehículos
+            _loadVehiculos();
+            
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Vehículo eliminado exitosamente'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(data['message'] ?? 'Error al eliminar vehículo'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error del servidor (${response.statusCode})'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } catch (e) {
+        Navigator.of(context).pop(); // Cerrar indicador de carga si existe
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error de conexión: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final Color fondo = Color(0xFFF8F2EF);
@@ -260,7 +359,7 @@ class _MisVehiculosPageState extends State<MisVehiculosPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header con patente y botón de editar
+          // Header con patente y botones de acción
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -279,10 +378,20 @@ class _MisVehiculosPageState extends State<MisVehiculosPage> {
                   ),
                 ),
               ),
-              IconButton(
-                onPressed: () => _navigateToEditarVehiculo(vehiculo),
-                icon: Icon(Icons.edit, color: secundario),
-                tooltip: 'Editar vehículo',
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    onPressed: () => _navigateToEditarVehiculo(vehiculo),
+                    icon: Icon(Icons.edit, color: secundario),
+                    tooltip: 'Editar vehículo',
+                  ),
+                  IconButton(
+                    onPressed: () => _eliminarVehiculo(vehiculo),
+                    icon: Icon(Icons.delete, color: Colors.red[600]),
+                    tooltip: 'Eliminar vehículo',
+                  ),
+                ],
               ),
             ],
           ),

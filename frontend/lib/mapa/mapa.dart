@@ -12,7 +12,8 @@ import '../services/viaje_service.dart';
 import '../services/ruta_service.dart';
 import 'mapa_widget.dart';
 import '../buscar/barra_busqueda_widget.dart';
-import '../mis_viajes/mis_viajes_screen.dart';
+import 'mapa_seleccion.dart';
+import '../buscar/resultados_busqueda.dart';
 
 
 class MapPage extends StatefulWidget {
@@ -25,7 +26,7 @@ class MapPage extends StatefulWidget {
 class _MapPageState extends State<MapPage> {
   late MapController controller;
   final TextEditingController destinoController = TextEditingController();
-  int _selectedIndex = 1;
+  int _selectedIndex = 1; // Mapa ahora está en índice 1 (Buscar)
   List<DireccionSugerida> _sugerencias = [];
   bool _mostrandoSugerencias = false;
   Timer? _debounceTimer;
@@ -38,6 +39,23 @@ class _MapPageState extends State<MapPage> {
 
   // Variables para manejar rutas específicas pasadas como argumentos
   bool _rutaEspecificaCargada = false;
+
+  // ===== NUEVAS VARIABLES PARA FUNCIONALIDAD DE BÚSQUEDA =====
+  // Variables para almacenar los datos del viaje
+  String? direccionOrigen;
+  String? direccionDestino;
+  double? origenLat;
+  double? origenLng;
+  double? destinoLat;
+  double? destinoLng;
+  int pasajeros = 1;
+  DateTime? fechaSeleccionada;
+  
+  final TextEditingController _origenController = TextEditingController();
+  final TextEditingController _destinoController = TextEditingController();
+
+  // Estado de la búsqueda
+  bool _mostrandoFormularioBusqueda = false;
 
   @override
   void initState() {
@@ -61,12 +79,128 @@ class _MapPageState extends State<MapPage> {
     });
   }
 
+  // ===== MÉTODOS PARA FUNCIONALIDAD DE BÚSQUEDA =====
+  
+  void _toggleFormularioBusqueda() {
+    setState(() {
+      _mostrandoFormularioBusqueda = !_mostrandoFormularioBusqueda;
+    });
+  }
+
+  Future<void> _seleccionarFecha() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: fechaSeleccionada ?? DateTime.now(),
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+    if (picked != null && picked != fechaSeleccionada && mounted) { // Verificar mounted
+      setState(() {
+        fechaSeleccionada = picked;
+      });
+    }
+  }
+
+  void _incrementarPasajeros() {
+    if (pasajeros < 8 && mounted) { // Verificar mounted
+      setState(() {
+        pasajeros++;
+      });
+    }
+  }
+
+  void _decrementarPasajeros() {
+    if (pasajeros > 1 && mounted) { // Verificar mounted
+      setState(() {
+        pasajeros--;
+      });
+    }
+  }
+
+  Future<void> _buscarViajes() async {
+    if (direccionOrigen == null || direccionDestino == null || fechaSeleccionada == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Por favor, completa todos los campos')),
+      );
+      return;
+    }
+
+    // Formatear la fecha como string
+    final fechaFormateada = "${fechaSeleccionada!.year}-${fechaSeleccionada!.month.toString().padLeft(2, '0')}-${fechaSeleccionada!.day.toString().padLeft(2, '0')}";
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ResultadosBusquedaScreen(
+          origenLat: origenLat!,
+          origenLng: origenLng!,
+          destinoLat: destinoLat!,
+          destinoLng: destinoLng!,
+          fechaViaje: fechaFormateada,
+          pasajeros: pasajeros,
+          origenTexto: direccionOrigen!,
+          destinoTexto: direccionDestino!,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _seleccionarOrigen() async {
+    final direccion = await Navigator.push<DireccionSugerida>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const MapaSeleccionPage(
+          tituloSeleccion: 'Seleccionar origen',
+          esOrigen: true,
+        ),
+      ),
+    );
+
+    if (direccion != null && mounted) { // Verificar si el widget está montado
+      setState(() {
+        direccionOrigen = direccion.displayName;
+        origenLat = direccion.lat;
+        origenLng = direccion.lon;
+        _origenController.text = direccion.displayName;
+      });
+    }
+  }
+
+  Future<void> _seleccionarDestino() async {
+    final direccion = await Navigator.push<DireccionSugerida>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const MapaSeleccionPage(
+          tituloSeleccion: 'Seleccionar destino',
+          esOrigen: false,
+        ),
+      ),
+    );
+
+    if (direccion != null && mounted) { // Verificar si el widget está montado
+      setState(() {
+        direccionDestino = direccion.displayName;
+        destinoLat = direccion.lat;
+        destinoLng = direccion.lon;
+        _destinoController.text = direccion.displayName;
+      });
+    }
+  }
+
   @override
   void dispose() {
-    // Limpiar el callback al destruir el widget
-    RutaService.instance.limpiarCallback();
-    destinoController.dispose();
+    // Cancelar cualquier operación asíncrona pendiente
     _debounceTimer?.cancel();
+    
+    // Limpiar el callback del servicio de ruta
+    RutaService.instance.limpiarCallback();
+    
+    // Limpiar controladores
+    destinoController.dispose();
+    _origenController.dispose();
+    _destinoController.dispose();
+    
+    // Llamar al dispose del padre
     super.dispose();
   }
 
@@ -125,9 +259,11 @@ class _MapPageState extends State<MapPage> {
       String region = await BusquedaService.identificarRegion(miPosicion);
       double zoomNivel = UbicacionService.obtenerZoomParaRegion(region);
       
-      setState(() {
-        _regionActual = region;
-      });
+      if (mounted) { // Verificar antes de setState
+        setState(() {
+          _regionActual = region;
+        });
+      }
 
       await controller.moveTo(miPosicion);
       await controller.setZoom(zoomLevel: zoomNivel);
@@ -195,14 +331,14 @@ class _MapPageState extends State<MapPage> {
         final generales = todasLasSugerencias.where((s) => !s.esRegional).toList();
         final sugerenciasFinales = [...regionales, ...generales];
         
-        if (mounted) {
+        if (mounted) { // Verificar antes de setState
           setState(() {
             _sugerencias = sugerenciasFinales.take(5).toList();
             _mostrandoSugerencias = true;
           });
         }
       }
-        } catch (e) {
+    } catch (e) {
       debugPrint('Error al buscar sugerencias: $e');
     }
   }
@@ -268,11 +404,15 @@ class _MapPageState extends State<MapPage> {
 
   Future<void> _cargarMarcadoresViajes() async {
     try {
+      if (!mounted) return; // Verificar si el widget está montado
+      
       setState(() {
         _cargandoViajes = true;
       });
 
       final marcadoresObtenidos = await ViajeService.obtenerMarcadoresViajes();
+      
+      if (!mounted) return; // Verificar nuevamente después de la operación async
       
       setState(() {
         _marcadoresViajes = marcadoresObtenidos;
@@ -282,14 +422,18 @@ class _MapPageState extends State<MapPage> {
       await _agregarMarcadoresAlMapa();
     } catch (e) {
       debugPrint('❌ Error al cargar marcadores de viajes: $e');
-      setState(() {
-        _cargandoViajes = false;
-      });
+      if (mounted) { // Solo llamar setState si el widget está montado
+        setState(() {
+          _cargandoViajes = false;
+        });
+      }
     }
   }
 
   Future<void> _agregarMarcadoresAlMapa() async {
     try {
+      if (!mounted) return; // Verificar si el widget está montado
+      
       // Limpiar marcadores existentes
       for (final punto in _marcadoresEnMapa.values) {
         await controller.removeMarker(punto);
@@ -298,6 +442,8 @@ class _MapPageState extends State<MapPage> {
 
       // Agregar nuevos marcadores
       for (final marcador in _marcadoresViajes) {
+        if (!mounted) return; // Verificar en cada iteración
+        
         final geoPoint = GeoPoint(
           latitude: marcador.origen.latitud,
           longitude: marcador.origen.longitud,
@@ -309,7 +455,7 @@ class _MapPageState extends State<MapPage> {
             icon: Icon(
               Icons.directions_car,
               color: Color(0xFF854937),
-              size: 32,
+              size: 48,
             ),
           ),
         );
@@ -767,6 +913,22 @@ class _MapPageState extends State<MapPage> {
         ),
         backgroundColor: const Color(0xFF854937),
         foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            onPressed: _cargarMarcadoresViajes,
+            icon: _cargandoViajes 
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                : const Icon(Icons.refresh),
+            tooltip: 'Actualizar viajes disponibles',
+          ),
+        ],
       ),
       body: Stack(
         children: [
@@ -844,34 +1006,240 @@ class _MapPageState extends State<MapPage> {
                 });
               },
             ),          ),
+
+          // Formulario de búsqueda de viajes
+          if (_mostrandoFormularioBusqueda)
+            Positioned(
+              top: 16,
+              left: 16,
+              right: 16,
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      spreadRadius: 2,
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header con título y botón cerrar
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Buscar Viajes',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF854937),
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: _toggleFormularioBusqueda,
+                          icon: const Icon(Icons.close),
+                          color: const Color(0xFF854937),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Campo "De" (Origen)
+                    GestureDetector(
+                      onTap: _seleccionarOrigen,
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: const Color(0xFFEDCAB6)),
+                          borderRadius: BorderRadius.circular(12),
+                          color: const Color(0xFFEDCAB6).withOpacity(0.1),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.my_location,
+                              color: Color(0xFF854937),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                direccionOrigen ?? 'Seleccionar origen',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: direccionOrigen != null
+                                      ? Colors.black87
+                                      : Colors.grey[600],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Campo "A" (Destino)
+                    GestureDetector(
+                      onTap: _seleccionarDestino,
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: const Color(0xFFEDCAB6)),
+                          borderRadius: BorderRadius.circular(12),
+                          color: const Color(0xFFEDCAB6).withOpacity(0.1),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.location_on,
+                              color: Color(0xFF854937),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                direccionDestino ?? 'Seleccionar destino',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: direccionDestino != null
+                                      ? Colors.black87
+                                      : Colors.grey[600],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Selector de fecha
+                    GestureDetector(
+                      onTap: _seleccionarFecha,
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: const Color(0xFFEDCAB6)),
+                          borderRadius: BorderRadius.circular(12),
+                          color: const Color(0xFFEDCAB6).withOpacity(0.1),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.calendar_today,
+                              color: Color(0xFF854937),
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              fechaSeleccionada != null
+                                  ? "${fechaSeleccionada!.day}/${fechaSeleccionada!.month}/${fechaSeleccionada!.year}"
+                                  : 'Seleccionar fecha',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: fechaSeleccionada != null
+                                    ? Colors.black87
+                                    : Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Selector de pasajeros
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Pasajeros',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF854937),
+                          ),
+                        ),
+                        Row(
+                          children: [
+                            IconButton(
+                              onPressed: _decrementarPasajeros,
+                              icon: const Icon(Icons.remove_circle_outline),
+                              color: const Color(0xFF854937),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                border: Border.all(color: const Color(0xFFEDCAB6)),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                '$pasajeros',
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              onPressed: _incrementarPasajeros,
+                              icon: const Icon(Icons.add_circle_outline),
+                              color: const Color(0xFF854937),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Botón de búsqueda
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: _buscarViajes,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF854937),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text(
+                          'Buscar Viajes',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
         ],
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       floatingActionButton: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          // Botón de búsqueda de viajes
           FloatingActionButton(
-            heroTag: "refreshTrips",
-            onPressed: _cargarMarcadoresViajes,
-            tooltip: 'Actualizar viajes disponibles',
+            heroTag: "searchTrips",
+            onPressed: _toggleFormularioBusqueda,
+            tooltip: 'Buscar viajes',
             backgroundColor: const Color(0xFF854937),
             foregroundColor: Colors.white,
-            child: const Icon(Icons.refresh),
-          ),
-          const SizedBox(height: 12),
-          
-          FloatingActionButton(
-            heroTag: "myTrips",
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const MisViajesScreen()),
-              );
-            },
-            tooltip: 'Mis viajes',
-            backgroundColor: const Color(0xFF854937),
-            foregroundColor: Colors.white,
-            child: const Icon(Icons.list_alt),
+            child: const Icon(Icons.search),
           ),
           const SizedBox(height: 12),
           
@@ -888,6 +1256,7 @@ class _MapPageState extends State<MapPage> {
       ),
       bottomNavigationBar: CustomNavbar(
         currentIndex: _selectedIndex,
+        showSOS: true, // ✅ Mostrar SOS solo en la pantalla del mapa
         onTap: (index) {
           // Evitar navegación innecesaria si ya estamos en la pantalla actual
           if (index == _selectedIndex) return;
@@ -899,7 +1268,7 @@ class _MapPageState extends State<MapPage> {
           // Navegación según el índice seleccionado
           switch (index) {
             case 0:
-              Navigator.pushReplacementNamed(context, '/inicio');
+              Navigator.pushReplacementNamed(context, '/mis-viajes');
               break;
             case 1:
               Navigator.pushReplacementNamed(context, '/mapa');
@@ -914,6 +1283,9 @@ class _MapPageState extends State<MapPage> {
               Navigator.pushReplacementNamed(context, '/ranking');
               break;
             case 5:
+              Navigator.pushReplacementNamed(context, '/sos'); // SOS está en índice 5 cuando showSOS = true
+              break;
+            case 6:
               Navigator.pushReplacementNamed(context, '/perfil');
               break;
           }        },

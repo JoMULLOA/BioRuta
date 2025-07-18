@@ -15,7 +15,7 @@ import viajeRoutes from "./routes/viaje.routes.js";
 import indexRoutes from "./routes/index.routes.js";
 import pingRoutes from "./routes/ping.routes.js";
 import { connectMongoDB } from "./config/mongooseClient.js";
-import { initSocket } from "./socket.js"; 
+import { initSocket, getSocketInstance } from "./socket.js"; 
 import { cookieKey, HOST, PORT } from "./config/configEnv.js";
 import { connectDB } from "./config/configDb.js";
 import { createInitialData } from "./config/initialSetup.js";
@@ -71,6 +71,9 @@ async function setupServer() {
 
     const server = http.createServer(app);
     initSocket(server); // Inicializa Socket.IO con el servidor
+    
+    // Hacer que la instancia de Socket.io esté disponible en los controladores
+    app.set('io', getSocketInstance);
     
     // Inicio del servidor usando server.listen() para incluir Socket.IO
     server.listen(PORT, '0.0.0.0', () => {

@@ -21,10 +21,8 @@ export async function crearViaje(req, res) {
   try {
     const {
       ubicaciones,
-      fechaIda,
-      horaIda,
-      fechaVuelta,
-      horaVuelta,
+      fechaHoraIda,
+      fechaHoraVuelta,
       viajeIdaYVuelta,
       maxPasajeros,
       soloMujeres,
@@ -69,14 +67,37 @@ export async function crearViaje(req, res) {
       return handleErrorServer(res, 404, "Vehículo no encontrado o no le pertenece");
     }
 
-    // Validar fecha no sea pasada
-    const fechaViajeIda = new Date(fechaIda);
-    const ahora = new Date();
-    ahora.setHours(0, 0, 0, 0);
-    
-    if (fechaViajeIda < ahora) {
-      return handleErrorServer(res, 400, "No se pueden crear viajes en fechas pasadas");
+    // Validar fecha y hora no sea pasada - usar zona horaria de Chile
+    console.log("📅 DEBUG - Fecha y hora de ida recibida:", fechaHoraIda);
+    if (viajeIdaYVuelta && fechaHoraVuelta) {
+      console.log("📅 DEBUG - Fecha y hora de vuelta recibida:", fechaHoraVuelta);
     }
+
+    // Convertir fecha y hora de ida a Date
+    const fechaHoraIdaDate = new Date(fechaHoraIda);
+    console.log("📅 DEBUG - Fecha y hora de ida convertida:", fechaHoraIdaDate.toISOString());
+
+    // Obtener fecha y hora actual
+    const ahora = new Date();
+    console.log("📅 DEBUG - Fecha y hora actual:", ahora.toISOString());
+
+    // Comparar las fechas
+    if (fechaHoraIdaDate <= ahora) {
+      console.log("❌ DEBUG - La fecha y hora de ida ya pasó");
+      return handleErrorClient(res, 400, "La fecha y hora de ida no puede ser anterior o igual a la actual");
+    }
+
+    if (viajeIdaYVuelta && fechaHoraVuelta) {
+      const fechaHoraVueltaDate = new Date(fechaHoraVuelta);
+      console.log("📅 DEBUG - Fecha y hora de vuelta convertida:", fechaHoraVueltaDate.toISOString());
+
+      if (fechaHoraVueltaDate <= fechaHoraIdaDate) {
+        console.log("❌ DEBUG - La fecha y hora de vuelta es anterior o igual a la de ida");
+        return handleErrorClient(res, 400, "La fecha y hora de vuelta no puede ser anterior o igual a la de ida");
+      }
+    }
+
+    console.log("✅ DEBUG - Fechas y horas válidas");
 
     // Crear el viaje en MongoDB
     const nuevoViaje = new Viaje({
@@ -95,10 +116,10 @@ export async function crearViaje(req, res) {
           coordinates: [destino.lon, destino.lat]
         }
       },
-      fecha_ida: new Date(fechaIda),
-      hora_ida: horaIda,
-      fecha_vuelta: fechaVuelta ? new Date(fechaVuelta) : null,
-      hora_vuelta: horaVuelta,
+      fecha_ida: new Date(fechaHoraIda),
+      hora_ida: new Date(fechaHoraIda).toTimeString().substring(0, 5), // Extraer solo HH:mm
+      fecha_vuelta: fechaHoraVuelta ? new Date(fechaHoraVuelta) : null,
+      hora_vuelta: fechaHoraVuelta ? new Date(fechaHoraVuelta).toTimeString().substring(0, 5) : null,
       viaje_ida_vuelta: viajeIdaYVuelta,
       max_pasajeros: maxPasajeros,
       solo_mujeres: soloMujeres,
@@ -135,7 +156,7 @@ export async function crearViaje(req, res) {
 }
 
 /**
- * Buscar viajes por proximidad (radio de 500 metros)
+ * Buscar viajes por proximidad (radio de X metros, modificar en la variable radio en kms.)
  */
 export async function buscarViajesPorProximidad(req, res) {
   try {
@@ -152,7 +173,9 @@ export async function buscarViajesPorProximidad(req, res) {
     // Validar parámetros requeridos
     if (!origenLat || !origenLng || !destinoLat || !destinoLng || !fechaViaje) {
       return handleErrorServer(res, 400, "Parámetros requeridos: origenLat, origenLng, destinoLat, destinoLng, fechaViaje");
-    }    // Convertir radio de kilómetros a metros (500 metros = 0.5 km)
+    }
+
+    // Convertir radio de kilómetros a metros (500 metros = 0.5 km)
     const radioEnMetros = parseFloat(radio) * 1000;
 
     console.log('🔍 Parámetros de búsqueda:');
@@ -161,21 +184,41 @@ export async function buscarViajesPorProximidad(req, res) {
     console.log('Fecha:', fechaViaje);
     console.log('Radio (metros):', radioEnMetros);
 
-    // Fecha de búsqueda
-    const fechaBusqueda = new Date(fechaViaje);
-    const fechaInicio = new Date(fechaBusqueda);
-    fechaInicio.setHours(0, 0, 0, 0);
-    const fechaFin = new Date(fechaBusqueda);
-    fechaFin.setHours(23, 59, 59, 999);
+    // CORREGIDO: Filtro de fecha - usar la fecha exacta proporcionada
+    const fechaBuscada = new Date(fechaViaje + 'T00:00:00.000Z'); // Agregar hora UTC para evitar conversiones
+    const fechaInicio = new Date(fechaBuscada);
+    fechaInicio.setUTCHours(0, 0, 0, 0);
+    const fechaFin = new Date(fechaBuscada);
+    fechaFin.setUTCHours(23, 59, 59, 999);
 
-    console.log('Rango de fechas:', { inicio: fechaInicio, fin: fechaFin });
+    console.log('Filtro de fecha corregido:', { 
+      fechaOriginal: fechaViaje,
+      fechaBuscada: fechaBuscada.toISOString(),
+      inicio: fechaInicio.toISOString(), 
+      fin: fechaFin.toISOString() 
+    });
 
     // Primero verificar si hay viajes activos en la fecha
     const viajesEnFecha = await Viaje.find({
       estado: 'activo',
       fecha_ida: { $gte: fechaInicio, $lte: fechaFin },
       plazas_disponibles: { $gte: parseInt(pasajeros) }
-    }).select('_id origen.ubicacion.coordinates destino.ubicacion.coordinates fecha_ida plazas_disponibles');    console.log('Viajes activos en la fecha:', viajesEnFecha.length);
+    }).select('_id origen.ubicacion.coordinates destino.ubicacion.coordinates fecha_ida plazas_disponibles');
+
+    console.log('Viajes activos en la fecha:', viajesEnFecha.length);
+    
+    // Debug: mostrar todos los viajes para verificar
+    const todosLosViajes = await Viaje.find({ estado: 'activo' })
+      .select('_id fecha_ida plazas_disponibles origen.ubicacion.coordinates destino.ubicacion.coordinates')
+      .sort({ fecha_ida: 1 });
+    
+    console.log('📋 Todos los viajes activos en DB:', todosLosViajes.map(v => ({
+      id: v._id,
+      fecha: v.fecha_ida.toISOString(),
+      plazas: v.plazas_disponibles,
+      origen_coords: v.origen?.ubicacion?.coordinates,
+      destino_coords: v.destino?.ubicacion?.coordinates
+    })));
     if (viajesEnFecha.length > 0) {
       console.log('Ejemplos de viajes en fecha:', viajesEnFecha.slice(0, 2).map(v => ({
         id: v._id,
@@ -185,11 +228,16 @@ export async function buscarViajesPorProximidad(req, res) {
         plazas: v.plazas_disponibles
       })));
       
-      // Calcular distancia manual para verificar
+      // Calcular distancia manual para verificar - COORDENADAS CORREGIDAS
       const viajeEjemplo = viajesEnFecha[0];
       if (viajeEjemplo.origen?.ubicacion?.coordinates) {
-        const viajeOrigenLng = viajeEjemplo.origen.ubicacion.coordinates[0];
-        const viajeOrigenLat = viajeEjemplo.origen.ubicacion.coordinates[1];
+        // En MongoDB: coordinates = [longitud, latitud]
+        const viajeOrigenLng = viajeEjemplo.origen.ubicacion.coordinates[0]; // longitud
+        const viajeOrigenLat = viajeEjemplo.origen.ubicacion.coordinates[1]; // latitud
+        
+        console.log('🗺️ Comparando coordenadas:');
+        console.log('Búsqueda - Origen:', { lat: parseFloat(origenLat), lng: parseFloat(origenLng) });
+        console.log('Viaje DB - Origen:', { lat: viajeOrigenLat, lng: viajeOrigenLng });
         
         // Calcular distancia usando fórmula de Haversine
         const R = 6371000; // Radio de la Tierra en metros
@@ -204,9 +252,10 @@ export async function buscarViajesPorProximidad(req, res) {
         console.log('Distancia al viaje más cercano:', Math.round(distancia), 'metros');
         console.log('¿Está dentro del radio?', distancia <= radioEnMetros ? 'SÍ' : 'NO');
       }
-    }    try {
+    }
+
+    try {
       // Búsqueda con agregación para filtrar por proximidad de origen Y destino
-      // Usamos fórmula de Haversine más robusta para evitar errores con coordenadas cercanas
       const viajes = await Viaje.aggregate([
       {
         $match: {
@@ -218,6 +267,7 @@ export async function buscarViajesPorProximidad(req, res) {
       {
         $addFields: {
           // Calcular distancia al origen usando fórmula de Haversine
+          // CORREGIDO: origenLng es longitud [0], origenLat es latitud [1]
           distancia_origen: {
             $let: {
               vars: {
@@ -280,6 +330,7 @@ export async function buscarViajesPorProximidad(req, res) {
             }
           },
           // Calcular distancia al destino usando fórmula de Haversine
+          // CORREGIDO: destinoLng es longitud [0], destinoLat es latitud [1]
           distancia_destino: {
             $let: {
               vars: {
@@ -484,7 +535,7 @@ export async function obtenerViajesParaMapa(req, res) {
     
     // COMENTAR TEMPORALMENTE el filtro de fecha para mostrar todos los viajes
     // Esto evita problemas de zona horaria que filtran incorrectamente los viajes
-    /*
+    
     if (fecha_desde || fecha_hasta) {
       filtroFecha.fecha_ida = {};
       if (fecha_desde) filtroFecha.fecha_ida.$gte = new Date(fecha_desde);
@@ -496,7 +547,7 @@ export async function obtenerViajesParaMapa(req, res) {
       const fechaHoy = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
       filtroFecha.fecha_ida = { $gte: fechaHoy };
     }
-    */
+    
 
     const viajes = await Viaje.find(filtroFecha)
       .select({

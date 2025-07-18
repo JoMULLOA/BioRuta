@@ -7,6 +7,11 @@ import { ACCESS_TOKEN_SECRET } from "./config/configEnv.js";
 
 let io;
 
+// Función para obtener la instancia de Socket.io
+export function getSocketInstance() {
+  return io;
+}
+
 // Middleware de autenticación para sockets
 const authenticateSocket = (socket, next) => {
   try {
@@ -42,7 +47,31 @@ export function initSocket(server) {
 
     // Registrar usuario en su sala personal automáticamente
     socket.join(`usuario_${socket.userId}`);
-    console.log(`👤 Usuario ${socket.userId} registrado en sala usuario_${socket.userId}`);
+    socket.join(`user_${socket.userId}`); // Para notificaciones de amistad
+    console.log(`👤 Usuario ${socket.userId} registrado en salas usuario_${socket.userId} y user_${socket.userId}`);
+
+    // Manejar cuando el usuario se une a una sala específica
+    socket.on('joinUserRoom', (userRut) => {
+      console.log(`🎯 Solicitud joinUserRoom recibida para: ${userRut}, usuario actual: ${socket.userId}`);
+      
+      if (userRut === socket.userId) {
+        socket.join(`user_${userRut}`);
+        console.log(`🔔 Usuario ${userRut} confirmado en sala de notificaciones user_${userRut}`);
+        
+        // Confirmar que está en las salas
+        const rooms = Array.from(socket.rooms);
+        console.log(`📍 Usuario ${userRut} está en las salas: ${rooms.join(', ')}`);
+        
+        // Emitir confirmación de conexión
+        socket.emit('notification_connection_confirmed', {
+          userRut: userRut,
+          timestamp: new Date().toISOString(),
+          rooms: rooms
+        });
+      } else {
+        console.warn(`⚠️ Intento de unirse a sala de otro usuario: solicitud=${userRut}, actual=${socket.userId}`);
+      }
+    });
 
     // Manejar envío de mensajes
     socket.on("enviar_mensaje", async (data) => {

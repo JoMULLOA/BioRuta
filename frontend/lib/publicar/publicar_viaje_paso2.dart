@@ -15,10 +15,8 @@ class PublicarViajePaso2 extends StatefulWidget {
 }
 
 class _PublicarViajePaso2State extends State<PublicarViajePaso2> {
-  DateTime? _fechaIda;
-  TimeOfDay? _horaIda;
-  DateTime? _fechaVuelta;
-  TimeOfDay? _horaVuelta;
+  DateTime? _fechaHoraIda;
+  DateTime? _fechaHoraVuelta;
   bool _viajeIdaYVuelta = false;
 
   @override
@@ -71,8 +69,7 @@ class _PublicarViajePaso2State extends State<PublicarViajePaso2> {
                               setState(() {
                                 _viajeIdaYVuelta = value!;
                                 if (!_viajeIdaYVuelta) {
-                                  _fechaVuelta = null;
-                                  _horaVuelta = null;
+                                  _fechaHoraVuelta = null;
                                 }
                               });
                             },
@@ -98,9 +95,19 @@ class _PublicarViajePaso2State extends State<PublicarViajePaso2> {
                 ),
               ),
               const SizedBox(height: 20),
-              _buildDateTimeCard(title: "Viaje de ida", icon: Icons.flight_takeoff, fecha: _fechaIda, hora: _horaIda, onSelectDate: () => _seleccionarFecha(true), onSelectTime: () => _seleccionarHora(true)),
+              _buildDateTimeCard(
+                title: "Viaje de ida", 
+                icon: Icons.flight_takeoff, 
+                fechaHora: _fechaHoraIda, 
+                onSelectDateTime: () => _seleccionarFechaHora(true)
+              ),
               const SizedBox(height: 20),
-              if (_viajeIdaYVuelta) _buildDateTimeCard(title: "Viaje de vuelta", icon: Icons.flight_land, fecha: _fechaVuelta, hora: _horaVuelta, onSelectDate: () => _seleccionarFecha(false), onSelectTime: () => _seleccionarHora(false)),
+              if (_viajeIdaYVuelta) _buildDateTimeCard(
+                title: "Viaje de vuelta", 
+                icon: Icons.flight_land, 
+                fechaHora: _fechaHoraVuelta, 
+                onSelectDateTime: () => _seleccionarFechaHora(false)
+              ),
               const SizedBox(height: 40),
               SizedBox(
                 width: double.infinity,
@@ -149,13 +156,25 @@ class _PublicarViajePaso2State extends State<PublicarViajePaso2> {
     );
   }
 
-  Widget _buildDateTimeCard({required String title, required IconData icon, required DateTime? fecha, required TimeOfDay? hora, required VoidCallback onSelectDate, required VoidCallback onSelectTime}) {
+  Widget _buildDateTimeCard({
+    required String title, 
+    required IconData icon, 
+    required DateTime? fechaHora, 
+    required VoidCallback onSelectDateTime
+  }) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), spreadRadius: 1, blurRadius: 5, offset: const Offset(0, 2))],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            spreadRadius: 0,
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          )
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -165,7 +184,10 @@ class _PublicarViajePaso2State extends State<PublicarViajePaso2> {
               Container(
                 width: 40,
                 height: 40,
-                decoration: BoxDecoration(color: const Color(0xFF854937).withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF854937).withOpacity(0.1), 
+                  borderRadius: BorderRadius.circular(20)
+                ),
                 child: Icon(icon, color: const Color(0xFF854937)),
               ),
               const SizedBox(width: 16),
@@ -173,96 +195,170 @@ class _PublicarViajePaso2State extends State<PublicarViajePaso2> {
             ],
           ),
           const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: GestureDetector(
-                  onTap: onSelectDate,
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(8)),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.calendar_today, color: Color(0xFF854937)),
-                        const SizedBox(width: 8),
-                        Expanded(child: Text(fecha != null ? "${fecha.day}/${fecha.month}/${fecha.year}" : "Seleccionar fecha", style: TextStyle(color: fecha != null ? Colors.black : Colors.grey), overflow: TextOverflow.ellipsis)),
-                      ],
-                    ),
-                  ),
-                ),
+          // Un solo botón para seleccionar fecha y hora
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: onSelectDateTime,
+              icon: const Icon(Icons.calendar_today, size: 20),
+              label: Text(
+                fechaHora != null 
+                  ? "${fechaHora.day}/${fechaHora.month}/${fechaHora.year} a las ${fechaHora.hour.toString().padLeft(2, "0")}:${fechaHora.minute.toString().padLeft(2, "0")}"
+                  : "Seleccionar fecha y hora",
+                style: const TextStyle(fontSize: 16),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: GestureDetector(
-                  onTap: onSelectTime,
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(8)),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.access_time, color: Color(0xFF854937)),
-                        const SizedBox(width: 8),
-                        Expanded(child: Text(hora != null ? "${hora.hour.toString().padLeft(2, "0")}:${hora.minute.toString().padLeft(2, "0")}" : "Seleccionar hora", style: TextStyle(color: hora != null ? Colors.black : Colors.grey), overflow: TextOverflow.ellipsis)),
-                      ],
-                    ),
-                  ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: fechaHora != null ? const Color(0xFF854937) : Colors.grey.shade300,
+                foregroundColor: fechaHora != null ? Colors.white : Colors.grey.shade600,
+                padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
                 ),
+                elevation: 0,
               ),
-            ],
+            ),
           ),
+          if (fechaHora != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Row(
+                children: [
+                  const Icon(Icons.check_circle, color: Colors.green, size: 16),
+                  const SizedBox(width: 4),
+                  const Text(
+                    "Fecha y hora confirmadas",
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.green,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );
   }
 
   bool get _puedeAvanzar {
-    if (_fechaIda == null || _horaIda == null) return false;
-    if (_viajeIdaYVuelta && (_fechaVuelta == null || _horaVuelta == null)) return false;
+    if (_fechaHoraIda == null) return false;
+    if (_viajeIdaYVuelta && _fechaHoraVuelta == null) return false;
     return true;
   }
 
-  Future<void> _seleccionarFecha(bool esIda) async {
-    final DateTime? picked = await showDatePicker(
+  Future<void> _seleccionarFechaHora(bool esIda) async {
+    // Primero seleccionar la fecha
+    final DateTime? pickedDate = await showDatePicker(
       context: context,
       initialDate: DateTime.now(),
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365)),
+      helpText: 'Selecciona la fecha del viaje',
       builder: (context, child) {
-        return Theme(data: Theme.of(context).copyWith(colorScheme: const ColorScheme.light(primary: Color(0xFF854937))), child: child!);
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(primary: Color(0xFF854937)),
+          ),
+          child: child!,
+        );
       },
     );
-    if (picked != null) {
-      setState(() {
-        if (esIda) {
-          _fechaIda = picked;
-        } else {
-          _fechaVuelta = picked;
-        }
-      });
-    }
-  }
 
-  Future<void> _seleccionarHora(bool esIda) async {
-    final TimeOfDay initialTime = (!esIda && _viajeIdaYVuelta) ? const TimeOfDay(hour: 14, minute: 0) : const TimeOfDay(hour: 14, minute: 0);
-    final TimeOfDay? picked = await showTimePicker(
+    if (pickedDate == null) return; // Usuario canceló la selección de fecha
+
+    // Determinar la hora mínima basada en si es hoy o un día futuro
+    final DateTime now = DateTime.now();
+    final bool isToday = pickedDate.year == now.year && 
+                        pickedDate.month == now.month && 
+                        pickedDate.day == now.day;
+    
+    // Si es hoy, la hora mínima es la hora actual + 1 hora
+    // Si es un día futuro, puede seleccionar cualquier hora
+    TimeOfDay initialTime;
+    if (isToday) {
+      final nextHour = now.add(const Duration(hours: 1));
+      initialTime = TimeOfDay(hour: nextHour.hour, minute: 0);
+    } else {
+      initialTime = const TimeOfDay(hour: 8, minute: 0); // 8:00 AM por defecto
+    }
+
+    // Ahora seleccionar la hora
+    final TimeOfDay? pickedTime = await showTimePicker(
       context: context,
       initialTime: initialTime,
+      helpText: 'Selecciona la hora del viaje',
       builder: (context, child) {
-        return Theme(data: Theme.of(context).copyWith(colorScheme: const ColorScheme.light(primary: Color(0xFF854937))), child: child!);
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(primary: Color(0xFF854937)),
+          ),
+          child: child!,
+        );
       },
     );
-    if (picked != null) {
-      setState(() {
-        if (esIda) {
-          _horaIda = picked;
-        } else {
-          _horaVuelta = picked;
-        }
-      });
+
+    if (pickedTime == null) return; // Usuario canceló la selección de hora
+
+    // Crear la fecha y hora combinada
+    final DateTime combinedDateTime = DateTime(
+      pickedDate.year,
+      pickedDate.month,
+      pickedDate.day,
+      pickedTime.hour,
+      pickedTime.minute,
+    );
+
+    // Validar que no sea una hora pasada si es hoy
+    if (isToday && combinedDateTime.isBefore(now.add(const Duration(minutes: 30)))) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('⚠️ Selecciona una hora al menos 30 minutos en el futuro'),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+      return;
+    }
+
+    // Actualizar el estado
+    setState(() {
+      if (esIda) {
+        _fechaHoraIda = combinedDateTime;
+      } else {
+        _fechaHoraVuelta = combinedDateTime;
+      }
+    });
+
+    // Mostrar confirmación
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '✅ ${esIda ? "Fecha y hora de ida" : "Fecha y hora de vuelta"} confirmadas: '
+            '${combinedDateTime.day}/${combinedDateTime.month}/${combinedDateTime.year} '
+            'a las ${combinedDateTime.hour.toString().padLeft(2, "0")}:${combinedDateTime.minute.toString().padLeft(2, "0")}'
+          ),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 2),
+        ),
+      );
     }
   }
 
   void _continuarPaso3() {
-    Navigator.push(context, MaterialPageRoute(builder: (context) => PublicarViajePaso3(ubicaciones: widget.ubicaciones, fechaIda: _fechaIda!, horaIda: _horaIda!, fechaVuelta: _fechaVuelta, horaVuelta: _horaVuelta, viajeIdaYVuelta: _viajeIdaYVuelta)));
+    Navigator.push(
+      context, 
+      MaterialPageRoute(
+        builder: (context) => PublicarViajePaso3(
+          ubicaciones: widget.ubicaciones,
+          fechaHoraIda: _fechaHoraIda!,
+          fechaHoraVuelta: _viajeIdaYVuelta ? _fechaHoraVuelta : null,
+          viajeIdaYVuelta: _viajeIdaYVuelta,
+        ),
+      ),
+    );
   }
 }
