@@ -18,11 +18,24 @@ class SocketService {
   final StreamController<Map<String, dynamic>> _deletedMessageStreamController = 
       StreamController<Map<String, dynamic>>.broadcast();
   
+  // StreamControllers específicos para chat grupal
+  final StreamController<Map<String, dynamic>> _groupMessageStreamController = 
+      StreamController<Map<String, dynamic>>.broadcast();
+  final StreamController<Map<String, dynamic>> _groupParticipantsStreamController = 
+      StreamController<Map<String, dynamic>>.broadcast();
+  final StreamController<Map<String, dynamic>> _groupChatEventsStreamController = 
+      StreamController<Map<String, dynamic>>.broadcast();
+  
   // Getters para los streams
   Stream<Map<String, dynamic>> get messageStream => _messageStreamController.stream;
   Stream<bool> get connectionStream => _connectionStreamController.stream;
   Stream<Map<String, dynamic>> get editedMessageStream => _editedMessageStreamController.stream;
   Stream<Map<String, dynamic>> get deletedMessageStream => _deletedMessageStreamController.stream;
+  
+  // Getters para streams de chat grupal
+  Stream<Map<String, dynamic>> get groupMessageStream => _groupMessageStreamController.stream;
+  Stream<Map<String, dynamic>> get groupParticipantsStream => _groupParticipantsStreamController.stream;
+  Stream<Map<String, dynamic>> get groupChatEventsStream => _groupChatEventsStreamController.stream;
   
   // Callback para nuevos mensajes (mantiene compatibilidad)
   Function(dynamic)? _onNewMessageCallback;
@@ -132,22 +145,109 @@ class SocketService {
 
       // === EVENTOS ESPECÍFICOS PARA CHAT GRUPAL ===
 
+      // Mensaje grupal recibido
+      socket!.on('nuevo_mensaje_grupal', (data) {
+        print('🚗💬 Nuevo mensaje grupal recibido: $data');
+        _handleGroupMessage(data);
+      });
+
+      // Participante se unió al chat grupal
+      socket!.on('participante_unido', (data) {
+        print('🚗➕ Participante unido al chat grupal: $data');
+        _handleParticipantJoined(data);
+      });
+
+      // Participante salió del chat grupal
+      socket!.on('participante_salio', (data) {
+        print('🚗➖ Participante salió del chat grupal: $data');
+        _handleParticipantLeft(data);
+      });
+
+      // Confirmación de unión al chat grupal
+      socket!.on('unido_chat_grupal', (data) {
+        print('🚗✅ Confirmación unión chat grupal: $data');
+        _handleGroupChatJoined(data);
+      });
+
+      // Confirmación de salida del chat grupal
+      socket!.on('salio_chat_grupal', (data) {
+        print('🚗❌ Confirmación salida chat grupal: $data');
+        _handleGroupChatLeft(data);
+      });
+
+      // Estado del chat grupal
+      socket!.on('estado_chat_grupal', (data) {
+        print('🚗📊 Estado chat grupal: $data');
+        _handleGroupChatState(data);
+      });
+
+      // Notificación de chat grupal creado
+      socket!.on('chat_grupal_creado', (data) {
+        print('🚗🆕 Chat grupal creado: $data');
+        _handleGroupChatCreated(data);
+      });
+
+      // Notificación de chat grupal finalizado
+      socket!.on('chat_grupal_finalizado', (data) {
+        print('🚗🏁 Chat grupal finalizado: $data');
+        _handleGroupChatFinished(data);
+      });
+
+      // Notificación de agregado al chat grupal
+      socket!.on('agregado_chat_grupal', (data) {
+        print('🚗➕ Agregado al chat grupal: $data');
+        _handleAddedToGroupChat(data);
+      });
+
+      // Notificación de eliminado del chat grupal
+      socket!.on('eliminado_chat_grupal', (data) {
+        print('🚗➖ Eliminado del chat grupal: $data');
+        _handleRemovedFromGroupChat(data);
+      });
+
+      // Participante agregado al chat grupal
+      socket!.on('participante_agregado', (data) {
+        print('🚗👥 Participante agregado: $data');
+        _handleParticipantAdded(data);
+      });
+
+      // Participante eliminado del chat grupal
+      socket!.on('participante_eliminado', (data) {
+        print('🚗👥 Participante eliminado: $data');
+        _handleParticipantRemoved(data);
+      });
+
+      // Confirmación de mensaje grupal enviado
+      socket!.on('mensaje_grupal_enviado', (data) {
+        print('🚗✅ Mensaje grupal enviado confirmado: $data');
+      });
+
+      // Errores específicos del chat grupal
+      socket!.on('error_chat_grupal', (data) {
+        print('🚗❌ Error chat grupal: $data');
+      });
+
+      socket!.on('error_mensaje_grupal', (data) {
+        print('🚗❌ Error mensaje grupal: $data');
+        _handleGroupMessageError(data);
+      });
+
       // Edición grupal
       socket!.on('edicion_grupal_exitosa', (data) {
-        print('✅ Edición grupal exitosa: $data');
+        print('🚗✅ Edición grupal exitosa: $data');
       });
 
       socket!.on('error_edicion_grupal', (data) {
-        print('❌ Error edición grupal: $data');
+        print('🚗❌ Error edición grupal: $data');
       });
 
       // Eliminación grupal
       socket!.on('eliminacion_grupal_exitosa', (data) {
-        print('✅ Eliminación grupal exitosa: $data');
+        print('🚗✅ Eliminación grupal exitosa: $data');
       });
 
       socket!.on('error_eliminacion_grupal', (data) {
-        print('❌ Error eliminación grupal: $data');
+        print('🚗❌ Error eliminación grupal: $data');
       });
 
       // Escuchar confirmación de mensaje enviado
@@ -277,6 +377,57 @@ class SocketService {
     socket!.emit('eliminar_mensaje_grupal', messageData);
   }
 
+  // === MÉTODOS PARA CHAT GRUPAL ===
+
+  // Unirse al chat grupal
+  void joinGroupChat(String idViaje) {
+    if (socket?.connected != true) {
+      print('❌ Socket no conectado, no se puede unir al chat grupal');
+      return;
+    }
+
+    print('🚗📝 Uniéndose al chat grupal del viaje: $idViaje');
+    socket!.emit('unirse_chat_grupal', {'idViaje': idViaje});
+  }
+
+  // Salir del chat grupal
+  void leaveGroupChat(String idViaje) {
+    if (socket?.connected != true) {
+      print('❌ Socket no conectado, no se puede salir del chat grupal');
+      return;
+    }
+
+    print('🚗📝 Saliendo del chat grupal del viaje: $idViaje');
+    socket!.emit('salir_chat_grupal', {'idViaje': idViaje});
+  }
+
+  // Enviar mensaje al chat grupal
+  void sendGroupMessage(String idViaje, String contenido) {
+    if (socket?.connected != true) {
+      print('❌ Socket no conectado, no se puede enviar mensaje grupal');
+      return;
+    }
+
+    final messageData = {
+      'idViaje': idViaje,
+      'contenido': contenido,
+    };
+
+    print('🚗📤 Enviando mensaje grupal: $messageData');
+    socket!.emit('enviar_mensaje_grupal', messageData);
+  }
+
+  // Obtener estado del chat grupal
+  void getGroupChatState(String idViaje) {
+    if (socket?.connected != true) {
+      print('❌ Socket no conectado, no se puede obtener estado del chat grupal');
+      return;
+    }
+
+    print('🚗📊 Obteniendo estado del chat grupal: $idViaje');
+    socket!.emit('obtener_estado_chat_grupal', {'idViaje': idViaje});
+  }
+
   // Unirse a chat de viaje
   void joinViajeChat(String idViaje) {
     if (socket?.connected == true) {
@@ -373,6 +524,224 @@ class SocketService {
     }
   }
 
+  // === HANDLERS PARA EVENTOS DE CHAT GRUPAL ===
+
+  // Manejar mensaje grupal recibido
+  void _handleGroupMessage(dynamic data) {
+    try {
+      print('🚗💬 Procesando mensaje grupal en service: $data');
+      final messageData = Map<String, dynamic>.from(data);
+      
+      // Marcar como mensaje grupal
+      messageData['_isGroupMessage'] = true;
+      
+      // Emitir a streams específicos
+      _groupMessageStreamController.add(messageData);
+      _messageStreamController.add(messageData); // También al stream general
+      
+      print('🚗💬 Mensaje grupal procesado exitosamente');
+    } catch (e) {
+      print('❌ Error procesando mensaje grupal: $e');
+    }
+  }
+
+  // Manejar participante que se unió
+  void _handleParticipantJoined(dynamic data) {
+    try {
+      print('🚗➕ Procesando participante unido: $data');
+      final eventData = Map<String, dynamic>.from(data);
+      eventData['_eventType'] = 'participant_joined';
+      
+      _groupParticipantsStreamController.add(eventData);
+      _groupChatEventsStreamController.add(eventData);
+      
+      print('🚗➕ Participante unido procesado exitosamente');
+    } catch (e) {
+      print('❌ Error procesando participante unido: $e');
+    }
+  }
+
+  // Manejar participante que salió
+  void _handleParticipantLeft(dynamic data) {
+    try {
+      print('🚗➖ Procesando participante salió: $data');
+      final eventData = Map<String, dynamic>.from(data);
+      eventData['_eventType'] = 'participant_left';
+      
+      _groupParticipantsStreamController.add(eventData);
+      _groupChatEventsStreamController.add(eventData);
+      
+      print('🚗➖ Participante salió procesado exitosamente');
+    } catch (e) {
+      print('❌ Error procesando participante salió: $e');
+    }
+  }
+
+  // Manejar confirmación de unión al chat grupal
+  void _handleGroupChatJoined(dynamic data) {
+    try {
+      print('🚗✅ Procesando confirmación unión chat grupal: $data');
+      final eventData = Map<String, dynamic>.from(data);
+      eventData['_eventType'] = 'group_chat_joined';
+      
+      _groupChatEventsStreamController.add(eventData);
+      
+      print('🚗✅ Confirmación unión chat grupal procesada exitosamente');
+    } catch (e) {
+      print('❌ Error procesando confirmación unión chat grupal: $e');
+    }
+  }
+
+  // Manejar confirmación de salida del chat grupal
+  void _handleGroupChatLeft(dynamic data) {
+    try {
+      print('🚗❌ Procesando confirmación salida chat grupal: $data');
+      final eventData = Map<String, dynamic>.from(data);
+      eventData['_eventType'] = 'group_chat_left';
+      
+      _groupChatEventsStreamController.add(eventData);
+      
+      print('🚗❌ Confirmación salida chat grupal procesada exitosamente');
+    } catch (e) {
+      print('❌ Error procesando confirmación salida chat grupal: $e');
+    }
+  }
+
+  // Manejar estado del chat grupal
+  void _handleGroupChatState(dynamic data) {
+    try {
+      print('🚗📊 Procesando estado chat grupal: $data');
+      final eventData = Map<String, dynamic>.from(data);
+      eventData['_eventType'] = 'group_chat_state';
+      
+      _groupChatEventsStreamController.add(eventData);
+      
+      print('🚗📊 Estado chat grupal procesado exitosamente');
+    } catch (e) {
+      print('❌ Error procesando estado chat grupal: $e');
+    }
+  }
+
+  // Manejar chat grupal creado
+  void _handleGroupChatCreated(dynamic data) {
+    try {
+      print('🚗🆕 Procesando chat grupal creado: $data');
+      final eventData = Map<String, dynamic>.from(data);
+      eventData['_eventType'] = 'group_chat_created';
+      
+      _groupChatEventsStreamController.add(eventData);
+      
+      print('🚗🆕 Chat grupal creado procesado exitosamente');
+    } catch (e) {
+      print('❌ Error procesando chat grupal creado: $e');
+    }
+  }
+
+  // Manejar chat grupal finalizado
+  void _handleGroupChatFinished(dynamic data) {
+    try {
+      print('🚗🏁 Procesando chat grupal finalizado: $data');
+      final eventData = Map<String, dynamic>.from(data);
+      eventData['_eventType'] = 'group_chat_finished';
+      
+      _groupChatEventsStreamController.add(eventData);
+      
+      print('🚗🏁 Chat grupal finalizado procesado exitosamente');
+    } catch (e) {
+      print('❌ Error procesando chat grupal finalizado: $e');
+    }
+  }
+
+  // Manejar agregado al chat grupal
+  void _handleAddedToGroupChat(dynamic data) {
+    try {
+      print('🚗➕ Procesando agregado al chat grupal: $data');
+      final eventData = Map<String, dynamic>.from(data);
+      eventData['_eventType'] = 'added_to_group_chat';
+      
+      _groupChatEventsStreamController.add(eventData);
+      
+      print('🚗➕ Agregado al chat grupal procesado exitosamente');
+    } catch (e) {
+      print('❌ Error procesando agregado al chat grupal: $e');
+    }
+  }
+
+  // Manejar eliminado del chat grupal
+  void _handleRemovedFromGroupChat(dynamic data) {
+    try {
+      print('🚗➖ Procesando eliminado del chat grupal: $data');
+      final eventData = Map<String, dynamic>.from(data);
+      eventData['_eventType'] = 'removed_from_group_chat';
+      
+      _groupChatEventsStreamController.add(eventData);
+      
+      print('🚗➖ Eliminado del chat grupal procesado exitosamente');
+    } catch (e) {
+      print('❌ Error procesando eliminado del chat grupal: $e');
+    }
+  }
+
+  // Manejar participante agregado
+  void _handleParticipantAdded(dynamic data) {
+    try {
+      print('🚗👥 Procesando participante agregado: $data');
+      final eventData = Map<String, dynamic>.from(data);
+      eventData['_eventType'] = 'participant_added';
+      
+      _groupParticipantsStreamController.add(eventData);
+      _groupChatEventsStreamController.add(eventData);
+      
+      print('🚗👥 Participante agregado procesado exitosamente');
+    } catch (e) {
+      print('❌ Error procesando participante agregado: $e');
+    }
+  }
+
+  // Manejar participante eliminado
+  void _handleParticipantRemoved(dynamic data) {
+    try {
+      print('🚗👥 Procesando participante eliminado: $data');
+      final eventData = Map<String, dynamic>.from(data);
+      eventData['_eventType'] = 'participant_removed';
+      
+      _groupParticipantsStreamController.add(eventData);
+      _groupChatEventsStreamController.add(eventData);
+      
+      print('🚗👥 Participante eliminado procesado exitosamente');
+    } catch (e) {
+      print('❌ Error procesando participante eliminado: $e');
+    }
+  }
+
+  // Manejar errores de mensajes grupales
+  void _handleGroupMessageError(dynamic data) {
+    try {
+      print('🚗❌ Procesando error de mensaje grupal: $data');
+      final errorData = Map<String, dynamic>.from(data);
+      final errorMessage = errorData['error']?.toString() ?? '';
+      
+      // Detectar error específico de permisos
+      if (errorMessage.contains('No tienes permisos') || 
+          errorMessage.contains('permisos para enviar mensajes')) {
+        print('🚗🔧 Error de permisos detectado, emitiendo evento para re-inicialización');
+        
+        // Emitir evento especial que el chat grupal puede escuchar
+        errorData['_eventType'] = 'permission_error';
+        errorData['_needsReinitialization'] = true;
+        _groupChatEventsStreamController.add(errorData);
+      } else {
+        // Otros errores, emitir normalmente
+        errorData['_eventType'] = 'message_error';
+        _groupChatEventsStreamController.add(errorData);
+      }
+      
+      print('🚗❌ Error de mensaje grupal procesado');
+    } catch (e) {
+      print('❌ Error procesando error de mensaje grupal: $e');
+    }
+  }
+
   // Callback para nuevos mensajes (mantiene compatibilidad con código existente)
   void setOnNewMessageCallback(Function(dynamic) callback) {
     _onNewMessageCallback = callback;
@@ -401,5 +770,8 @@ class SocketService {
     _connectionStreamController.close();
     _editedMessageStreamController.close();
     _deletedMessageStreamController.close();
+    _groupMessageStreamController.close();
+    _groupParticipantsStreamController.close();
+    _groupChatEventsStreamController.close();
   }
 }

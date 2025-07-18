@@ -90,6 +90,10 @@ export function initSocket(server) {
       }
 
       try {
+        console.log(`📱 DEVICE DEBUG - Socket enviando mensaje: ${socket.userId} → ${receptorRut || idViajeMongo}`);
+        console.log(`📱 DEVICE DEBUG - Contenido: "${contenido}"`);
+        console.log(`📱 DEVICE DEBUG - Timestamp: ${new Date().toISOString()}`);
+        
         const mensajeProcesado = await enviarMensaje(
           socket.userId,
           contenido,
@@ -98,6 +102,7 @@ export function initSocket(server) {
         );
 
         console.log(`✅ Mensaje guardado y enviando a usuarios...`);
+        console.log(`📱 DEVICE DEBUG - Mensaje procesado exitosamente: ID=${mensajeProcesado.id}`);
 
         const mensajeParaEnviar = {
           id: mensajeProcesado.id,
@@ -110,19 +115,33 @@ export function initSocket(server) {
           eliminado: false
         };
 
+        console.log(`📱 DEVICE DEBUG - Mensaje preparado para envío:`, mensajeParaEnviar);
+
         if (idViajeMongo) {
+          console.log(`📱 DEVICE DEBUG - Enviando a sala de viaje: viaje_${idViajeMongo}`);
           io.to(`viaje_${idViajeMongo}`).emit("nuevo_mensaje", mensajeParaEnviar);
           console.log(`📢 Mensaje enviado a chat de viaje ${idViajeMongo}`);
         } else if (receptorRut) {
+          console.log(`📱 DEVICE DEBUG - Enviando a usuarios: ${socket.userId} y ${receptorRut}`);
           io.to(`usuario_${socket.userId}`).emit("nuevo_mensaje", mensajeParaEnviar);
           io.to(`usuario_${receptorRut}`).emit("nuevo_mensaje", mensajeParaEnviar);
           console.log(`💬 Mensaje enviado entre ${socket.userId} y ${receptorRut}`);
         }
 
+        console.log(`📱 DEVICE DEBUG - Confirmando envío al emisor...`);
         socket.emit("mensaje_enviado", { success: true, mensaje: mensajeParaEnviar });
+        console.log(`📱 DEVICE DEBUG - Confirmación enviada al emisor`);
 
       } catch (error) {
         console.error("❌ Error al procesar mensaje:", error.message);
+        console.error(`📱 DEVICE DEBUG - Error en socket enviarMensaje:`, {
+          userId: socket.userId,
+          receptorRut,
+          idViajeMongo,
+          contenido,
+          error: error.message,
+          stack: error.stack
+        });
         socket.emit("error_mensaje", { error: error.message });
       }
     });
@@ -138,10 +157,14 @@ export function initSocket(server) {
       }
 
       try {
+        console.log(`📱 DEVICE DEBUG - Socket editando mensaje: ID=${idMensaje}, Editor=${socket.userId}`);
+        console.log(`📱 DEVICE DEBUG - Nuevo contenido: "${nuevoContenido}"`);
+        
         const mensajeEditado = await editarMensaje(idMensaje, socket.userId, nuevoContenido);
 
         console.log(`✏️ Mensaje editado por usuario ${socket.userId}: ${idMensaje}`);
         console.log(`✏️ DEBUG: Mensaje editado completo:`, mensajeEditado);
+        console.log(`📱 DEVICE DEBUG - Edición exitosa:`, mensajeEditado);
 
         const mensajeParaEnviar = {
           id: mensajeEditado.id,
@@ -187,17 +210,23 @@ export function initSocket(server) {
       }
 
       try {
+        console.log(`📱 DEVICE DEBUG - Socket eliminando mensaje: ID=${idMensaje}, Usuario=${socket.userId}`);
+        
         // Necesitamos obtener la información del mensaje antes de eliminarlo
         const infoMensaje = await obtenerInfoMensajeParaEliminacion(idMensaje, socket.userId);
         
         if (!infoMensaje) {
+          console.error(`❌ DEVICE DEBUG - Mensaje no encontrado o sin permisos: ${idMensaje}`);
           throw new Error("Mensaje no encontrado o no tienes permisos para eliminarlo");
         }
+
+        console.log(`📱 DEVICE DEBUG - Info mensaje encontrada:`, infoMensaje);
 
         // Eliminar el mensaje
         await eliminarMensaje(idMensaje, socket.userId);
 
         console.log(`🗑️ Mensaje eliminado por usuario ${socket.userId}: ${idMensaje}`);
+        console.log(`📱 DEVICE DEBUG - Eliminación exitosa`);
 
         const eventoEliminacion = {
           idMensaje,
@@ -206,9 +235,12 @@ export function initSocket(server) {
           tipo: infoMensaje.tipo
         };
 
+        console.log(`📱 DEVICE DEBUG - Evento eliminación preparado:`, eventoEliminacion);
+
         // Enviar notificación de eliminación a las salas correspondientes
         if (infoMensaje.tipo === "personal") {
           // Chat 1 a 1
+          console.log(`📱 DEVICE DEBUG - Enviando eliminación a chat personal`);
           io.to(`usuario_${socket.userId}`).emit("mensaje_eliminado", eventoEliminacion);
           io.to(`usuario_${infoMensaje.receptor}`).emit("mensaje_eliminado", eventoEliminacion);
           console.log(`🗑️ Eliminación enviada a chat 1 a 1: ${socket.userId} ↔ ${infoMensaje.receptor}`);

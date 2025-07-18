@@ -26,7 +26,7 @@ class MapPage extends StatefulWidget {
 class _MapPageState extends State<MapPage> {
   late MapController controller;
   final TextEditingController destinoController = TextEditingController();
-  int _selectedIndex = 1; // Mapa ahora está en índice 1 (Buscar)
+  int _selectedIndex = 1; // Mapa está en índice 1 cuando showSOS = true
   List<DireccionSugerida> _sugerencias = [];
   bool _mostrandoSugerencias = false;
   Timer? _debounceTimer;

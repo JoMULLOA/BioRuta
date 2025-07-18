@@ -80,7 +80,7 @@ class CustomNavbar extends StatelessWidget {
     }
 
     return BottomNavigationBar(
-      currentIndex: currentIndex,
+      currentIndex: currentIndex.clamp(0, items.length - 1), // 🔒 PROTECCIÓN: Asegurar que el índice esté en rango válido
       selectedItemColor: const Color(0xFF854937),
       unselectedItemColor: const Color(0xFF070505).withOpacity(0.5),
       backgroundColor: const Color(0xFFF2EEED),

@@ -210,6 +210,16 @@ export async function responderSolicitudViajeService(notificacionId, aceptar, ru
       await viaje.save();
 
       console.log(`✅ Pasajero ${notificacion.rutEmisor} agregado al viaje ${notificacion.viajeId}`);
+
+      // Intentar agregar al pasajero al chat grupal
+      console.log(`🔄 Intentando agregar pasajero ${notificacion.rutEmisor} al chat grupal del viaje ${notificacion.viajeId}`);
+      try {
+        const { agregarParticipante } = await import('../services/chatGrupal.service.js');
+        await agregarParticipante(notificacion.viajeId, notificacion.rutEmisor);
+        console.log(`✅ Pasajero ${notificacion.rutEmisor} agregado EXITOSAMENTE al chat grupal del viaje ${notificacion.viajeId}`);
+      } catch (chatError) {
+        console.error(`❌ ERROR al agregar pasajero ${notificacion.rutEmisor} al chat grupal del viaje ${notificacion.viajeId}:`, chatError.message);
+      }
       
       return [{ 
         mensaje: "Solicitud de viaje aceptada y pasajero agregado", 

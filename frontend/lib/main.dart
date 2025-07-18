@@ -9,11 +9,15 @@ import 'buscar/inicio.dart';
 import 'publicar/publicar.dart';
 import 'chat/chat.dart';
 import 'perfil/perfil.dart';
+import 'services/viaje_estado_service.dart';
 import 'Ranking/ranking.dart';
 import 'sos/sos_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Inicializar servicio de estado de viaje
+  ViajeEstadoService.instance.initialize();
   
   try {
     // Inicializar sistema de notificaciones WebSocket
@@ -65,3 +69,4 @@ class MyApp extends StatelessWidget {
     );
   }
 }
+

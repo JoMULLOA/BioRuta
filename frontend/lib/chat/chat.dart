@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart'; // Importa SecureStorage
 import '../widgets/custom_navbar_con_notificaciones.dart';
 import 'pagina_individual.dart'; // Cambiar a la versión WebSocket
+import 'chat_grupal.dart'; // Importar chat grupal
 import '../models/user_models.dart';
+import '../models/chat_grupal_models.dart'; // Importar modelos de chat grupal
 import '../services/amistad_service.dart'; // Importar el servicio de amistad
+import '../services/chat_grupal_service.dart'; // Importar servicio de chat grupal
 class Chat extends StatefulWidget {
   @override
   ChatState createState() => ChatState();
@@ -20,6 +23,9 @@ class ChatState extends State<Chat> {
   String? _jwtToken; // Será nulo hasta que se cargue
   String? _rutUsuarioAutenticado; // Será nulo hasta que se cargue
 
+  // --- Variables para el chat grupal ---
+  ChatGrupalInfo? _viajeActivo;
+
   // Instancia de FlutterSecureStorage
   final FlutterSecureStorage _storage = FlutterSecureStorage();
 
@@ -33,7 +39,11 @@ class ChatState extends State<Chat> {
   Future<void> _initChatScreen() async {
     await _loadAuthData(); // Carga el token y el RUT
     if (_jwtToken != null && _rutUsuarioAutenticado != null) {
-      await _cargarAmigosDisponibles(); // Solo carga amigos si hay token y RUT
+      // Cargar amigos y viaje activo en paralelo
+      await Future.wait([
+        _cargarAmigosDisponibles(),
+        _cargarViajeActivo(),
+      ]);
     } else {
       setState(() {
         isLoading = false;
@@ -61,6 +71,23 @@ class ChatState extends State<Chat> {
     }
   }
 
+  // --- Función para cargar el viaje activo ---
+  Future<void> _cargarViajeActivo() async {
+    try {
+      // Usar directamente ChatGrupalService para evitar conflictos
+      final viajeActivo = await ChatGrupalService.obtenerViajeActivo();
+      
+      setState(() {
+        _viajeActivo = viajeActivo;
+      });
+      
+      print('🚗 Viaje activo cargado: ${viajeActivo.estaActivo}');
+      
+    } catch (e) {
+      print('ERROR: Error al cargar viaje activo: $e');
+    }
+  }
+  
   // --- Función para cargar SOLO los amigos desde el backend ---
   Future<void> _cargarAmigosDisponibles() async {
     // Asegurarse de que el token esté disponible antes de la petición
@@ -167,16 +194,8 @@ class ChatState extends State<Chat> {
                   )
                 : ListView(
                     children: [
-                      Card(
-                        color: Colors.brown.shade100.withOpacity(0.5),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                        child: ListTile(
-                          leading: Icon(Icons.star, color: secundario),
-                          title: Text('Chat de Viaje', style: TextStyle(color: principal, fontWeight: FontWeight.bold)),
-                          subtitle: Text('Donde estás que no te veo', style: TextStyle(color: secundario)),
-                          onTap: () => Navigator.pushNamed(context, '/chatImportante'),
-                        ),
-                      ),
+                      // Card del viaje grupal (siempre visible)
+                      _buildViajeCard(),
                       const SizedBox(height: 16),
                       Text(
                         'Amistades',
@@ -283,6 +302,95 @@ class ChatState extends State<Chat> {
               break;
           }
         },
+      ),
+    );
+  }
+
+  // --- Método para construir la card del viaje ---
+  Widget _buildViajeCard() {
+    final Color principal = const Color(0xFF6B3B2D);
+    final Color secundario = const Color(0xFF8D4F3A);
+    
+    // Determinar el estado del viaje
+    bool tieneViajeActivo = _viajeActivo?.estaActivo == true;
+    
+    return Card(
+      color: tieneViajeActivo 
+          ? Colors.brown.shade100.withOpacity(0.8) // Tonalidad clara si tiene viaje activo
+          : Colors.brown.shade100.withOpacity(0.3), // Tonalidad oscura si no tiene viaje activo
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: tieneViajeActivo ? 3 : 1,
+      child: ListTile(
+        leading: Icon(
+          tieneViajeActivo ? Icons.directions_car : Icons.directions_car_outlined,
+          color: tieneViajeActivo ? secundario : Colors.grey[600],
+          size: 28,
+        ),
+        title: Text(
+          tieneViajeActivo ? 'Chat de Viaje' : 'Sin Viaje Activo',
+          style: TextStyle(
+            color: tieneViajeActivo ? principal : Colors.grey[700],
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (tieneViajeActivo && _viajeActivo != null) ...[
+              Text(
+                '${_viajeActivo!.cantidadPasajeros} pasajeros',
+                style: TextStyle(
+                  color: secundario,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              if (_viajeActivo!.origen != null && _viajeActivo!.destino != null)
+                Text(
+                  '${_viajeActivo!.origen} → ${_viajeActivo!.destino}',
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 11,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+            ] else ...[
+              Text(
+                'No hay viajes activos',
+                style: TextStyle(
+                  color: Colors.grey[600],
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ],
+        ),
+        trailing: tieneViajeActivo
+            ? Icon(
+                Icons.chevron_right,
+                color: secundario,
+              )
+            : null,
+        onTap: tieneViajeActivo && _viajeActivo != null
+            ? () {
+                // Navegar al chat grupal
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ChatGrupalScreen(
+                      idViaje: _viajeActivo!.idViaje,
+                      nombreViaje: _viajeActivo!.origen != null && _viajeActivo!.destino != null
+                          ? '${_viajeActivo!.origen} → ${_viajeActivo!.destino}'
+                          : 'Chat de Viaje',
+                    ),
+                  ),
+                ).then((_) {
+                  // Refrescar información del viaje cuando se regrese
+                  print('🚗🔄 Regresando del chat grupal, actualizando estado...');
+                  _cargarViajeActivo();
+                });
+              }
+            : null,
       ),
     );
   }
