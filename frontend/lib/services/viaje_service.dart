@@ -67,7 +67,7 @@ class ViajeService {
       if (response.statusCode == 201) {
         return {
           'success': true,
-          'viaje': data['data'],
+          'data': data['data'], // Esto ahora puede contener viaje_ida y viaje_vuelta
           'message': data['message'] ?? 'Viaje creado exitosamente'
         };
       } else if (response.statusCode == 401) {

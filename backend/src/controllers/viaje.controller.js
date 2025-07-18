@@ -99,8 +99,8 @@ export async function crearViaje(req, res) {
 
     console.log("✅ DEBUG - Fechas y horas válidas");
 
-    // Crear el viaje en MongoDB
-    const nuevoViaje = new Viaje({
+    // Crear el viaje de ida
+    const viajeIda = new Viaje({
       usuario_rut: req.user.rut,
       origen: {
         nombre: origen.displayName,
@@ -118,9 +118,9 @@ export async function crearViaje(req, res) {
       },
       fecha_ida: new Date(fechaHoraIda),
       hora_ida: new Date(fechaHoraIda).toTimeString().substring(0, 5), // Extraer solo HH:mm
-      fecha_vuelta: fechaHoraVuelta ? new Date(fechaHoraVuelta) : null,
-      hora_vuelta: fechaHoraVuelta ? new Date(fechaHoraVuelta).toTimeString().substring(0, 5) : null,
-      viaje_ida_vuelta: viajeIdaYVuelta,
+      fecha_vuelta: null, // Los viajes separados no tienen vuelta
+      hora_vuelta: null,
+      viaje_ida_vuelta: false, // Marcar como viaje simple
       max_pasajeros: maxPasajeros,
       solo_mujeres: soloMujeres,
       flexibilidad_salida: flexibilidadSalida,
@@ -130,24 +130,88 @@ export async function crearViaje(req, res) {
       vehiculo_patente: vehiculoPatente
     });
 
-    await nuevoViaje.save();
+    await viajeIda.save();
 
-    // Crear chat grupal para el viaje
+    // Crear chat grupal para el viaje de ida
     try {
-      await crearChatGrupal(nuevoViaje._id.toString(), req.user.rut);
-      console.log(`✅ Chat grupal creado para viaje ${nuevoViaje._id}`);
+      await crearChatGrupal(viajeIda._id.toString(), req.user.rut);
+      console.log(`✅ Chat grupal creado para viaje de ida ${viajeIda._id}`);
       
       // Notificar al conductor que se creó el chat grupal
-      notificarChatGrupalCreado(nuevoViaje._id.toString(), req.user.rut);
+      notificarChatGrupalCreado(viajeIda._id.toString(), req.user.rut);
     } catch (chatError) {
-      console.error(`⚠️ Error al crear chat grupal para viaje ${nuevoViaje._id}:`, chatError.message);
+      console.error(`⚠️ Error al crear chat grupal para viaje de ida ${viajeIda._id}:`, chatError.message);
       // No fallar la creación del viaje si falla el chat
     }
 
-    // Obtener datos completos para la respuesta
-    const viajeCompleto = await obtenerViajeConDatos(nuevoViaje._id);
+    let viajeVuelta = null;
 
-    handleSuccess(res, 201, "Viaje creado exitosamente", viajeCompleto);
+    // Si es un viaje de ida y vuelta, crear el viaje de vuelta
+    if (viajeIdaYVuelta && fechaHoraVuelta) {
+      console.log("🔄 DEBUG - Creando viaje de vuelta");
+      
+      viajeVuelta = new Viaje({
+        usuario_rut: req.user.rut,
+        origen: {
+          nombre: destino.displayName, // El origen de vuelta es el destino de ida
+          ubicacion: {
+            type: 'Point',
+            coordinates: [destino.lon, destino.lat]
+          }
+        },
+        destino: {
+          nombre: origen.displayName, // El destino de vuelta es el origen de ida
+          ubicacion: {
+            type: 'Point',
+            coordinates: [origen.lon, origen.lat]
+          }
+        },
+        fecha_ida: new Date(fechaHoraVuelta),
+        hora_ida: new Date(fechaHoraVuelta).toTimeString().substring(0, 5),
+        fecha_vuelta: null, // Los viajes separados no tienen vuelta
+        hora_vuelta: null,
+        viaje_ida_vuelta: false, // Marcar como viaje simple
+        max_pasajeros: maxPasajeros,
+        solo_mujeres: soloMujeres,
+        flexibilidad_salida: flexibilidadSalida,
+        precio: precio,
+        plazas_disponibles: plazasDisponibles,
+        comentarios: comentarios ? `${comentarios} (Viaje de vuelta)` : "Viaje de vuelta",
+        vehiculo_patente: vehiculoPatente
+      });
+
+      await viajeVuelta.save();
+
+      // Crear chat grupal para el viaje de vuelta
+      try {
+        await crearChatGrupal(viajeVuelta._id.toString(), req.user.rut);
+        console.log(`✅ Chat grupal creado para viaje de vuelta ${viajeVuelta._id}`);
+        
+        // Notificar al conductor que se creó el chat grupal
+        notificarChatGrupalCreado(viajeVuelta._id.toString(), req.user.rut);
+      } catch (chatError) {
+        console.error(`⚠️ Error al crear chat grupal para viaje de vuelta ${viajeVuelta._id}:`, chatError.message);
+        // No fallar la creación del viaje si falla el chat
+      }
+    }
+
+    // Obtener datos completos para la respuesta
+    const viajeIdaCompleto = await obtenerViajeConDatos(viajeIda._id);
+    
+    let respuestaData = {
+      viaje_ida: viajeIdaCompleto
+    };
+
+    if (viajeVuelta) {
+      const viajeVueltaCompleto = await obtenerViajeConDatos(viajeVuelta._id);
+      respuestaData.viaje_vuelta = viajeVueltaCompleto;
+    }
+
+    const mensaje = viajeVuelta 
+      ? "Viajes de ida y vuelta creados exitosamente" 
+      : "Viaje creado exitosamente";
+
+    handleSuccess(res, 201, mensaje, respuestaData);
 
   } catch (error) {
     console.error("Error al crear viaje:", error);
