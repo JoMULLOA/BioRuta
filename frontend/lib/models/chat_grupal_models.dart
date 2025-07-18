@@ -43,6 +43,14 @@ class ChatGrupalInfo {
       destinoNombre = json['destino'];
     }
     
+    // Extraer nombre del conductor si viene como objeto
+    String? conductorNombre;
+    if (json['conductor'] is Map<String, dynamic>) {
+      conductorNombre = json['conductor']['nombre'];
+    } else if (json['conductorNombre'] is String) {
+      conductorNombre = json['conductorNombre'];
+    }
+    
     return ChatGrupalInfo(
       idViaje: json['_id'] ?? json['idViaje'] ?? '', // El backend usa '_id'
       origen: origenNombre,
@@ -56,7 +64,7 @@ class ChatGrupalInfo {
       estaActivo: json['estado'] == 'activo' || json['estado'] == 'en_progreso' || json['estado'] == 'confirmado', // Basado en estado
       usuarioEstaEnChat: json['usuarioEstaEnChat'] ?? false,
       conductorRut: json['usuario_rut'], // El backend usa 'usuario_rut' para el creador
-      conductorNombre: json['conductorNombre'],
+      conductorNombre: conductorNombre,
     );
   }
 

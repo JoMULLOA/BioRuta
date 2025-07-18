@@ -231,13 +231,29 @@ class MensajeGrupalWidgetState extends State<MensajeGrupalWidget> {
                           
                           // Indicador de editado
                           if (widget.mensaje.editado) ...[
-                            const SizedBox(width: 4),
-                            Icon(
-                              Icons.edit,
-                              size: 10,
-                              color: widget.isOwn 
-                                  ? Colors.white70 
-                                  : Colors.black54,
+                            const SizedBox(width: 6),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.edit,
+                                  size: 12,
+                                  color: widget.isOwn 
+                                      ? Colors.white60 
+                                      : Colors.black45,
+                                ),
+                                const SizedBox(width: 2),
+                                Text(
+                                  'editado',
+                                  style: TextStyle(
+                                    color: widget.isOwn 
+                                        ? Colors.white60 
+                                        : Colors.black45,
+                                    fontSize: 9,
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                           
