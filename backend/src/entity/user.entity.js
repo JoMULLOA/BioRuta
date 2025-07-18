@@ -65,6 +65,7 @@ const UserSchema = new EntitySchema({
       type: "enum",
       enum: ["masculino", "femenino", "no_binario", "prefiero_no_decir"],
       nullable: true,
+    },
     fcmToken: {
       type: "text",
       nullable: true,

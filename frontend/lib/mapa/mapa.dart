@@ -94,7 +94,7 @@ class _MapPageState extends State<MapPage> {
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365)),
     );
-    if (picked != null && picked != fechaSeleccionada) {
+    if (picked != null && picked != fechaSeleccionada && mounted) { // Verificar mounted
       setState(() {
         fechaSeleccionada = picked;
       });
@@ -102,7 +102,7 @@ class _MapPageState extends State<MapPage> {
   }
 
   void _incrementarPasajeros() {
-    if (pasajeros < 8) {
+    if (pasajeros < 8 && mounted) { // Verificar mounted
       setState(() {
         pasajeros++;
       });
@@ -110,7 +110,7 @@ class _MapPageState extends State<MapPage> {
   }
 
   void _decrementarPasajeros() {
-    if (pasajeros > 1) {
+    if (pasajeros > 1 && mounted) { // Verificar mounted
       setState(() {
         pasajeros--;
       });
@@ -156,7 +156,7 @@ class _MapPageState extends State<MapPage> {
       ),
     );
 
-    if (direccion != null) {
+    if (direccion != null && mounted) { // Verificar si el widget está montado
       setState(() {
         direccionOrigen = direccion.displayName;
         origenLat = direccion.lat;
@@ -177,7 +177,7 @@ class _MapPageState extends State<MapPage> {
       ),
     );
 
-    if (direccion != null) {
+    if (direccion != null && mounted) { // Verificar si el widget está montado
       setState(() {
         direccionDestino = direccion.displayName;
         destinoLat = direccion.lat;
@@ -189,10 +189,18 @@ class _MapPageState extends State<MapPage> {
 
   @override
   void dispose() {
-    // Limpiar el callback al destruir el widget
-    RutaService.instance.limpiarCallback();
-    destinoController.dispose();
+    // Cancelar cualquier operación asíncrona pendiente
     _debounceTimer?.cancel();
+    
+    // Limpiar el callback del servicio de ruta
+    RutaService.instance.limpiarCallback();
+    
+    // Limpiar controladores
+    destinoController.dispose();
+    _origenController.dispose();
+    _destinoController.dispose();
+    
+    // Llamar al dispose del padre
     super.dispose();
   }
 
@@ -251,9 +259,11 @@ class _MapPageState extends State<MapPage> {
       String region = await BusquedaService.identificarRegion(miPosicion);
       double zoomNivel = UbicacionService.obtenerZoomParaRegion(region);
       
-      setState(() {
-        _regionActual = region;
-      });
+      if (mounted) { // Verificar antes de setState
+        setState(() {
+          _regionActual = region;
+        });
+      }
 
       await controller.moveTo(miPosicion);
       await controller.setZoom(zoomLevel: zoomNivel);
@@ -321,14 +331,14 @@ class _MapPageState extends State<MapPage> {
         final generales = todasLasSugerencias.where((s) => !s.esRegional).toList();
         final sugerenciasFinales = [...regionales, ...generales];
         
-        if (mounted) {
+        if (mounted) { // Verificar antes de setState
           setState(() {
             _sugerencias = sugerenciasFinales.take(5).toList();
             _mostrandoSugerencias = true;
           });
         }
       }
-        } catch (e) {
+    } catch (e) {
       debugPrint('Error al buscar sugerencias: $e');
     }
   }
@@ -394,11 +404,15 @@ class _MapPageState extends State<MapPage> {
 
   Future<void> _cargarMarcadoresViajes() async {
     try {
+      if (!mounted) return; // Verificar si el widget está montado
+      
       setState(() {
         _cargandoViajes = true;
       });
 
       final marcadoresObtenidos = await ViajeService.obtenerMarcadoresViajes();
+      
+      if (!mounted) return; // Verificar nuevamente después de la operación async
       
       setState(() {
         _marcadoresViajes = marcadoresObtenidos;
@@ -408,14 +422,18 @@ class _MapPageState extends State<MapPage> {
       await _agregarMarcadoresAlMapa();
     } catch (e) {
       debugPrint('❌ Error al cargar marcadores de viajes: $e');
-      setState(() {
-        _cargandoViajes = false;
-      });
+      if (mounted) { // Solo llamar setState si el widget está montado
+        setState(() {
+          _cargandoViajes = false;
+        });
+      }
     }
   }
 
   Future<void> _agregarMarcadoresAlMapa() async {
     try {
+      if (!mounted) return; // Verificar si el widget está montado
+      
       // Limpiar marcadores existentes
       for (final punto in _marcadoresEnMapa.values) {
         await controller.removeMarker(punto);
@@ -424,6 +442,8 @@ class _MapPageState extends State<MapPage> {
 
       // Agregar nuevos marcadores
       for (final marcador in _marcadoresViajes) {
+        if (!mounted) return; // Verificar en cada iteración
+        
         final geoPoint = GeoPoint(
           latitude: marcador.origen.latitud,
           longitude: marcador.origen.longitud,
