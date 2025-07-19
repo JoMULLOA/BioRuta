@@ -1,6 +1,5 @@
 name: 🚀 Auto-Deploy Pipeline BioRuta
 
-# Se ejecuta cuando haces push a 'base'
 on:
   push:
     branches: [base]
@@ -67,15 +66,12 @@ jobs:
           
           echo "✅ Código automáticamente mergeado a rama 'test'"
 
-  # PASO 3: Deploy a producción (MANUAL APPROVAL)
+  # PASO 3: Deploy a producción
   auto-deploy-production:
-    name: 🚀 Deploy a Producción (Requiere Aprobación)
+    name: 🚀 Deploy a Producción
     needs: [ci-checks, auto-merge-test]
     if: needs.ci-checks.outputs.deploy-ready == 'true'
     runs-on: ubuntu-latest
-    # environment: 
-    #   name: production
-    #   url: http://146.83.198.35:1245  # URL donde se puede verificar el deploy
     
     steps:
       - name: 📥 Checkout
@@ -89,7 +85,6 @@ jobs:
           git config user.name "BioRuta Bot"
           git config user.email "action@github.com"
           
-          # Merge automático a main (SOLO después de approval)
           git checkout main || git checkout -b main
           git merge origin/test --no-ff -m "🚀 Deploy aprobado: test → main"
           git push origin main
@@ -114,22 +109,11 @@ jobs:
           ACCESS_TOKEN_SECRET: ${{ secrets.ACCESS_TOKEN_SECRET }}
           HOST: ${{ secrets.HOST }}
           PORT: ${{ secrets.PORT }}
-          DATABASE: ${{ secrets.DATABASE }}
-          DB_USERNAME: ${{ secrets.DB_USERNAME }}
-          PASSWORD: ${{ secrets.PASSWORD }}
-          GMAIL_USER: ${{ secrets.GMAIL_USER }}
-          GMAIL_APP_PASS: ${{ secrets.GMAIL_APP_PASS }}
-          MERCADO_PAGO_ACCESS_TOKEN: ${{ secrets.MERCADO_PAGO_ACCESS_TOKEN }}
-          MERCADO_PAGO_PUBLIC_KEY: ${{ secrets.MERCADO_PAGO_PUBLIC_KEY }}
-          COOKIEKEY: ${{ secrets.COOKIEKEY }}
         run: |
           echo "🔍 Configurando entorno de producción..."
-          echo "✅ Todas las variables de entorno cargadas"
+          echo "✅ Variables de entorno cargadas"
           echo "🌍 Entorno: PRODUCTION"
-          echo "🗄️ MongoDB: Servidor 146.83.198.35:1250"
-          echo "🖥️ PostgreSQL: Servidor 146.83.198.35:5432"
           
-          # Verificar que las variables críticas estén presentes
           if [ -z "$MONGO_PROD_URI" ]; then
             echo "❌ MONGO_PROD_URI no está configurado"
             exit 1
@@ -158,60 +142,52 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y sshpass rsync
           
-          # Preparar archivos para deploy (solo production files)
+          # Preparar archivos para deploy
           mkdir -p deploy_package
           cp -r backend/* deploy_package/
-          
-          # Limpiar archivos no necesarios en producción
           rm -rf deploy_package/node_modules
           rm -rf deploy_package/README_deploy.md
           
           echo "📁 Archivos preparados para deploy"
-          ls -la deploy_package/
+          
+          echo "🔍 Verificando conectividad SSH puerto 1244..."
+          timeout 10 nc -zv ${{ secrets.SSH_HOST }} 1244 || echo "⚠️ Puerto 1244 no responde"
           
           echo "🔄 Copiando archivos al servidor..."
-          # Usar rsync con sshpass para sincronizar archivos
           sshpass -p '${{ secrets.SSH_PASSWORD }}' rsync -avz --delete \
-            -e "ssh -o StrictHostKeyChecking=no" \
+            -e "ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 -p 1244" \
             deploy_package/ \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home/jmaureira/BioRuta/backend/
           
           echo "📦 Instalando dependencias en servidor..."
-          sshpass -p '${{ secrets.SSH_PASSWORD }}' ssh -o StrictHostKeyChecking=no \
+          sshpass -p '${{ secrets.SSH_PASSWORD }}' ssh -o StrictHostKeyChecking=no -p 1244 \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
             "cd /home/jmaureira/BioRuta/backend && npm ci --only=production"
           
           echo "🔄 Reiniciando aplicación..."
-          sshpass -p '${{ secrets.SSH_PASSWORD }}' ssh -o StrictHostKeyChecking=no \
+          sshpass -p '${{ secrets.SSH_PASSWORD }}' ssh -o StrictHostKeyChecking=no -p 1244 \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
             "cd /home/jmaureira/BioRuta/backend && pm2 restart index || pm2 restart 0"
           
           echo "✅ Deploy completado exitosamente!"
-          echo "🌐 Aplicación disponible en: http://$HOST:$PORT"
         working-directory: .
       
-      - name: 🏥 Health Check Post-Deploy  
+      - name: 🏥 Health Check
         run: |
           echo "🏥 Verificando salud de la aplicación..."
+          sleep 5
           
-          # Verificar que la aplicación responde
-          sleep 5  # Dar tiempo para que inicie
-          
-          # Health check real al servidor
           response=$(curl -s -o /dev/null -w "%{http_code}" http://${{ secrets.HOST }}:${{ secrets.PORT }}/health || echo "000")
           
           if [ "$response" -eq "200" ]; then
-            echo "✅ Aplicación funcionando correctamente (HTTP $response)"
+            echo "✅ Aplicación funcionando correctamente"
           else
-            echo "⚠️  Aplicación puede estar iniciando (HTTP $response)"
-            echo "🔍 Verificando logs en servidor..."
-            
-            sshpass -p '${{ secrets.SSH_PASSWORD }}' ssh -o StrictHostKeyChecking=no \
+            echo "⚠️ Verificando logs..."
+            sshpass -p '${{ secrets.SSH_PASSWORD }}' ssh -o StrictHostKeyChecking=no -p 1244 \
               ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
-              "pm2 logs index --lines 10"
+              "pm2 logs index --lines 5"
           fi
           
-          echo "📊 Métricas disponibles"
           echo "🎉 Deploy completado!"
 
   # PASO 4: Notificaciones
@@ -225,6 +201,6 @@ jobs:
       - name: 📊 Resumen del deployment
         run: |
           echo "🚀 BioRuta Auto-Deploy Completado"
-          echo "📂 Rama base → test: ${{ needs.auto-merge-test.result }}"
+          echo "📂 Base → Test: ${{ needs.auto-merge-test.result }}"
           echo "🚀 Deploy producción: ${{ needs.auto-deploy-production.result }}"
           echo "🕐 $(date)"
