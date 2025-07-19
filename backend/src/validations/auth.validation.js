@@ -15,7 +15,7 @@ const domainEmailValidator = (value, helper) => {
 
 export const authValidation = Joi.object({
   email: Joi.string()
-    .min(15)
+    .min(10)
     .max(50)
     .email()
     .required()
@@ -23,7 +23,7 @@ export const authValidation = Joi.object({
       "string.empty": "El correo electrónico no puede estar vacío.",
       "any.required": "El correo electrónico es obligatorio.",
       "string.base": "El correo electrónico debe ser de tipo texto.",
-      "string.min": "El correo electrónico debe tener al menos 15 caracteres.",
+      "string.min": "El correo electrónico debe tener al menos 10 caracteres.",
       "string.max": "El correo electrónico debe tener como máximo 50 caracteres.",
     })
     .custom(domainEmailValidator, "Validación dominio email"),
@@ -46,7 +46,7 @@ export const authValidation = Joi.object({
 
 export const registerValidation = Joi.object({
   nombreCompleto: Joi.string()
-    .min(15)
+    .min(10)
     .max(50)
     .pattern(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/)
     .required()
@@ -54,7 +54,7 @@ export const registerValidation = Joi.object({
       "string.empty": "El nombre completo no puede estar vacío.",
       "any.required": "El nombre completo es obligatorio.",
       "string.base": "El nombre completo debe ser de tipo texto.",
-      "string.min": "El nombre completo debe tener al menos 15 caracteres.",
+      "string.min": "El nombre completo debe tener al menos 10 caracteres.",
       "string.max": "El nombre completo debe tener como máximo 50 caracteres.",
       "string.pattern.base": "El nombre completo solo puede contener letras y espacios.",
     }),
@@ -84,13 +84,13 @@ export const registerValidation = Joi.object({
     })
     .custom(domainEmailValidator, "Validación dominio email"),
   rol: Joi.string()
-    .valid("conductor", "pasajero")
+    .valid("estudiante")
     .required()
     .messages({
       "string.empty": "El rol no puede estar vacío.",
       "any.required": "El rol es obligatorio.",
       "string.base": "El rol debe ser de tipo texto.",
-      "any.only": "El rol debe ser 'pasajero' o 'conductor'.",
+      "any.only": "El rol debe ser 'estudiante'.",
     }),
   password: Joi.string()
     .min(8)
