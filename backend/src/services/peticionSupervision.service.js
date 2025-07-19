@@ -3,6 +3,7 @@ import PeticionSupervision from "../entity/peticionSupervision.entity.js";
 import User from "../entity/user.entity.js";
 import ChatPersonal from "../entity/chatPersonal.entity.js";
 import { emitToUser } from "../socket.js";
+import { In } from "typeorm";
 
 const peticionSupervisionRepository = AppDataSource.getRepository(PeticionSupervision);
 const userRepository = AppDataSource.getRepository(User);
@@ -22,6 +23,26 @@ export async function crearPeticionSupervision(rutUsuario, motivo, mensaje, prio
     const usuario = await userRepository.findOne({ where: { rut: rutUsuario } });
     if (!usuario) {
       throw new Error("Usuario no encontrado");
+    }
+
+    // Verificar si el usuario ya tiene una petición pendiente o aceptada
+    const peticionExistente = await peticionSupervisionRepository.findOne({
+      where: { 
+        rutUsuario, 
+        estado: In(["pendiente", "aceptada"]), 
+        eliminado: false 
+      },
+      relations: ["administrador"],
+      order: { fechaCreacion: "DESC" },
+    });
+
+    if (peticionExistente) {
+      if (peticionExistente.estado === "pendiente") {
+        throw new Error("Ya tienes una petición de supervisión pendiente. Por favor espera a que sea respondida antes de crear una nueva.");
+      } else if (peticionExistente.estado === "aceptada") {
+        const nombreAdmin = peticionExistente.administrador?.nombreCompleto || "un administrador";
+        throw new Error(`Ya tienes un chat activo con ${nombreAdmin}. Ve a tu chat para continuar la conversación.`);
+      }
     }
 
     // Crear la petición
@@ -457,6 +478,30 @@ export async function verificarPeticionActiva(rutUsuario) {
     return peticionActiva;
   } catch (error) {
     console.error("Error al verificar petición activa:", error.message);
+    return null;
+  }
+}
+
+/**
+ * Verificar si un usuario tiene una petición pendiente (esperando respuesta del admin)
+ * @param {string} rutUsuario - RUT del usuario
+ * @returns {Promise<Object|null>} Petición pendiente o null
+ */
+export async function verificarPeticionPendiente(rutUsuario) {
+  try {
+    const peticionPendiente = await peticionSupervisionRepository.findOne({
+      where: { 
+        rutUsuario, 
+        estado: "pendiente", 
+        eliminado: false 
+      },
+      relations: ["administrador"],
+      order: { fechaCreacion: "DESC" },
+    });
+
+    return peticionPendiente;
+  } catch (error) {
+    console.error("Error al verificar petición pendiente:", error.message);
     return null;
   }
 }

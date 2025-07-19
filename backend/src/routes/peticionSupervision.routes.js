@@ -8,6 +8,7 @@ import {
   obtenerEstadisticas,
   marcarComoSolucionada,
   verificarPeticionActiva,
+  verificarPeticionPendiente,
 } from "../controllers/peticionSupervision.controller.js";
 import { authenticateJwt } from "../middlewares/authentication.middleware.js";
 
@@ -20,6 +21,7 @@ router.use(authenticateJwt);
 router.post("/", crearPeticion);
 router.get("/mis-peticiones", obtenerMisPeticiones);
 router.get("/verificar-activa", verificarPeticionActiva);
+router.get("/verificar-pendiente", verificarPeticionPendiente);
 router.delete("/:id", eliminarPeticion);
 
 // Rutas para administradores

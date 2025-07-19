@@ -319,6 +319,41 @@ class PeticionSupervisionService {
     }
   }
 
+  /// Verificar si el usuario tiene una petición pendiente
+  static Future<Map<String, dynamic>> verificarPeticionPendiente() async {
+    try {
+      final storage = FlutterSecureStorage();
+      final token = await storage.read(key: 'jwt_token');
+      
+      if (token == null) {
+        throw Exception('No hay token de autenticación');
+      }
+
+      final response = await http.get(
+        Uri.parse('${confGlobal.baseUrl}/peticiones-supervision/verificar-pendiente'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      final Map<String, dynamic> responseData = json.decode(response.body);
+
+      if (response.statusCode == 200) {
+        return responseData;
+      } else {
+        throw Exception(responseData['message'] ?? 'Error al verificar petición pendiente');
+      }
+    } catch (e) {
+      print('Error verificando petición pendiente: $e');
+      return {
+        'success': false,
+        'message': e.toString(),
+        'tienePendiente': false,
+      };
+    }
+  }
+
   /// Obtener color según prioridad
   static String getColorPrioridad(String prioridad) {
     switch (prioridad.toLowerCase()) {

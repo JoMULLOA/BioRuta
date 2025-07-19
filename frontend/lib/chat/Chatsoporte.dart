@@ -14,6 +14,8 @@ class _ChatSoporteState extends State<ChatSoporte> {
   bool mostrarOpciones = true;
   bool _isCreatingRequest = false;
   bool _hasActivePetition = false;
+  bool _hasPendingPetition = false;
+  bool _isLoading = true; // Nueva variable para controlar el estado de carga
   Map<String, dynamic>? _peticionActiva;
   
   // Para escuchar notificaciones de peticiones
@@ -24,50 +26,73 @@ class _ChatSoporteState extends State<ChatSoporte> {
   void initState() {
     super.initState();
     
-    // Verificar petición activa al inicializar
-    _verificarPeticionActiva();
+    // Verificar petición pendiente/activa al inicializar
+    _verificarEstadoPeticiones();
     
     // Configurar listener para notificaciones de peticiones
     _setupPeticionesListener();
   }
 
-  Future<void> _verificarPeticionActiva() async {
+  Future<void> _verificarEstadoPeticiones() async {
     try {
-      final resultado = await PeticionSupervisionService.verificarPeticionActiva();
+      // Primero verificar si tiene una petición pendiente
+      final resultadoPendiente = await PeticionSupervisionService.verificarPeticionPendiente();
       
-      if (resultado['success'] && resultado['tieneActiva']) {
-        setState(() {
+      if (resultadoPendiente['success'] && resultadoPendiente['tienePendiente']) {
+        // Si tiene una petición pendiente, redirigir inmediatamente al perfil
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Navigator.of(context).pop(); // Salir del chat de soporte
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Tienes una petición de supervisión pendiente. Revisa tu perfil para ver el estado.'),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        });
+        return;
+      }
+
+      // Si no tiene petición pendiente, verificar si tiene una activa
+      final resultadoActiva = await PeticionSupervisionService.verificarPeticionActiva();
+      
+      setState(() {
+        _isLoading = false;
+        
+        if (resultadoActiva['success'] && resultadoActiva['tieneActiva']) {
           _hasActivePetition = true;
-          _peticionActiva = resultado['data'];
-        });
-        
-        // Mostrar mensaje de bienvenida con estado de petición activa
-        chatMessages.clear();
-        chatMessages.add({
-          "message": "¡Bienvenido de vuelta! Tienes una petición de supervisión activa.",
-          "isUserMessage": false
-        });
-        
-        if (_peticionActiva?['rutAdministrador'] != null) {
-          final nombreAdmin = _peticionActiva?['administrador']?['nombreCompleto'] ?? 'el administrador';
+          _peticionActiva = resultadoActiva['data'];
+          
+          // Mostrar mensaje de bienvenida con estado de petición activa
           chatMessages.add({
-            "message": "Ya tienes un chat abierto con $nombreAdmin. ¿Deseas continuar la conversación?",
+            "message": "¡Bienvenido de vuelta! Tienes una petición de supervisión activa.",
+            "isUserMessage": false
+          });
+          
+          if (_peticionActiva?['rutAdministrador'] != null) {
+            final nombreAdmin = _peticionActiva?['administrador']?['nombreCompleto'] ?? 'el administrador';
+            chatMessages.add({
+              "message": "Ya tienes un chat abierto con $nombreAdmin. ¿Deseas continuar la conversación?",
+              "isUserMessage": false
+            });
+          }
+        } else {
+          // Mensaje de bienvenida normal
+          chatMessages.add({
+            "message": "Bienvenido al soporte. ¿En qué puedo ayudarte?",
             "isUserMessage": false
           });
         }
-      } else {
-        // Mensaje de bienvenida normal
+      });
+    } catch (e) {
+      print('Error verificando peticiones: $e');
+      setState(() {
+        _isLoading = false;
+        // Mensaje de bienvenida por defecto
         chatMessages.add({
           "message": "Bienvenido al soporte. ¿En qué puedo ayudarte?",
           "isUserMessage": false
         });
-      }
-    } catch (e) {
-      print('Error verificando petición activa: $e');
-      // Mensaje de bienvenida por defecto
-      chatMessages.add({
-        "message": "Bienvenido al soporte. ¿En qué puedo ayudarte?",
-        "isUserMessage": false
       });
     }
   }
@@ -147,19 +172,30 @@ class _ChatSoporteState extends State<ChatSoporte> {
       if (administrador != null) {
         mensaje += "\n\nRevisado por: $administrador";
       }
+      mensaje += "\n\n¿Hay algo más en lo que pueda ayudarte?";
+      
+      // Restablecer el estado para permitir nuevas interacciones
+      setState(() {
+        _hasPendingPetition = false;
+        mostrarOpciones = true;
+        chatMessages.add({
+          "message": mensaje,
+          "isUserMessage": false
+        });
+      });
     } else {
       mensaje = "ℹ️ Tu petición ha sido procesada.";
       if (respuesta != null && respuesta.isNotEmpty) {
         mensaje += "\n\nRespuesta: $respuesta";
       }
-    }
-    
-    setState(() {
-      chatMessages.add({
-        "message": mensaje,
-        "isUserMessage": false
+      
+      setState(() {
+        chatMessages.add({
+          "message": mensaje,
+          "isUserMessage": false
+        });
       });
-    });
+    }
   }
 
   void _manejarPeticionSolucionada(Map<String, dynamic> data) {
@@ -255,19 +291,35 @@ class _ChatSoporteState extends State<ChatSoporte> {
       setState(() {
         _isCreatingRequest = false;
         if (resultado['success']) {
+          _hasPendingPetition = true; // Marcar que tiene petición pendiente
           chatMessages.removeLast(); // Remover mensaje de "procesando"
           chatMessages.add({
-            "message": "✅ Tu solicitud ha sido enviada exitosamente.\n\nUn administrador revisará tu petición y te contactará pronto. Puedes revisar el estado de tu solicitud en tu perfil.",
+            "message": "✅ Tu solicitud ha sido enviada exitosamente.\n\nUn administrador revisará tu petición y te contactará pronto.\n\n⏳ Por favor espera mientras un administrador acepta tu petición...",
             "isUserMessage": false
           });
+          // NO mostrar opciones - el usuario queda en espera
+          mostrarOpciones = false;
         } else {
-          chatMessages.removeLast(); // Remover mensaje de "procesando"
-          chatMessages.add({
-            "message": "❌ Hubo un error al enviar tu solicitud: ${resultado['message']}\n\nPor favor, intenta nuevamente más tarde.",
-            "isUserMessage": false
-          });
-          // Volver a mostrar opciones si hay error
-          mostrarOpciones = true;
+          // Verificar si el error es por petición existente
+          if (resultado['message'].contains('petición de supervisión pendiente') || 
+              resultado['message'].contains('chat activo')) {
+            _hasPendingPetition = true;
+            chatMessages.removeLast(); // Remover mensaje de "procesando"
+            chatMessages.add({
+              "message": "⏳ ${resultado['message']}\n\nPor favor espera mientras un administrador acepta tu petición...",
+              "isUserMessage": false
+            });
+            // NO mostrar opciones - el usuario queda en espera
+            mostrarOpciones = false;
+          } else {
+            chatMessages.removeLast(); // Remover mensaje de "procesando"
+            chatMessages.add({
+              "message": "❌ Hubo un error al enviar tu solicitud: ${resultado['message']}\n\nPor favor, intenta nuevamente más tarde.",
+              "isUserMessage": false
+            });
+            // Volver a mostrar opciones solo si es un error diferente
+            mostrarOpciones = true;
+          }
         }
       });
     } catch (e) {
@@ -278,7 +330,7 @@ class _ChatSoporteState extends State<ChatSoporte> {
           "message": "❌ Error de conexión al enviar la solicitud.\n\nVerifica tu conexión a internet e intenta nuevamente.",
           "isUserMessage": false
         });
-        // Volver a mostrar opciones si hay error
+        // Volver a mostrar opciones si hay error de conexión
         mostrarOpciones = true;
       });
     }
@@ -302,58 +354,79 @@ class _ChatSoporteState extends State<ChatSoporte> {
         title: Text('Soporte', style: TextStyle(color: principal)),
         iconTheme: IconThemeData(color: principal),
       ),
-      body: Container(
-        color: fondo,
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            children: [
-              Expanded(
-                child: ListView.builder(
-                  controller: _scrollController,
-                  itemCount: chatMessages.length,
-                  itemBuilder: (context, index) {
-                    final chat = chatMessages[index];
-                    return _buildMessageBubble(
-                      chat["message"],
-                      isUserMessage: chat["isUserMessage"],
-                      principal: principal,
-                      secundario: secundario,
-                    );
-                  },
-                ),
+      body: _isLoading
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(principal),
+                  ),
+                  SizedBox(height: 16),
+                  Text(
+                    'Verificando estado de peticiones...',
+                    style: TextStyle(
+                      color: secundario,
+                      fontSize: 16,
+                    ),
+                  ),
+                ],
               ),
-              if (mostrarOpciones && !_isCreatingRequest)
-                Column(
+            )
+          : Container(
+              color: fondo,
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
                   children: [
-                    for (int i = 0; i < options.length; i++)
-                      _buildOptionButton(options[i], () => handleOptionSelection(i), principal: principal, secundario: secundario),
-                    _buildSupervisorButton("Hablar con un supervisor", principal: principal, secundario: secundario),
-                  ],
-                ),
-              if (_isCreatingRequest)
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    children: [
-                      CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(principal),
+                    Expanded(
+                      child: ListView.builder(
+                        controller: _scrollController,
+                        itemCount: chatMessages.length,
+                        itemBuilder: (context, index) {
+                          final chat = chatMessages[index];
+                          return _buildMessageBubble(
+                            chat["message"],
+                            isUserMessage: chat["isUserMessage"],
+                            principal: principal,
+                            secundario: secundario,
+                          );
+                        },
                       ),
-                      SizedBox(height: 8),
-                      Text(
-                        'Enviando solicitud de supervisión...',
-                        style: TextStyle(
-                          color: secundario,
-                          fontSize: 14,
+                    ),
+                    if (mostrarOpciones && !_isCreatingRequest && !_hasPendingPetition)
+                      Column(
+                        children: [
+                          for (int i = 0; i < options.length; i++)
+                            _buildOptionButton(options[i], () => handleOptionSelection(i), principal: principal, secundario: secundario),
+                          _buildSupervisorButton("Hablar con un supervisor", principal: principal, secundario: secundario),
+                        ],
+                      ),
+                    if (_isCreatingRequest)
+                      Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          children: [
+                            CircularProgressIndicator(
+                              valueColor: AlwaysStoppedAnimation<Color>(principal),
+                            ),
+                            SizedBox(height: 8),
+                            Text(
+                              'Enviando solicitud de supervisión...',
+                              style: TextStyle(
+                                color: secundario,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
-                  ),
+                    if (_hasPendingPetition && !_isCreatingRequest)
+                      _buildWaitingWidget(principal, secundario),
+                  ],
                 ),
-            ],
-          ),
-        ),
-      ),
+              ),
+            ),
     );
   }
 
@@ -482,5 +555,48 @@ class _ChatSoporteState extends State<ChatSoporte> {
         ),
       );
     }
+  }
+
+  Widget _buildWaitingWidget(Color principal, Color secundario) {
+    return Container(
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 5,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(principal),
+          ),
+          SizedBox(height: 8),
+          Text(
+            'Esperando respuesta de un administrador...',
+            style: TextStyle(
+              color: secundario,
+              fontSize: 16,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          SizedBox(height: 8),
+          Text(
+            'Por favor, no cierres la aplicación. Te notificaremos cuando un administrador esté disponible.',
+            style: TextStyle(
+              color: Colors.grey[600],
+              fontSize: 14,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
   }
 }

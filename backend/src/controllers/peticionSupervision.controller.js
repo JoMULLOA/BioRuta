@@ -216,3 +216,27 @@ export async function verificarPeticionActiva(req, res) {
     });
   }
 }
+
+/**
+ * GET /api/peticiones-supervision/verificar-pendiente
+ * Verificar si el usuario tiene una petición pendiente
+ */
+export async function verificarPeticionPendiente(req, res) {
+  try {
+    const rutUsuario = req.user.rut;
+
+    const peticionPendiente = await peticionSupervisionService.verificarPeticionPendiente(rutUsuario);
+
+    res.status(200).json({
+      success: true,
+      data: peticionPendiente,
+      tienePendiente: peticionPendiente !== null,
+    });
+  } catch (error) {
+    console.error("Error en verificarPeticionPendiente:", error.message);
+    res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+}
