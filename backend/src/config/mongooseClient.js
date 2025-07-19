@@ -1,19 +1,15 @@
 import mongoose from "mongoose";
-import { config, environment } from "./environment.js";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 export async function connectMongoDB() {
   try {
-    // 🌍 Usa la configuración según el entorno
-    const mongoUri = config.database.mongodb;
-    
-    console.log(`🗄️  Conectando a MongoDB en entorno: ${environment.toUpperCase()}`);
-    console.log(`🔗 URI: ${mongoUri.replace(/\/\/.*:.*@/, '//***:***@')}`); // Oculta credenciales
-    
-    await mongoose.connect(mongoUri, config.database.options);
-    
-    console.log("✅ MongoDB conectado exitosamente");
+    await mongoose.connect(process.env.MONGO_URI);
+    console.log("🧪 Conectando a:", process.env.MONGO_URI);
+
+    console.log("✅ Mongo Atlas conectado");
   } catch (err) {
     console.error("❌ Error conectando a MongoDB:", err.message);
-    throw err;
   }
 }
