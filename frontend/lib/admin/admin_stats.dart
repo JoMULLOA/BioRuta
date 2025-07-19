@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 import '../config/confGlobal.dart';
-import '../utils/token_manager.dart';
+import '../services/estadisticas_service.dart';
 
 class AdminStats extends StatefulWidget {
   const AdminStats({super.key});
@@ -15,7 +13,7 @@ class AdminStats extends StatefulWidget {
 class _AdminStatsState extends State<AdminStats> with TickerProviderStateMixin {
   // Variables para almacenar estadísticas
   bool _isLoading = true;
-  Map<String, dynamic> _stats = {};
+  String _errorMessage = '';
   
   // Variables para métricas específicas
   int _totalUsuarios = 0;
@@ -37,54 +35,50 @@ class _AdminStatsState extends State<AdminStats> with TickerProviderStateMixin {
   Future<void> _loadStatistics() async {
     setState(() {
       _isLoading = true;
+      _errorMessage = '';
     });
 
     try {
-      // Simular carga de datos desde el backend
-      // En implementación real, hacer llamadas HTTP al backend
-      await Future.delayed(const Duration(seconds: 2));
-      
+      // Cargar todas las estadísticas en paralelo
+      final results = await Future.wait([
+        EstadisticasService.obtenerEstadisticasGenerales(),
+        EstadisticasService.obtenerDistribucionPuntuaciones(),
+        EstadisticasService.obtenerViajesPorMes(),
+        EstadisticasService.obtenerClasificacionUsuarios(),
+        EstadisticasService.obtenerDestinosPopulares(),
+      ]);
+
+      final estadisticasGenerales = results[0] as Map<String, dynamic>;
+      final distribucionPuntuaciones = results[1] as List<Map<String, dynamic>>;
+      final viajesPorMes = results[2] as List<Map<String, dynamic>>;
+      final clasificacionUsuarios = results[3] as List<Map<String, dynamic>>;
+      final destinosPopulares = results[4] as List<Map<String, dynamic>>;
+
       setState(() {
-        _totalUsuarios = 1247;
-        _totalViajes = 3589;
-        _viajesActivos = 145;
-        _viajesCompletados = 3201;
-        _totalVehiculos = 892;
-        
-        // Datos simulados para gráficos
-        _usuariosPorPuntuacion = [
-          {'puntuacion': '1-2', 'cantidad': 89, 'color': Colors.red},
-          {'puntuacion': '3-4', 'cantidad': 234, 'color': Colors.orange},
-          {'puntuacion': '5-6', 'cantidad': 456, 'color': Colors.amber},
-          {'puntuacion': '7-8', 'cantidad': 312, 'color': Colors.lightGreen},
-          {'puntuacion': '9-10', 'cantidad': 156, 'color': Colors.green},
-        ];
+        // Extraer datos de estadísticas generales
+        _totalUsuarios = estadisticasGenerales['usuarios']?['total'] ?? 0;
+        _totalViajes = estadisticasGenerales['viajes']?['total'] ?? 0;
+        _viajesActivos = estadisticasGenerales['viajes']?['activos'] ?? 0;
+        _viajesCompletados = estadisticasGenerales['viajes']?['completados'] ?? 0;
+        _totalVehiculos = estadisticasGenerales['vehiculos']?['total'] ?? 0;
 
-        _viajesPorMes = [
-          {'mes': 'Ene', 'viajes': 245},
-          {'mes': 'Feb', 'viajes': 312},
-          {'mes': 'Mar', 'viajes': 289},
-          {'mes': 'Abr', 'viajes': 367},
-          {'mes': 'May', 'viajes': 398},
-          {'mes': 'Jun', 'viajes': 425},
-        ];
+        // Procesar distribución de puntuaciones
+        _usuariosPorPuntuacion = distribucionPuntuaciones.map((item) {
+          return {
+            'puntuacion': item['puntuacion'],
+            'cantidad': item['cantidad'],
+            'color': _getColorFromHex(item['color']),
+          };
+        }).toList();
 
-        _destinosPopulares = [
-          {'destino': 'Universidad del Bío-Bío', 'viajes': 892},
-          {'destino': 'Mall del Centro', 'viajes': 234},
-          {'destino': 'Terminal de Buses', 'viajes': 189},
-          {'destino': 'Hospital', 'viajes': 156},
-          {'destino': 'Centro de Concepción', 'viajes': 134},
-        ];
+        // Procesar viajes por mes
+        _viajesPorMes = viajesPorMes;
 
-        _clasificacionUsuarios = [
-          {'rango': '4.5-5.0', 'cantidad': 145, 'porcentaje': 11.6},
-          {'rango': '4.0-4.4', 'cantidad': 298, 'porcentaje': 23.9},
-          {'rango': '3.5-3.9', 'cantidad': 412, 'porcentaje': 33.0},
-          {'rango': '3.0-3.4', 'cantidad': 267, 'porcentaje': 21.4},
-          {'rango': '2.5-2.9', 'cantidad': 89, 'porcentaje': 7.1},
-          {'rango': '0-2.4', 'cantidad': 36, 'porcentaje': 2.9},
-        ];
+        // Procesar clasificación de usuarios
+        _clasificacionUsuarios = clasificacionUsuarios;
+
+        // Procesar destinos populares
+        _destinosPopulares = destinosPopulares;
 
         _isLoading = false;
       });
@@ -92,7 +86,21 @@ class _AdminStatsState extends State<AdminStats> with TickerProviderStateMixin {
       print('Error al cargar estadísticas: $error');
       setState(() {
         _isLoading = false;
+        _errorMessage = 'Error al cargar las estadísticas: ${error.toString()}';
       });
+    }
+  }
+
+  Color _getColorFromHex(String hexColor) {
+    try {
+      hexColor = hexColor.replaceAll('#', '');
+      if (hexColor.length == 6) {
+        hexColor = 'FF$hexColor';
+      }
+      return Color(int.parse(hexColor, radix: 16));
+    } catch (e) {
+      // Color por defecto si hay error
+      return Colors.blue;
     }
   }
 
@@ -132,7 +140,7 @@ class _AdminStatsState extends State<AdminStats> with TickerProviderStateMixin {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'Cargando estadísticas...',
+                    'Cargando estadísticas reales...',
                     style: TextStyle(
                       color: primario,
                       fontSize: 16,
@@ -142,47 +150,112 @@ class _AdminStatsState extends State<AdminStats> with TickerProviderStateMixin {
                 ],
               ),
             )
-          : RefreshIndicator(
-              onRefresh: _loadStatistics,
-              color: primario,
-              backgroundColor: fondo,
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Métricas principales en tarjetas
-                    _buildMetricasGenerales(primario, secundario),
-                    
-                    const SizedBox(height: 24),
-                    
-                    // Gráfico de distribución de puntuaciones
-                    _buildPuntuacionChart(primario, secundario),
-                    
-                    const SizedBox(height: 24),
-                    
-                    // Gráfico de viajes por mes
-                    _buildViajesPorMesChart(primario, secundario),
-                    
-                    const SizedBox(height: 24),
-                    
-                    // Gráfico de clasificaciones de usuarios
-                    _buildClasificacionChart(primario, secundario),
-                    
-                    const SizedBox(height: 24),
-                    
-                    // Lista de destinos populares
-                    _buildDestinosPopulares(primario, secundario),
-                    
-                    const SizedBox(height: 24),
-                    
-                    // Estadísticas adicionales
-                    _buildEstadisticasAdicionales(primario, secundario),
-                  ],
+          : _errorMessage.isNotEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.error_outline,
+                        size: 64,
+                        color: Colors.red[400],
+                      ),
+                      const SizedBox(height: 16),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 32),
+                        child: Text(
+                          _errorMessage,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Colors.red[600],
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      ElevatedButton(
+                        onPressed: _loadStatistics,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: primario,
+                          foregroundColor: Colors.white,
+                        ),
+                        child: const Text('Reintentar'),
+                      ),
+                    ],
+                  ),
+                )
+              : RefreshIndicator(
+                  onRefresh: _loadStatistics,
+                  color: primario,
+                  backgroundColor: fondo,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Banner indicando datos reales
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          margin: const EdgeInsets.only(bottom: 16),
+                          decoration: BoxDecoration(
+                            color: Colors.green[50],
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.green[300]!),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.check_circle, color: Colors.green[600], size: 20),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Mostrando datos reales del sistema',
+                                  style: TextStyle(
+                                    color: Colors.green[700],
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        
+                        // Métricas principales en tarjetas
+                        _buildMetricasGenerales(primario, secundario),
+                        
+                        const SizedBox(height: 24),
+                        
+                        // Gráfico de distribución de puntuaciones
+                        if (_usuariosPorPuntuacion.isNotEmpty)
+                          _buildPuntuacionChart(primario, secundario),
+                        
+                        const SizedBox(height: 24),
+                        
+                        // Gráfico de viajes por mes
+                        if (_viajesPorMes.isNotEmpty)
+                          _buildViajesPorMesChart(primario, secundario),
+                        
+                        const SizedBox(height: 24),
+                        
+                        // Gráfico de clasificaciones de usuarios
+                        if (_clasificacionUsuarios.isNotEmpty)
+                          _buildClasificacionChart(primario, secundario),
+                        
+                        const SizedBox(height: 24),
+                        
+                        // Lista de destinos populares
+                        if (_destinosPopulares.isNotEmpty)
+                          _buildDestinosPopulares(primario, secundario),
+                        
+                        const SizedBox(height: 24),
+                        
+                        // Estadísticas adicionales
+                        _buildEstadisticasAdicionales(primario, secundario),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-            ),
     );
   }
 
