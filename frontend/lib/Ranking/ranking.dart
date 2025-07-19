@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../navbar_widget.dart'; // Asegúrate de importar tu navbar
+import '../widgets/navbar_con_sos_dinamico.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert'; // Para parsear JSON
 import '../config/confGlobal.dart';
@@ -224,9 +224,8 @@ class _RankingState extends State<ranking> {
           ],
         ),
       ),
-      bottomNavigationBar: CustomNavbar(
+      bottomNavigationBar: NavbarConSOSDinamico(
         currentIndex: _selectedIndex,
-        showSOS: false, // ❌ No mostrar SOS en Ranking
         onTap: (index) {
           if (index == _selectedIndex) return;
 
@@ -251,7 +250,7 @@ class _RankingState extends State<ranking> {
               Navigator.pushReplacementNamed(context, '/ranking');
               break;
             case 5:
-              Navigator.pushReplacementNamed(context, '/perfil'); // Perfil en índice 5 cuando no hay SOS
+              Navigator.pushReplacementNamed(context, '/perfil');
               break;
           }
         },

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import '../widgets/custom_navbar_con_notificaciones.dart';
+import '../widgets/navbar_con_sos_dinamico.dart';
 import '../chat/Chatsoporte.dart';
 import './amistad_menu.dart';
 import '../config/confGlobal.dart';
@@ -772,7 +772,7 @@ class Perfil_ extends State<Perfil> {
         child: Icon(Icons.support_agent, color: Colors.white),
         tooltip: 'Gestionar Amistades',
       ),
-      bottomNavigationBar: CustomNavbarConNotificaciones(
+      bottomNavigationBar: NavbarConSOSDinamico(
         currentIndex: _selectedIndex,
         onTap: (index) {
           if (index == _selectedIndex) return;
@@ -786,25 +786,19 @@ class Perfil_ extends State<Perfil> {
               Navigator.pushReplacementNamed(context, '/mis-viajes');
               break;
             case 1:
-              // Ir al mapa
               Navigator.pushReplacementNamed(context, '/mapa');
               break;
             case 2:
-              // Publicar viaje (por implementar)
               Navigator.pushReplacementNamed(context, '/publicar');
               break;
             case 3:
               Navigator.pushReplacementNamed(context, '/chat');
               break;
             case 4:
-              // Ranking
               Navigator.pushReplacementNamed(context, '/ranking');
               break;
             case 5:
-              Navigator.pushReplacementNamed(context, '/sos');
-              break;
-            case 6:
-              Navigator.pushReplacementNamed(context, '/perfil');
+              // Ya estamos en perfil, no hacer nada
               break;
           }
         },

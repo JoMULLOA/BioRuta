@@ -5,7 +5,7 @@ import '../services/viaje_service.dart';
 import '../services/pago_service.dart';
 import '../services/notificacion_service.dart';
 import '../models/viaje_model.dart';
-import '../navbar_widget.dart';
+import '../widgets/navbar_con_sos_dinamico.dart';
 import 'detalle_viaje_conductor_screen.dart';
 import 'detalle_viaje_pasajero_screen.dart';
 import 'solicitudes_pasajeros_modal.dart';
@@ -179,9 +179,8 @@ void _mostrarSolicitudesPasajeros() {
               ],
             ),
       floatingActionButton: _buildFloatingActionButton(),
-      bottomNavigationBar: CustomNavbar(
+      bottomNavigationBar: NavbarConSOSDinamico(
         currentIndex: _selectedIndex,
-        showSOS: false, // ❌ No mostrar SOS en Mis Viajes
         onTap: _onItemTapped,
       ),
     );

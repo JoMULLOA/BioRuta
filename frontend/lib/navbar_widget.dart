@@ -16,7 +16,7 @@ class CustomNavbar extends StatelessWidget {
   Widget build(BuildContext context) {
     // Lista base de items sin SOS
     List<BottomNavigationBarItem> items = const [
-      BottomNavigationBarItem(icon: Icon(Icons.directions_car), label: 'Mis viajes'),
+      BottomNavigationBarItem(icon: Icon(Icons.directions_car), label: 'Viajes'),
       BottomNavigationBarItem(icon: Icon(Icons.map), label: 'Mapa'),
       BottomNavigationBarItem(icon: Icon(Icons.add), label: 'Publicar'),
       BottomNavigationBarItem(icon: Icon(Icons.chat), label: 'Chat'),
@@ -24,14 +24,12 @@ class CustomNavbar extends StatelessWidget {
       BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
     ];
 
-    // Si showSOS es true, insertar el botón SOS antes de Perfil
+    // Si showSOS es true, insertar el botón SOS en el medio (después de Publicar)
     if (showSOS) {
       items = [
-        const BottomNavigationBarItem(icon: Icon(Icons.directions_car), label: 'Mis viajes'),
+        const BottomNavigationBarItem(icon: Icon(Icons.directions_car), label: 'Viajes'),
         const BottomNavigationBarItem(icon: Icon(Icons.map), label: 'Mapa'),
         const BottomNavigationBarItem(icon: Icon(Icons.add), label: 'Publicar'),
-        const BottomNavigationBarItem(icon: Icon(Icons.chat), label: 'Chat'),
-        const BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: 'Ranking'),
         BottomNavigationBarItem(
           icon: Container(
             padding: const EdgeInsets.all(8),
@@ -75,6 +73,8 @@ class CustomNavbar extends StatelessWidget {
             ),
           ),
         ),
+        const BottomNavigationBarItem(icon: Icon(Icons.chat), label: 'Chat'),
+        const BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: 'Ranking'),
         const BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
       ];
     }

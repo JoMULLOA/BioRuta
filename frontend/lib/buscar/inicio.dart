@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../navbar_widget.dart';
+import '../widgets/navbar_con_sos_dinamico.dart';
 import '../models/direccion_sugerida.dart';
 import '../mapa/mapa_seleccion.dart';
 import 'resultados_busqueda.dart';
@@ -521,9 +521,9 @@ class _InicioScreenState extends State<InicioScreen> {
             ],
           ),
         ),
-      ),      bottomNavigationBar: CustomNavbar(
+      ),
+      bottomNavigationBar: NavbarConSOSDinamico(
         currentIndex: _selectedIndex,
-        showSOS: false, // ❌ No mostrar SOS en Buscar
         onTap: (index) {
           // Evitar navegación innecesaria si ya estamos en la pantalla actual
           if (index == _selectedIndex) return;
@@ -551,7 +551,7 @@ class _InicioScreenState extends State<InicioScreen> {
               Navigator.pushReplacementNamed(context, '/ranking');
               break;
             case 5:
-              Navigator.pushReplacementNamed(context, '/perfil'); // Perfil en índice 5 cuando no hay SOS
+              Navigator.pushReplacementNamed(context, '/perfil');
               break;
           }
         },

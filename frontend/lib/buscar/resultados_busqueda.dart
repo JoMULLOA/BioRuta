@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../models/viaje_model.dart';
-import '../navbar_widget.dart';
+import '../widgets/navbar_con_sos_dinamico.dart';
 
 class ResultadosBusquedaScreen extends StatefulWidget {
   final double origenLat;
@@ -103,9 +103,8 @@ class _ResultadosBusquedaScreenState extends State<ResultadosBusquedaScreen> {
         ],
       ),
       body: _buildBody(),
-      bottomNavigationBar: CustomNavbar(
+      bottomNavigationBar: NavbarConSOSDinamico(
         currentIndex: _selectedIndex,
-        showSOS: false, // ❌ No mostrar SOS en Resultados de Búsqueda
         onTap: (index) {
           if (index == _selectedIndex) return;
           
@@ -130,7 +129,7 @@ class _ResultadosBusquedaScreenState extends State<ResultadosBusquedaScreen> {
               Navigator.pushReplacementNamed(context, '/ranking');
               break;
             case 5:
-              Navigator.pushReplacementNamed(context, '/perfil'); // Perfil en índice 5 cuando no hay SOS
+              Navigator.pushReplacementNamed(context, '/perfil');
               break;
           }
         },

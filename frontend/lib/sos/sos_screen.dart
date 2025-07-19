@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/contacto_emergencia.dart';
 import '../services/emergencia_service.dart';
-import '../navbar_widget.dart';
+import '../widgets/navbar_para_sos.dart';
 import 'tutorial_sos_screen.dart';
 import 'configurar_contactos_screen.dart';
 
@@ -368,29 +368,27 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _buildBody(),
-      bottomNavigationBar: CustomNavbar(
-        currentIndex: 5, // SOS es el índice 5 cuando showSOS = true (solo visible desde mapa)
-        showSOS: true, // ✅ Mostrar SOS en la pantalla SOS (para que el botón se vea seleccionado)
+      bottomNavigationBar: NavbarParaSOS(
+        currentIndex: 3, // SOS estará en el índice 3 (en el medio)
         onTap: _onNavBarTap,
       ),
     );
   }
 
   void _onNavBarTap(int index) {
-    if (index == 5) return; // Ya estamos en SOS
-    
-    // Mapeo de índices a rutas
+    // Mapeo directo de índices a rutas (sin SOS porque ya estamos aquí)
     final routes = [
       '/mis-viajes',  // 0
       '/mapa',        // 1  
       '/publicar',    // 2
       '/chat',        // 3
       '/ranking',     // 4
-      '/sos',         // 5
-      '/perfil',      // 6
+      '/perfil',      // 5
     ];
     
-    Navigator.pushReplacementNamed(context, routes[index]);
+    if (index < routes.length) {
+      Navigator.pushReplacementNamed(context, routes[index]);
+    }
   }
 
   Widget _buildBody() {

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../navbar_widget.dart';
+import '../widgets/navbar_con_sos_dinamico.dart';
 import '../services/user_service.dart';
 import '../models/viaje_model.dart';
 import 'publicar_viaje_paso1.dart';
@@ -96,9 +96,8 @@ class PublicarPageState extends State<PublicarPage> {
         ),
       ),
       body: _buildBody(),
-      bottomNavigationBar: CustomNavbar(
+      bottomNavigationBar: NavbarConSOSDinamico(
         currentIndex: _selectedIndex,
-        showSOS: false, // ❌ No mostrar SOS en Publicar
         onTap: (index) {
           if (index == _selectedIndex) return;
 
@@ -122,7 +121,7 @@ class PublicarPageState extends State<PublicarPage> {
               Navigator.pushReplacementNamed(context, '/ranking');
               break;
             case 5:
-              Navigator.pushReplacementNamed(context, '/perfil'); // Perfil en índice 5 cuando no hay SOS
+              Navigator.pushReplacementNamed(context, '/perfil');
               break;
           }
         },

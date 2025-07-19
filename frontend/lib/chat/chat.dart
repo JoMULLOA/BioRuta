@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart'; // Importa SecureStorage
-import '../widgets/custom_navbar_con_notificaciones.dart';
+import '../widgets/navbar_con_sos_dinamico.dart';
 import 'pagina_individual.dart'; // Cambiar a la versión WebSocket
 import 'chat_grupal.dart'; // Importar chat grupal
 import '../models/user_models.dart';
@@ -270,7 +270,7 @@ class ChatState extends State<Chat> {
                     ],
                   ),
       ),
-      bottomNavigationBar: CustomNavbarConNotificaciones(
+      bottomNavigationBar: NavbarConSOSDinamico(
         currentIndex: _selectedIndex,
         onTap: (index) {
           if (index == _selectedIndex) return;
@@ -284,20 +284,18 @@ class ChatState extends State<Chat> {
               Navigator.pushReplacementNamed(context, '/mis-viajes');
               break;
             case 1:
-              Navigator.pushReplacementNamed(context, '/buscar');
+              Navigator.pushReplacementNamed(context, '/mapa');
               break;
             case 2:
               Navigator.pushReplacementNamed(context, '/publicar');
               break;
             case 3:
+              // Ya estamos en chat, no hacer nada
               break;
             case 4:
               Navigator.pushReplacementNamed(context, '/ranking');
               break;
             case 5:
-              Navigator.pushReplacementNamed(context, '/sos');
-              break;
-            case 6:
               Navigator.pushReplacementNamed(context, '/perfil');
               break;
           }

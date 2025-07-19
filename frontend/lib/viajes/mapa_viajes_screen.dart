@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'mapa_viajes_interactivo.dart';
-import '../navbar_widget.dart';
+import '../widgets/navbar_con_sos_dinamico.dart';
 
 class MapaViajesScreen extends StatefulWidget {
   const MapaViajesScreen({super.key});
@@ -51,9 +51,8 @@ class _MapaViajesScreenState extends State<MapaViajesScreen> {
         centerTitle: true,
       ),
       body: const MapaViajesInteractivo(),
-      bottomNavigationBar: CustomNavbar(
+      bottomNavigationBar: NavbarConSOSDinamico(
         currentIndex: _selectedIndex,
-        showSOS: false, // ❌ No mostrar SOS en Mapa de Viajes (este es diferente al mapa principal)
         onTap: _onItemTapped,
       ),
     );

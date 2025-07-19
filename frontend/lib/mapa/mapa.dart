@@ -3,7 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_osm_plugin/flutter_osm_plugin.dart';
 import 'package:permission_handler/permission_handler.dart';
-import '../navbar_widget.dart';
+import '../widgets/navbar_con_sos_dinamico.dart';
 import '../models/direccion_sugerida.dart';
 import '../models/marcador_viaje_model.dart';
 import '../services/ubicacion_service.dart';
@@ -1254,9 +1254,8 @@ class _MapPageState extends State<MapPage> {
           const SizedBox(height: 12),
         ],
       ),
-      bottomNavigationBar: CustomNavbar(
+      bottomNavigationBar: NavbarConSOSDinamico(
         currentIndex: _selectedIndex,
-        showSOS: true, // ✅ Mostrar SOS solo en la pantalla del mapa
         onTap: (index) {
           // Evitar navegación innecesaria si ya estamos en la pantalla actual
           if (index == _selectedIndex) return;
@@ -1283,12 +1282,10 @@ class _MapPageState extends State<MapPage> {
               Navigator.pushReplacementNamed(context, '/ranking');
               break;
             case 5:
-              Navigator.pushReplacementNamed(context, '/sos'); // SOS está en índice 5 cuando showSOS = true
-              break;
-            case 6:
               Navigator.pushReplacementNamed(context, '/perfil');
               break;
-          }        },
+          }        
+        },
       ),
     );
   }
