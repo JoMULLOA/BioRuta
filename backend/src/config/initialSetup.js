@@ -51,7 +51,7 @@ async function createInitialData() {
         nombreCompleto: "Usuario3",
         email: "usuario3@alumnos.ubiobio.cl",
         password: await encryptPassword("user3456"),
-        genero: "no_binario",
+        genero: "masculino",
         fechaNacimiento: "2002-03-03",
         rol: "estudiante",
         puntuacion: 4,
@@ -93,9 +93,9 @@ async function createInitialData() {
         await vehiculoRepository.save(
           vehiculoRepository.create({
             patente: "ABCD12",
-            tipo: "sedan",
+            tipo: "Auto",
             marca: "Toyota",
-            modelo: "Corolla",
+            modelo: "Toyota Corolla",
             año: 2020,
             color: "Gris",
             nro_asientos: 5,
@@ -106,10 +106,10 @@ async function createInitialData() {
         await vehiculoRepository.save(
           vehiculoRepository.create({
             patente: "EFGH34",
-            tipo: "hatchback",
+            tipo: "Auto",
             marca: "Hyundai",
-            modelo: "Accent",
-            año: 2019,
+            modelo: "Hyundai Accent",
+            año: 2018,
             color: "Rojo",
             nro_asientos: 4,
             documentacion: "Seguro obligatorio al día",
@@ -121,10 +121,10 @@ async function createInitialData() {
         await vehiculoRepository.save(
           vehiculoRepository.create({
             patente: "IJKL56",
-            tipo: "hatchback",
+            tipo: "Auto",
             marca: "Ford",
-            modelo: "Fiesta",
-            año: 2018,
+            modelo: "Ford Fiesta",
+            año: 2019,
             color: "Azul",
             nro_asientos: 4,
             documentacion: "Permiso de circulación vigente",

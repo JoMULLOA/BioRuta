@@ -27,6 +27,8 @@ class Perfil_ extends State<Perfil> {
   String _userAge = 'Cargando...';
   String _userCareer = 'Cargando...';
   String _userDescription = 'Cargando...';
+  String _userGender = 'Cargando...'; // Nueva variable para género
+  String _userRole = 'Cargando...'; // Nueva variable para rol
   //El de valoracion
   String _userclasificacion = 'Cargando...';
   bool _isLoading = true;
@@ -134,6 +136,8 @@ class Perfil_ extends State<Perfil> {
             _userAge = userAge;
             _userCareer = userData['carrera'] ?? 'Carrera no especificada';
             _userDescription = userData['descripcion'] ?? 'Sin descripción';
+            _userGender = userData['genero'] ?? 'no_especificado'; // Cargar género
+            _userRole = userData['rol'] ?? 'estudiante'; // Cargar rol
             _userclasificacion = clasificacionFinal;
             _isLoading = false;
           });
@@ -306,7 +310,14 @@ class Perfil_ extends State<Perfil> {
 
   // Función para realizar el logout
   Future<void> _performLogout(BuildContext context) async {
+    // Obtener una referencia al Navigator antes de operaciones async
+    final navigator = Navigator.of(context);
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    
     try {
+      // Verificar que el widget esté montado antes de mostrar diálogo
+      if (!mounted) return;
+      
       // Mostrar indicador de carga
       showDialog(
         context: context,
@@ -355,32 +366,40 @@ class Perfil_ extends State<Perfil> {
       await prefs.clear(); // Esto limpia todas las preferencias compartidas
 
       // Cerrar el diálogo de carga
-      Navigator.of(context).pop();
+      if (mounted) {
+        navigator.pop();
+      }
 
       // Navegar al login y limpiar toda la pila de navegación
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => const LoginPage()),
-        (route) => false,
-      );
+      if (mounted) {
+        navigator.pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const LoginPage()),
+          (route) => false,
+        );
+      }
 
       // Mostrar mensaje de confirmación
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              Icon(Icons.check_circle, color: Colors.white),
-              SizedBox(width: 12),
-              Text('Sesión cerrada exitosamente'),
-            ],
+      if (mounted) {
+        scaffoldMessenger.showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 12),
+                Text('Sesión cerrada exitosamente'),
+              ],
+            ),
+            backgroundColor: Colors.green[600],
+            duration: Duration(seconds: 2),
           ),
-          backgroundColor: Colors.green[600],
-          duration: Duration(seconds: 2),
-        ),
-      );
+        );
+      }
 
     } catch (e) {
       // Cerrar el diálogo de carga en caso de error
-      Navigator.of(context).pop();
+      if (mounted) {
+        navigator.pop();
+      }
       
       print('Error durante el logout: $e');
       
@@ -393,26 +412,28 @@ class Perfil_ extends State<Perfil> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.clear();
       
-      // Navegar al login
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => const LoginPage()),
-        (route) => false,
-      );
+      // Navegar al login solo si el widget está montado
+      if (mounted) {
+        navigator.pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const LoginPage()),
+          (route) => false,
+        );
       
-      // Mostrar mensaje de advertencia pero continuar
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              Icon(Icons.warning, color: Colors.white),
-              SizedBox(width: 12),
-              Expanded(child: Text('Sesión cerrada localmente (problema de conexión)')),
-            ],
+        // Mostrar mensaje de advertencia pero continuar
+        scaffoldMessenger.showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.warning, color: Colors.white),
+                SizedBox(width: 12),
+                Expanded(child: Text('Sesión cerrada localmente (problema de conexión)')),
+              ],
+            ),
+            backgroundColor: Colors.orange[600],
+            duration: Duration(seconds: 3),
           ),
-          backgroundColor: Colors.orange[600],
-          duration: Duration(seconds: 3),
-        ),
-      );
+        );
+      }
     }
   }
 
@@ -443,6 +464,32 @@ class Perfil_ extends State<Perfil> {
       print('❌ Error conectando con backend para logout: $e');
       // No lanzar excepción aquí - permitir que el logout local continúe
     }
+  }
+
+  // Función para obtener la imagen de perfil según el género
+  String _getProfileImage() {
+    // No mostrar imagen para administradores
+    if (_userRut.isNotEmpty && _userRut != 'Cargando...' && _userRut != 'RUT no especificado') {
+      // Puedes agregar lógica adicional aquí para detectar administradores si es necesario
+    }
+    
+    switch (_userGender.toLowerCase()) {
+      case 'masculino':
+        return 'assets/profile/hombre.png';
+      case 'femenino':
+        return 'assets/profile/mujer.png';
+      case 'no_binario':
+        return 'assets/profile/nobin.png';
+      case 'prefiero_no_decir':
+        return 'assets/profile/nodice.png';
+      default:
+        return 'assets/profile/nodice.png'; // Imagen por defecto
+    }
+  }
+
+  // Función para verificar si el usuario es administrador
+  bool _esAdministrador() {
+    return _userRole.toLowerCase() == 'administrador';
   }
 
   @override
@@ -550,8 +597,10 @@ class Perfil_ extends State<Perfil> {
                         CircleAvatar(
                           radius: 45, // Aumenté un poco el tamaño
                           backgroundColor: Colors.white.withOpacity(0.2),
-                          backgroundImage: AssetImage('assets/profile.png'),
-                          child: _userName.isEmpty
+                          backgroundImage: _userName.isNotEmpty && !_esAdministrador()
+                              ? AssetImage(_getProfileImage())
+                              : null,
+                          child: _userName.isEmpty || _esAdministrador()
                               ? Icon(Icons.person, size: 45, color: Colors.white70)
                               : null,
                         ),
