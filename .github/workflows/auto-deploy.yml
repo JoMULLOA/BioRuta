@@ -7,9 +7,16 @@ on:
     paths: ['backend/**']
 
 env:
-  NODE_VERSION: '18'
-
-jobs:
+  NODE_VERSION: '1          echo "🔍 Verificando conectividad SSH..."
+          # Test de conectividad en puerto correcto
+          timeout 10 nc -zv ${{ secrets.SSH_HOST }} 1244 || echo "❌ Puerto 1244 no accesible"
+          
+          echo "🔄 Copiando archivos al servidor..."
+          # Usar rsync con sshpass para sincronizar archivos (puerto 1244)
+          sshpass -p '${{ secrets.SSH_PASSWORD }}' rsync -avz --delete \
+            -e "ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 -p 1244" \
+            deploy_package/ \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home/jmaureira/BioRuta/backend/
   # PASO 1: Verificaciones automáticas
   ci-checks:
     name: 🔍 Verificaciones CI
@@ -169,20 +176,25 @@ jobs:
           echo "📁 Archivos preparados para deploy"
           ls -la deploy_package/
           
-          echo "🔄 Copiando archivos al servidor..."
-          # Usar rsync con sshpass para sincronizar archivos
+          echo "� Verificando conectividad SSH..."
+          # Test de conectividad
+          timeout 10 nc -zv ${{ secrets.SSH_HOST }} 22 || echo "❌ Puerto 22 no accesible"
+          timeout 10 nc -zv ${{ secrets.SSH_HOST }} 2222 || echo "❌ Puerto 2222 no accesible"
+          
+          echo "�🔄 Copiando archivos al servidor..."
+          # Usar rsync con sshpass para sincronizar archivos (puerto customizado si es necesario)
           sshpass -p '${{ secrets.SSH_PASSWORD }}' rsync -avz --delete \
-            -e "ssh -o StrictHostKeyChecking=no" \
+            -e "ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 -p 22" \
             deploy_package/ \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home/jmaureira/BioRuta/backend/
           
           echo "📦 Instalando dependencias en servidor..."
-          sshpass -p '${{ secrets.SSH_PASSWORD }}' ssh -o StrictHostKeyChecking=no \
+          sshpass -p '${{ secrets.SSH_PASSWORD }}' ssh -o StrictHostKeyChecking=no -p 1244 \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
             "cd /home/jmaureira/BioRuta/backend && npm ci --only=production"
           
           echo "🔄 Reiniciando aplicación..."
-          sshpass -p '${{ secrets.SSH_PASSWORD }}' ssh -o StrictHostKeyChecking=no \
+          sshpass -p '${{ secrets.SSH_PASSWORD }}' ssh -o StrictHostKeyChecking=no -p 1244 \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
             "cd /home/jmaureira/BioRuta/backend && pm2 restart index || pm2 restart 0"
           
@@ -206,7 +218,7 @@ jobs:
             echo "⚠️  Aplicación puede estar iniciando (HTTP $response)"
             echo "🔍 Verificando logs en servidor..."
             
-            sshpass -p '${{ secrets.SSH_PASSWORD }}' ssh -o StrictHostKeyChecking=no \
+            sshpass -p '${{ secrets.SSH_PASSWORD }}' ssh -o StrictHostKeyChecking=no -p 1244 \
               ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
               "pm2 logs index --lines 10"
           fi
