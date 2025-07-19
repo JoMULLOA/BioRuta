@@ -4,6 +4,8 @@ import 'package:http/http.dart' as http;
 import 'dart:convert'; // Para parsear JSON
 import '../config/confGlobal.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/amistad_service.dart'; // Importar servicio de amistad
+import '../helpers/notificacion_helpers.dart'; // Importar helpers de notificación
 
 class ranking extends StatefulWidget {
   @override
@@ -316,6 +318,7 @@ class _RankingState extends State<ranking> {
           child: Container(
             decoration: _buildContainerDecoration(isCurrentUser, marcoColor, posicion),
             child: ListTile(
+              onTap: isCurrentUser ? null : () => _mostrarDialogoSolicitudAmistad(context, nombre, _rankingData[_rankingData.indexWhere((user) => user['nombreCompleto'] == nombre)]),
               contentPadding: EdgeInsets.symmetric(
                 horizontal: isCurrentUser ? 20.0 : 16.0,
                 vertical: isCurrentUser ? 8.0 : 4.0,
@@ -387,8 +390,9 @@ class _RankingState extends State<ranking> {
             ),
           ),
         ),
-      ),
-    );
+      )
+      )
+      ;
   }
 
   // Función para determinar el borde
@@ -475,6 +479,163 @@ class _RankingState extends State<ranking> {
     } else {
       // Color gris para usuarios fuera del podio, incluso si es el usuario actual
       return Colors.grey[600]!;
+    }
+  }
+
+  // Función para mostrar el diálogo de solicitud de amistad
+  void _mostrarDialogoSolicitudAmistad(BuildContext context, String nombreUsuario, Map<String, dynamic> userData) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            children: [
+              Icon(Icons.person_add, color: principal, size: 28),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Enviar solicitud',
+                  style: TextStyle(
+                    color: principal,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: fondo.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      backgroundColor: secundario,
+                      child: Icon(Icons.person, color: Colors.white),
+                    ),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            nombreUsuario,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              color: principal,
+                            ),
+                          ),
+                          Text(
+                            'Posición #${_rankingData.indexOf(userData) + 1}',
+                            style: TextStyle(
+                              color: secundario,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: 16),
+              Text(
+                '¿Quieres enviar una solicitud de amistad a $nombreUsuario?',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey[700],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text(
+                'Cancelar',
+                style: TextStyle(color: Colors.grey[600]),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                await _enviarSolicitudAmistad(context, userData['rut'], nombreUsuario);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: principal,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.send, color: Colors.white, size: 18),
+                  SizedBox(width: 4),
+                  Text(
+                    'Enviar',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Función para enviar la solicitud de amistad
+  Future<void> _enviarSolicitudAmistad(BuildContext context, String rutReceptor, String nombreUsuario) async {
+    try {
+      // Enviar solicitud directamente sin indicador de carga
+      final resultado = await AmistadService.enviarSolicitudAmistad(
+        rutReceptor: rutReceptor,
+        mensaje: "¿Puedo ser tu amigo?",
+      );
+
+      if (resultado['success']) {
+        // Mostrar notificación de éxito
+        NotificacionHelpers.mostrarSolicitudEnviada(context, nombreUsuario);
+      } else {
+        // Verificar si el mensaje es sobre que ya son amigos
+        final mensaje = resultado['message'] ?? '';
+        if (mensaje.toLowerCase().contains('ya son amigos') || 
+            mensaje.toLowerCase().contains('already friends') ||
+            mensaje.toLowerCase().contains('amistad ya existe')) {
+          // Mostrar notificación bonita específica para ya son amigos
+          NotificacionHelpers.mostrarYaSonAmigos(context, nombreUsuario);
+        } else {
+          // Mostrar error para otros casos
+          NotificacionHelpers.mostrarError(
+            context,
+            titulo: 'Error al enviar solicitud',
+            mensaje: mensaje.isNotEmpty ? mensaje : 'No se pudo enviar la solicitud',
+          );
+        }
+      }
+    } catch (e) {
+      print('Error al enviar solicitud: $e');
+      
+      // Mostrar error de conexión
+      NotificacionHelpers.mostrarError(
+        context,
+        titulo: 'Error de conexión',
+        mensaje: 'No se pudo conectar con el servidor',
+      );
     }
   }
 }
