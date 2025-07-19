@@ -62,7 +62,7 @@ jobs:
           
           # Merge automático a test
           git checkout test || git checkout -b test
-          git merge origin/base --no-ff -m "🤖 Auto-merge: base → test"
+          git merge origin/base --no-ff -m "🤖 Auto-merge entre ramas: base → test"
           git push origin test
           
           echo "✅ Código automáticamente mergeado a rama 'test'"
