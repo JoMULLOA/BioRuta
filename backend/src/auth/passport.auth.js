@@ -10,6 +10,8 @@ const options = {
   secretOrKey: ACCESS_TOKEN_SECRET,
 };
 
+console.log("🔧 DEBUG - Passport JWT configurado con secretOrKey:", ACCESS_TOKEN_SECRET ? "✅ Definido" : "❌ No definido");
+
 passport.use(
   new JwtStrategy(options, async (jwt_payload, done) => {
     try {

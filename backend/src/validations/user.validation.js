@@ -14,29 +14,7 @@ const domainEmailValidator = (value, helper) => {
 };
 
 export const userQueryValidation = Joi.object({
-  id: Joi.number()
-    .integer()
-    .positive()
-    .messages({
-      "number.base": "El id debe ser un número.",
-      "number.integer": "El id debe ser un número entero.",
-      "number.positive": "El id debe ser un número positivo.",
-    }),
-  email: Joi.string()
-    .min(15)
-    .max(35)
-    .email()
-    .messages({
-      "string.empty": "El correo electrónico no puede estar vacío.",
-      "string.base": "El correo electrónico debe ser de tipo string.",
-      // "string.email": "El correo electrónico debe finalizar en @gmail.cl.",
-      "string.min":
-        "El correo electrónico debe tener como mínimo 15 caracteres.",
-      "string.max":
-        "El correo electrónico debe tener como máximo 35 caracteres.",
-    })
-    .custom(domainEmailValidator, "Validación dominio email"),
-    rut: Joi.string()
+  rut: Joi.string()
     .min(9)
     .max(12)
     .pattern(/^(?:(?:[1-9]\d{0}|[1-2]\d{1})(\.\d{3}){2}|[1-9]\d{6}|[1-2]\d{7}|29\.999\.999|29999999)-[\dkK]$/)
@@ -47,31 +25,9 @@ export const userQueryValidation = Joi.object({
       "string.max": "El rut debe tener como máximo 12 caracteres.",
       "string.pattern.base": "Formato rut inválido, debe ser xx.xxx.xxx-x o xxxxxxxx-x.",
     }),
-})
-  .or("id", "email", "rut")
-  .unknown(false)
-  .messages({
-    "object.unknown": "No se permiten propiedades adicionales.",
-    "object.missing":
-      "Debes proporcionar al menos un parámetro: id, email o rut.",
-  });
-
-export const userBodyValidation = Joi.object({
-  nombreCompleto: Joi.string()
-    .min(15)
-    .max(50)
-    .pattern(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/)
-    .messages({
-      "string.empty": "El nombre completo no puede estar vacío.",
-      "string.base": "El nombre completo debe ser de tipo string.",
-      "string.min": "El nombre completo debe tener como mínimo 15 caracteres.",
-      "string.max": "El nombre completo debe tener como máximo 50 caracteres.",
-      "string.pattern.base":
-        "El nombre completo solo puede contener letras y espacios.",
-    }),
   email: Joi.string()
     .min(15)
-    .max(35)
+    .max(50)
     .email()
     .messages({
       "string.empty": "El correo electrónico no puede estar vacío.",
@@ -80,7 +36,43 @@ export const userBodyValidation = Joi.object({
       "string.min":
         "El correo electrónico debe tener como mínimo 15 caracteres.",
       "string.max":
-        "El correo electrónico debe tener como máximo 35 caracteres.",
+        "El correo electrónico debe tener como máximo 50 caracteres.",
+    })
+    .custom(domainEmailValidator, "Validación dominio email"),
+})
+  .or("rut", "email","carrera")
+  .unknown(false)
+  .messages({
+    "object.unknown": "No se permiten propiedades adicionales.",
+    "object.missing":
+      "Debes proporcionar al menos un parámetro: email o rut.",
+  });
+
+export const userBodyValidation = Joi.object({
+  nombreCompleto: Joi.string()
+    .min(10)
+    .max(50)
+    .pattern(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/)
+    .messages({
+      "string.empty": "El nombre completo no puede estar vacío.",
+      "string.base": "El nombre completo debe ser de tipo string.",
+      "string.min": "El nombre completo debe tener como mínimo 10 caracteres.",
+      "string.max": "El nombre completo debe tener como máximo 50 caracteres.",
+      "string.pattern.base":
+        "El nombre completo solo puede contener letras y espacios.",
+    }),
+  email: Joi.string()
+    .min(15)
+    .max(50)
+    .email()
+    .messages({
+      "string.empty": "El correo electrónico no puede estar vacío.",
+      "string.base": "El correo electrónico debe ser de tipo string.",
+      // "string.email": "El correo electrónico debe finalizar en @gmail.cl.",
+      "string.min":
+        "El correo electrónico debe tener como mínimo 15 caracteres.",
+      "string.max":
+        "El correo electrónico debe tener como máximo 50 caracteres.",
     })
     .custom(domainEmailValidator, "Validación dominio email"),
   password: Joi.string()
@@ -127,6 +119,37 @@ export const userBodyValidation = Joi.object({
       "string.min": "El rol debe tener como mínimo 4 caracteres.",
       "string.max": "El rol debe tener como máximo 15 caracteres.",
     }),
+  carrera: Joi.string()
+    .min(2)
+    .max(100)
+    .allow("")
+    .messages({
+      "string.base": "La carrera debe ser de tipo string.",
+      "string.min": "La carrera debe tener como mínimo 2 caracteres.",
+      "string.max": "La carrera debe tener como máximo 100 caracteres.",
+    }),
+  descripcion: Joi.string()
+    .min(0)
+    .max(500)
+    .allow("")
+    .messages({
+      "string.base": "La descripción debe ser de tipo string.",
+      "string.max": "La descripción debe tener como máximo 500 caracteres.",
+    }),
+  fechaNacimiento: Joi.date()
+    .max('now')
+    .allow("")
+    .allow(null)
+    .messages({
+      "date.base": "La fecha de nacimiento debe ser una fecha válida.",
+      "date.max": "La fecha de nacimiento no puede ser en el futuro.",
+    }),
+  genero: Joi.string()
+    .valid("masculino", "femenino", "no_binario", "prefiero_no_decir")
+    .messages({
+      "string.base": "El género debe ser de tipo string.",
+      "any.only": "El género debe ser uno de: masculino, femenino, no_binario, prefiero_no_decir.",
+    }),
 })
   .or(
     "nombreCompleto",
@@ -134,11 +157,15 @@ export const userBodyValidation = Joi.object({
     "password",
     "newPassword",
     "rut",
-    "rol"
+    "rol",
+    "carrera",
+    "descripcion",
+    "fechaNacimiento",
+    "genero"
   )
   .unknown(false)
   .messages({
     "object.unknown": "No se permiten propiedades adicionales.",
     "object.missing":
-      "Debes proporcionar al menos un campo: nombreCompleto, email, password, newPassword, rut o rol.",
+      "Debes proporcionar al menos un campo: nombreCompleto, email, password, newPassword, rut, rol, carrera, descripcion, fechaNacimiento, genero.",
   });

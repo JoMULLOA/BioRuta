@@ -6,15 +6,23 @@ import session from "express-session";
 import passport from "passport";
 import express, { json, urlencoded } from "express";
 import cron from "node-cron";
+import http from "http";
 import 'dotenv/config';
-
-import userRoutes from "./routes/user.routes.js"; // Rutas de usuario, que incluye /garzones
+import mongoose from "mongoose";
+import userRoutes from "./routes/user.routes.js";
+import chatRoutes from "./routes/chat.routes.js";
+import viajeRoutes from "./routes/viaje.routes.js";
 import indexRoutes from "./routes/index.routes.js";
-
+import pingRoutes from "./routes/ping.routes.js";
+import estadisticasRoutes from "./routes/estadisticas.routes.js";
+import { connectMongoDB } from "./config/mongooseClient.js";
+import { initSocket, getSocketInstance } from "./socket.js"; 
 import { cookieKey, HOST, PORT } from "./config/configEnv.js";
 import { connectDB } from "./config/configDb.js";
 import { createInitialData } from "./config/initialSetup.js";
 import { passportJwtSetup } from "./auth/passport.auth.js";
+import pagoRoutes from "./routes/pago.routes.js";
+
 
 async function setupServer() {
   try {
@@ -54,15 +62,26 @@ async function setupServer() {
     // Inicialización de Passport para autenticación
     app.use(passport.initialize());
     app.use(passport.session());
-    passportJwtSetup();
-
-    // Registro de rutas
+    passportJwtSetup();    // Registro de rutas
     app.use("/api", indexRoutes);
     app.use("/api/users", userRoutes); // Rutas de usuarios, que incluye /api/users/garzones
+    app.use("/api/chat", chatRoutes); // Rutas de chat
+    app.use("/api/viajes", viajeRoutes); // Rutas de viajes
+    app.use("/api", pingRoutes);  // Rutas de MongoDB
+    app.use("/api/pagos", pagoRoutes); // Rutas de pagos
+    app.use("/api/estadisticas", estadisticasRoutes); // Rutas de estadísticas
 
-    // Inicio del servidor
-    app.listen(PORT, () => {
-      console.log(`=> Servidor corriendo en ${HOST}:${PORT}/api`);
+    const server = http.createServer(app);
+    initSocket(server); // Inicializa Socket.IO con el servidor
+    
+    // Hacer que la instancia de Socket.io esté disponible en los controladores
+    app.set('io', getSocketInstance);
+    
+    // Inicio del servidor usando server.listen() para incluir Socket.IO
+    server.listen(PORT, '0.0.0.0', () => {
+      console.log(`✅ Servidor corriendo en ${HOST}:${PORT}/api`);
+      console.log(`🌐 Accesible desde emulador Android en 10.0.2.2:${PORT}/api`);
+      console.log(`🔌 Socket.IO disponible en ${HOST}:${PORT}/socket.io/`);
     });
   } catch (error) {
     console.error("Error en index.js -> setupServer():", error);
@@ -75,7 +94,8 @@ cron.schedule("* * * * *", async () => {
 
 async function setupAPI() {
   try {
-    await connectDB();
+    await connectDB();            // Postgres 
+    await connectMongoDB();      // Mongo Atlas
     await setupServer();
     await createInitialData();
   } catch (error) {

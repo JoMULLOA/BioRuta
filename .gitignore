@@ -44,3 +44,27 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 /frontend/build
+backend/src/config/configDb.js
+backend/src/config/.envlo
+
+# 🔒 ARCHIVOS DE CONFIGURACIÓN SENSIBLES (NUNCA SUBIR)
+backend/src/config/.env*
+backend/src/config/.envsv
+backend/.env*
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# 📁 Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 🗄️ Logs y archivos temporales
+*.log
+logs/
+temp/
+tmp/

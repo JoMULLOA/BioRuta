@@ -5,21 +5,51 @@ const UserSchema = new EntitySchema({
   name: "User",
   tableName: "users",
   columns: {
-    id: {
-      type: "int",
+    rut: {
+      type: "varchar",
+      length: 12,
       primary: true,
-      generated: true,
+      nullable: false,
+      unique: true,
     },
     nombreCompleto: {
       type: "varchar",
       length: 255,
       nullable: false,
     },
-    rut: {
-      type: "varchar",
-      length: 12,
+    fechaNacimiento: {
+      type: "date",
+      nullable: true,
+    },
+    genero: {
+      type: "enum",
+      enum: ["masculino", "femenino", "no_binario", "prefiero_no_decir"],
       nullable: false,
-      unique: true,
+    },
+    carrera: {
+      type: "varchar",
+      length: 100,
+      nullable: true,
+    },
+    altura: {
+      type: "int",
+      nullable: true,
+    },
+    Peso: {
+      type: "int",
+      nullable: true,
+    },
+    descripcion: {
+      type: "text",
+      nullable: true,
+    },
+    clasificacion: {
+      type: "float",
+      nullable: true,
+    },
+    puntuacion: {
+      type: "int",
+      nullable: true,
     },
     email: {
       type: "varchar",
@@ -36,6 +66,11 @@ const UserSchema = new EntitySchema({
       type: "varchar",
       nullable: false,
     },
+    fcmToken: {
+      type: "text",
+      nullable: true,
+      comment: "Token FCM para notificaciones push",
+    },
     createdAt: {
       type: "timestamp with time zone",
       default: () => "CURRENT_TIMESTAMP",
@@ -49,11 +84,6 @@ const UserSchema = new EntitySchema({
     },
   },
   indices: [
-    {
-      name: "IDX_USER",
-      columns: ["id"],
-      unique: true,
-    },
     {
       name: "IDX_USER_RUT",
       columns: ["rut"],

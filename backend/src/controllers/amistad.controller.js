@@ -1,0 +1,250 @@
+"use strict";
+import {
+  enviarSolicitudAmistadService,
+  responderSolicitudAmistadService,
+  obtenerSolicitudesPendientesService,
+  obtenerAmigosService,
+  eliminarAmistadService
+} from "../services/amistad.service.js";
+import {
+  crearNotificacionService
+} from "../services/notificacion.service.js";
+import WebSocketNotificationService from "../services/push_notification.service.js";
+import {
+  solicitudAmistadBodyValidation,
+  respuestaSolicitudValidation,
+  rutValidation
+} from "../validations/amistad.validation.js";
+import {
+  handleErrorClient,
+  handleErrorServer,
+  handleSuccess,
+} from "../handlers/responseHandlers.js";
+
+export async function enviarSolicitudAmistad(req, res) {
+  try {
+    const { error } = solicitudAmistadBodyValidation.validate(req.body);
+    
+    if (error) {
+      return handleErrorClient(res, 400, error.details[0].message);
+    }
+
+    const { rutReceptor, mensaje } = req.body;
+    const rutEmisor = req.user.rut;
+
+    const [solicitud, errorService] = await enviarSolicitudAmistadService(
+      rutEmisor,
+      rutReceptor,
+      mensaje
+    );
+
+    if (errorService) {
+      return handleErrorClient(res, 400, errorService);
+    }
+
+    // Crear notificación para el receptor
+    try {
+      await crearNotificacionService({
+        tipo: 'solicitud_amistad',
+        titulo: 'Nueva solicitud de amistad',
+        mensaje: `${req.user.nombreCompleto || rutEmisor} te ha enviado una solicitud de amistad`,
+        rutReceptor: rutReceptor,
+        rutEmisor: rutEmisor,
+        datos: {
+          solicitudId: solicitud.id,
+          mensaje: mensaje
+        }
+      });
+      console.log(`✅ Notificación de solicitud de amistad enviada a ${rutReceptor}`);
+      
+      // Enviar notificación WebSocket en tiempo real
+      const getIo = req.app.get('io');
+      const io = getIo ? getIo() : null;
+      
+      if (io) {
+        await WebSocketNotificationService.enviarSolicitudAmistad(
+          io,
+          rutReceptor,
+          req.user.nombreCompleto || req.user.nombre || rutEmisor,
+          rutEmisor
+        );
+      } else {
+        console.warn(`⚠️ Socket.io no está disponible en el controlador`);
+      }
+    } catch (notifError) {
+      console.warn("⚠️ Error al crear notificación:", notifError);
+      // No fallar la operación principal por error en notificación
+    }
+
+    handleSuccess(res, 201, "Solicitud de amistad enviada correctamente", solicitud);
+  } catch (error) {
+    console.error("Error en enviarSolicitudAmistad:", error);
+    handleErrorServer(res, 500, error.message);
+  }
+}
+
+export async function responderSolicitudAmistad(req, res) {
+  try {
+    const { error } = respuestaSolicitudValidation.validate(req.body);
+    
+    if (error) {
+      return handleErrorClient(res, 400, error.details[0].message);
+    }
+
+    const { idSolicitud } = req.params;
+    const { respuesta } = req.body;
+    const rutReceptor = req.user.rut;
+
+    const [resultado, errorService] = await responderSolicitudAmistadService(
+      parseInt(idSolicitud),
+      rutReceptor,
+      respuesta
+    );
+
+    if (errorService) {
+      return handleErrorClient(res, 400, errorService);
+    }
+
+    // Crear notificación para el emisor de la solicitud
+    if (resultado && (resultado.rutEmisor || resultado.solicitud?.rutEmisor)) {
+      try {
+        // Extraer rutEmisor de la estructura correcta
+        const rutEmisor = resultado.rutEmisor || resultado.solicitud?.rutEmisor;
+        
+        console.log(`🔧 INICIANDO creación de notificación para emisor: ${rutEmisor}`);
+        console.log(`🔧 Respuesta recibida: ${respuesta}`);
+        console.log(`🔧 Usuario receptor: ${req.user.nombreCompleto || req.user.nombre || rutReceptor}`);
+        console.log(`🔧 Estructura resultado completa:`, JSON.stringify(resultado, null, 2));
+        
+        const tipoNotificacion = respuesta === "aceptada" ? 'amistad_aceptada' : 'amistad_rechazada';
+        const titulo = respuesta === "aceptada" ? '🎉 ¡Nueva amistad!' : 'Solicitud rechazada';
+        const mensaje = respuesta === "aceptada" 
+          ? `Ahora eres amigo de ${req.user.nombreCompleto || req.user.nombre || rutReceptor}`
+          : `${req.user.nombreCompleto || rutReceptor} rechazó tu solicitud de amistad`;
+
+        console.log(`🔧 Datos de notificación preparados:`, { tipoNotificacion, titulo, mensaje });
+
+        await crearNotificacionService({
+          tipo: tipoNotificacion,
+          titulo: titulo,
+          mensaje: mensaje,
+          rutReceptor: rutEmisor,
+          rutEmisor: rutReceptor,
+          datos: {
+            solicitudId: idSolicitud,
+            respuesta: respuesta
+          }
+        });
+        console.log(`✅ Notificación de ${respuesta} guardada en BD para ${rutEmisor}`);
+        
+        // Enviar notificación WebSocket en tiempo real
+        const getIo = req.app.get('io');
+        const io = getIo ? getIo() : null;
+        
+        console.log(`🔧 Socket.io disponible: ${io ? 'SÍ' : 'NO'}`);
+        console.log(`🔧 Respuesta: ${respuesta}, RUT emisor: ${rutEmisor}`);
+        
+        if (io) {
+          const nombreReceptor = req.user.nombreCompleto || req.user.nombre || rutReceptor;
+          console.log(`🔧 Nombre receptor: ${nombreReceptor}`);
+          console.log(`🔧 WebSocketNotificationService disponible: ${WebSocketNotificationService ? 'SÍ' : 'NO'}`);
+          
+          if (respuesta === "aceptada") {
+            console.log(`🎉 EJECUTANDO enviarAmistadAceptada...`);
+            const resultado_notif = await WebSocketNotificationService.enviarAmistadAceptada(
+              io,
+              rutEmisor,
+              nombreReceptor,
+              rutReceptor
+            );
+            console.log(`🎉 RESULTADO envío amistad aceptada:`, resultado_notif);
+          } else {
+            console.log(`😔 EJECUTANDO enviarAmistadRechazada...`);
+            const resultado_notif = await WebSocketNotificationService.enviarAmistadRechazada(
+              io,
+              rutEmisor,
+              nombreReceptor,
+              rutReceptor
+            );
+            console.log(`😔 RESULTADO envío amistad rechazada:`, resultado_notif);
+          }
+        } else {
+          console.warn(`⚠️ Socket.io no está disponible en el controlador`);
+        }
+      } catch (notifError) {
+        console.error("❌ ERROR COMPLETO al crear notificación:", notifError);
+        console.error("❌ STACK TRACE:", notifError.stack);
+        // No fallar la operación principal por error en notificación
+      }
+    } else {
+      console.warn(`⚠️ No se puede crear notificación - resultado o rutEmisor faltante:`, resultado);
+    }
+
+    const mensaje = respuesta === "aceptada" 
+      ? "Solicitud aceptada. ¡Ahora son amigos!"
+      : "Solicitud rechazada";
+
+    handleSuccess(res, 200, mensaje, resultado);
+  } catch (error) {
+    console.error("Error en responderSolicitudAmistad:", error);
+    handleErrorServer(res, 500, error.message);
+  }
+}
+
+export async function obtenerSolicitudesPendientes(req, res) {
+  try {
+    const rutUsuario = req.user.rut; // Cambio de req.rut a req.user.rut
+
+    const [solicitudes, error] = await obtenerSolicitudesPendientesService(rutUsuario);
+
+    if (error) {
+      return handleErrorClient(res, 400, error);
+    }
+
+    handleSuccess(res, 200, "Solicitudes pendientes obtenidas correctamente", solicitudes);
+  } catch (error) {
+    console.error("Error en obtenerSolicitudesPendientes:", error);
+    handleErrorServer(res, 500, error.message);
+  }
+}
+
+export async function obtenerAmigos(req, res) {
+  try {
+    const rutUsuario = req.user.rut; // Cambio de req.rut a req.user.rut
+
+    const [amigos, error] = await obtenerAmigosService(rutUsuario);
+
+    if (error) {
+      return handleErrorClient(res, 400, error);
+    }
+
+    handleSuccess(res, 200, "Amigos obtenidos correctamente", amigos);
+  } catch (error) {
+    console.error("Error en obtenerAmigos:", error);
+    handleErrorServer(res, 500, error.message);
+  }
+}
+
+export async function eliminarAmistad(req, res) {
+  try {
+    const { error } = rutValidation.validate({ rut: req.params.rutAmigo });
+    
+    if (error) {
+      return handleErrorClient(res, 400, error.details[0].message);
+    }
+
+    const { rutAmigo } = req.params;
+    const rutUsuario = req.user.rut; // Cambio de req.rut a req.user.rut
+
+    const [resultado, errorService] = await eliminarAmistadService(rutUsuario, rutAmigo);
+
+    if (errorService) {
+      return handleErrorClient(res, 400, errorService);
+    }
+
+    handleSuccess(res, 200, "Amistad eliminada correctamente", resultado);
+  } catch (error) {
+    console.error("Error en eliminarAmistad:", error);
+    handleErrorServer(res, 500, error.message);
+  }
+}

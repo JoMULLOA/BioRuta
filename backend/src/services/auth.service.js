@@ -7,6 +7,13 @@ import { ACCESS_TOKEN_SECRET } from "../config/configEnv.js";
 
 export async function loginService(user) {
   try {
+    // Debug: Verificar que el ACCESS_TOKEN_SECRET esté disponible
+    console.log("🔧 DEBUG - ACCESS_TOKEN_SECRET disponible:", ACCESS_TOKEN_SECRET ? "✅ Sí" : "❌ No");
+    if (!ACCESS_TOKEN_SECRET) {
+      console.error("❌ CRITICAL: ACCESS_TOKEN_SECRET no está definido!");
+      return [null, "Error de configuración del servidor"];
+    }
+
     const userRepository = AppDataSource.getRepository(User);
     const { email, password } = user;
 
@@ -14,7 +21,6 @@ export async function loginService(user) {
       dataInfo,
       message
     });
-
     const userFound = await userRepository.findOne({
       where: { email }
     });
@@ -36,9 +42,14 @@ export async function loginService(user) {
       rol: userFound.rol,
     };
 
+    console.log("🔧 DEBUG - Generando token JWT con payload:", payload);
+    console.log("🔧 DEBUG - Usando ACCESS_TOKEN_SECRET (primeros 20 chars):", ACCESS_TOKEN_SECRET?.substring(0, 20) + "...");
+
     const accessToken = jwt.sign(payload, ACCESS_TOKEN_SECRET, {
       expiresIn: "1d",
     });
+
+    console.log("🔧 DEBUG - Token generado exitosamente, longitud:", accessToken?.length);
 
     return [accessToken, null];
   } catch (error) {
@@ -52,7 +63,7 @@ export async function registerService(user) {
   try {
     const userRepository = AppDataSource.getRepository(User);
     console.log("Datos recibidos en el registro:", user); // Verificar que los datos llegan correctamente
-    const { nombreCompleto, email, rut, rol, password } = user;
+    const { nombreCompleto, email, rut, rol, password, carrera, fechaNacimiento, genero } = user;
 
     // Verificación de existencia de email o rut
     const existingEmailUser = await userRepository.findOne({ where: { email } });
@@ -73,8 +84,10 @@ export async function registerService(user) {
       rut,
       password: await encryptPassword(password),
       rol,
+      carrera,
+      fechaNacimiento,
+      genero,
     });
-
     await userRepository.save(newUser);
 
     const { password: _, ...dataUser } = newUser; // Excluye la contraseña del objeto devuelto
