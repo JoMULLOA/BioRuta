@@ -10,8 +10,20 @@ const VehiculoSchema = new EntitySchema({
       primary: true,
       length: 10,
     },
+    tipo: {
+      type: "varchar",
+      nullable: false,
+    },
+    marca: {
+      type: "varchar",
+      nullable: false,
+    },
     modelo: {
       type: "varchar",
+      nullable: false,
+    },
+    año: {
+      type: "int",
       nullable: false,
     },
     color: {

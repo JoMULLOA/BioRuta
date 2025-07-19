@@ -63,7 +63,7 @@ export async function registerService(user) {
   try {
     const userRepository = AppDataSource.getRepository(User);
     console.log("Datos recibidos en el registro:", user); // Verificar que los datos llegan correctamente
-    const { nombreCompleto, email, rut, rol, password, carrera } = user;
+    const { nombreCompleto, email, rut, rol, password, carrera, fechaNacimiento, genero } = user;
 
     // Verificación de existencia de email o rut
     const existingEmailUser = await userRepository.findOne({ where: { email } });
@@ -85,6 +85,8 @@ export async function registerService(user) {
       password: await encryptPassword(password),
       rol,
       carrera,
+      fechaNacimiento,
+      genero,
     });
     await userRepository.save(newUser);
 

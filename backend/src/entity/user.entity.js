@@ -21,6 +21,11 @@ const UserSchema = new EntitySchema({
       type: "date",
       nullable: true,
     },
+    genero: {
+      type: "enum",
+      enum: ["masculino", "femenino", "no_binario", "prefiero_no_decir"],
+      nullable: false,
+    },
     carrera: {
       type: "varchar",
       length: 100,
@@ -60,11 +65,6 @@ const UserSchema = new EntitySchema({
     password: {
       type: "varchar",
       nullable: false,
-    },
-    genero: {
-      type: "enum",
-      enum: ["masculino", "femenino", "no_binario", "prefiero_no_decir"],
-      nullable: true,
     },
     fcmToken: {
       type: "text",

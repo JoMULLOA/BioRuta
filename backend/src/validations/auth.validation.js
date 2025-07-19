@@ -105,7 +105,7 @@ export const registerValidation = Joi.object({
       "string.max": "La contraseña debe tener como máximo 26 caracteres.",
       "string.pattern.base": "La contraseña solo puede contener letras y números.",
     }),
-    carrera: Joi.string()
+  carrera: Joi.string()
     .min(5)
     .max(50)
     .required()
@@ -115,6 +115,25 @@ export const registerValidation = Joi.object({
       "string.base": "La carrera debe ser de tipo texto.",
       "string.min": "La carrera debe tener al menos 5 caracteres.",
       "string.max": "La carrera debe tener como máximo 50 caracteres.",
+    }),
+  fechaNacimiento: Joi.date()
+    .max('now')
+    .min('1900-01-01')
+    .required()
+    .messages({
+      "date.base": "La fecha de nacimiento debe ser una fecha válida.",
+      "date.max": "La fecha de nacimiento no puede ser una fecha futura.",
+      "date.min": "La fecha de nacimiento debe ser posterior a 1900.",
+      "any.required": "La fecha de nacimiento es obligatoria.",
+    }),
+  genero: Joi.string()
+    .valid("masculino", "femenino", "no_binario", "prefiero_no_decir")
+    .required()
+    .messages({
+      "string.empty": "El género no puede estar vacío.",
+      "any.required": "El género es obligatorio.",
+      "string.base": "El género debe ser de tipo texto.",
+      "any.only": "El género debe ser uno de: masculino, femenino, no_binario, prefiero_no_decir.",
     }),
 }).unknown(false).messages({
   "object.unknown": "No se permiten propiedades adicionales.",
