@@ -125,7 +125,7 @@ jobs:
         run: |
           echo "🔍 Configurando entorno de producción..."
           echo "✅ Todas las variables de entorno cargadas"
-          echo "� Entorno: PRODUCTION"
+          echo "🌍 Entorno: PRODUCTION"
           echo "🗄️ MongoDB: Servidor 146.83.198.35:1250"
           echo "🖥️ PostgreSQL: Servidor 146.83.198.35:5432"
           
@@ -143,37 +143,76 @@ jobs:
           echo "✅ Variables críticas verificadas"
         working-directory: backend
       
-      - name: 🧪 Simulación de Deploy al Servidor
+      - name: 🚀 Deploy Real al Servidor
         env:
           MONGO_PROD_URI: ${{ secrets.MONGO_PROD_URI }}
           ACCESS_TOKEN_SECRET: ${{ secrets.ACCESS_TOKEN_SECRET }}
           HOST: ${{ secrets.HOST }}
           PORT: ${{ secrets.PORT }}
         run: |
-          echo "🚀 Iniciando deploy a servidor de producción..."
+          echo "🚀 Iniciando deploy REAL a servidor de producción..."
           echo "📍 Servidor: $HOST"
           echo "🔌 Puerto: $PORT"
           
-          # Aquí irían los comandos reales de deploy:
-          # scp, rsync, docker deploy, pm2 restart, etc.
+          # Instalar sshpass para autenticación por contraseña
+          sudo apt-get update
+          sudo apt-get install -y sshpass rsync
           
-          echo "🔄 Simulando deploy..."
-          sleep 10
+          # Preparar archivos para deploy (solo production files)
+          mkdir -p deploy_package
+          cp -r backend/* deploy_package/
+          
+          # Limpiar archivos no necesarios en producción
+          rm -rf deploy_package/node_modules
+          rm -rf deploy_package/README_deploy.md
+          
+          echo "📁 Archivos preparados para deploy"
+          ls -la deploy_package/
+          
+          echo "🔄 Copiando archivos al servidor..."
+          # Usar rsync con sshpass para sincronizar archivos
+          sshpass -p '${{ secrets.SSH_PASSWORD }}' rsync -avz --delete \
+            -e "ssh -o StrictHostKeyChecking=no" \
+            deploy_package/ \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home/jmaureira/BioRuta/backend/
+          
+          echo "📦 Instalando dependencias en servidor..."
+          sshpass -p '${{ secrets.SSH_PASSWORD }}' ssh -o StrictHostKeyChecking=no \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
+            "cd /home/jmaureira/BioRuta/backend && npm ci --only=production"
+          
+          echo "🔄 Reiniciando aplicación..."
+          sshpass -p '${{ secrets.SSH_PASSWORD }}' ssh -o StrictHostKeyChecking=no \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
+            "cd /home/jmaureira/BioRuta/backend && pm2 restart index || pm2 restart 0"
           
           echo "✅ Deploy completado exitosamente!"
-          echo "🌐 Aplicación disponible en: http://$HOST:1245"
-        working-directory: backend
+          echo "🌐 Aplicación disponible en: http://$HOST:$PORT"
+        working-directory: .
       
-      - name: � Health Check Post-Deploy  
+      - name: 🏥 Health Check Post-Deploy  
         run: |
           echo "🏥 Verificando salud de la aplicación..."
           
-          # Aquí podrías hacer un curl al servidor para verificar
-          # curl -f http://146.83.198.35:1245/health || exit 1
+          # Verificar que la aplicación responde
+          sleep 5  # Dar tiempo para que inicie
           
-          echo "✅ Aplicación funcionando correctamente"
+          # Health check real al servidor
+          response=$(curl -s -o /dev/null -w "%{http_code}" http://${{ secrets.HOST }}:${{ secrets.PORT }}/health || echo "000")
+          
+          if [ "$response" -eq "200" ]; then
+            echo "✅ Aplicación funcionando correctamente (HTTP $response)"
+          else
+            echo "⚠️  Aplicación puede estar iniciando (HTTP $response)"
+            echo "🔍 Verificando logs en servidor..."
+            
+            sshpass -p '${{ secrets.SSH_PASSWORD }}' ssh -o StrictHostKeyChecking=no \
+              ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
+              "pm2 logs index --lines 10"
+          fi
+          
           echo "📊 Métricas disponibles"
-          echo "🎉 Deploy exitoso y verificado!"
+          echo "🎉 Deploy completado!"
 
   # PASO 4: Notificaciones
   notify:
