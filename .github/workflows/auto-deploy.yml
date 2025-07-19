@@ -32,9 +32,7 @@ jobs:
           fi
           
           echo "📊 Métricas disponibles"
-          echo "🎉 Deploy completado!"
-
-  # PASO 1: Verificaciones automáticas
+          echo "🎉 Deploy completado!"caciones automáticas
   ci-checks:
     name: 🔍 Verificaciones CI
     runs-on: ubuntu-latest
