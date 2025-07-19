@@ -62,7 +62,7 @@ jobs:
           
           # Merge automático a test
           git checkout test || git checkout -b test
-          git merge origin/base --no-ff -m "🤖 Auto-merge: base → test"
+          git merge origin/base --no-ff -m "🤖 Auto-merge entre ramas: base → test"
           git push origin test
           
           echo "✅ Código automáticamente mergeado a rama 'test'"
@@ -73,7 +73,7 @@ jobs:
     needs: [ci-checks, auto-merge-test]
     if: needs.ci-checks.outputs.deploy-ready == 'true'
     runs-on: ubuntu-latest
-    # environment: 
+    # environment: s
     #   name: production
     #   url: http://146.83.198.35:1245  # URL donde se puede verificar el deploy
     
