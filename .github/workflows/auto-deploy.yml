@@ -150,22 +150,22 @@ jobs:
           
           echo "📁 Archivos preparados para deploy"
           
-          echo "🔍 Verificando conectividad SSH puerto 1244..."
-          timeout 10 nc -zv ${{ secrets.SSH_HOST }} 1244 || echo "⚠️ Puerto 1244 no responde"
+          echo "🔍 Verificando conectividad SSH puerto 22..."
+          timeout 10 nc -zv ${{ secrets.SSH_HOST }} 22 || echo "⚠️ Puerto 22 no responde"
           
           echo "🔄 Copiando archivos al servidor..."
           sshpass -p '${{ secrets.SSH_PASSWORD }}' rsync -avz --delete \
-            -e "ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 -p 1244" \
+            -e "ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 -p 22" \
             deploy_package/ \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home/jmaureira/BioRuta/backend/
           
           echo "📦 Instalando dependencias en servidor..."
-          sshpass -p '${{ secrets.SSH_PASSWORD }}' ssh -o StrictHostKeyChecking=no -p 1244 \
+          sshpass -p '${{ secrets.SSH_PASSWORD }}' ssh -o StrictHostKeyChecking=no -p 22 \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
             "cd /home/jmaureira/BioRuta/backend && npm ci --only=production"
           
           echo "🔄 Reiniciando aplicación..."
-          sshpass -p '${{ secrets.SSH_PASSWORD }}' ssh -o StrictHostKeyChecking=no -p 1244 \
+          sshpass -p '${{ secrets.SSH_PASSWORD }}' ssh -o StrictHostKeyChecking=no -p 22 \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
             "cd /home/jmaureira/BioRuta/backend && pm2 restart index || pm2 restart 0"
           
@@ -183,7 +183,7 @@ jobs:
             echo "✅ Aplicación funcionando correctamente"
           else
             echo "⚠️ Verificando logs..."
-            sshpass -p '${{ secrets.SSH_PASSWORD }}' ssh -o StrictHostKeyChecking=no -p 1244 \
+            sshpass -p '${{ secrets.SSH_PASSWORD }}' ssh -o StrictHostKeyChecking=no -p 22 \
               ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
               "pm2 logs index --lines 5"
           fi
