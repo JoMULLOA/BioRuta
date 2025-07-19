@@ -74,6 +74,7 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
   late StreamSubscription<Map<String, dynamic>> _editedMessageSubscription;
   late StreamSubscription<Map<String, dynamic>> _deletedMessageSubscription;
   late StreamSubscription<bool> _connectionSubscription;
+  late StreamSubscription<Map<String, dynamic>> _peticionSolucionadaSubscription;
   bool _isConnected = false;
   
   // Para edición de mensajes
@@ -92,6 +93,7 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
     _editedMessageSubscription.cancel();
     _deletedMessageSubscription.cancel();
     _connectionSubscription.cancel();
+    _peticionSolucionadaSubscription.cancel();
     _messageController.dispose();
     _scrollController.dispose();
     _searchController.dispose();
@@ -169,6 +171,14 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
       _deletedMessageSubscription = _socketService.deletedMessageStream.listen((messageData) {
         print('🗑️ Escuchando mensaje eliminado desde stream específico: $messageData');
         _handleDeletedMessage(messageData);
+      });
+
+      // Escuchar notificaciones de peticiones solucionadas
+      _peticionSolucionadaSubscription = _socketService.groupChatEventsStream.listen((data) {
+        final eventType = data['_eventType'];
+        if (eventType == 'peticion_solucionada') {
+          _manejarPeticionSolucionada(data);
+        }
       });
 
       // Escuchar confirmaciones y errores de WebSocket
@@ -889,5 +899,102 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
         ],
       ),
     );
+  }
+
+  void _manejarPeticionSolucionada(Map<String, dynamic> data) {
+    if (!mounted) return;
+
+    print('✅ Petición solucionada detectada en chat individual: $data');
+    
+    // Mostrar un diálogo informativo antes de redirigir
+    showDialog(
+      context: context,
+      barrierDismissible: false, // No se puede cerrar tocando fuera
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.blue, size: 28),
+              SizedBox(width: 8),
+              Text('Sesión Finalizada'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '✅ Tu petición de supervisión ha sido marcada como solucionada.',
+                style: TextStyle(fontSize: 16),
+              ),
+              SizedBox(height: 12),
+              Container(
+                padding: EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue[200]!),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info, color: Colors.blue, size: 20),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Gracias por usar nuestro servicio de soporte. Serás redirigido al chat de soporte.',
+                        style: TextStyle(
+                          color: Colors.blue[800],
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Cerrar diálogo
+                _regresarAlChatSoporte();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.support_agent, size: 18),
+                  SizedBox(width: 4),
+                  Text('Ir al Soporte'),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _regresarAlChatSoporte() {
+    // Cerrar el chat individual y regresar al chat de soporte
+    Navigator.of(context).pop(); // Esto cierra la pantalla actual y regresa a la anterior
+    
+    // Mostrar notificación final
+    Future.delayed(Duration(milliseconds: 500), () {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Has regresado al chat de soporte. Puedes crear una nueva petición si necesitas ayuda.'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    });
   }
 }

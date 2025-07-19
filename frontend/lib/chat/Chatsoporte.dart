@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import '../services/peticion_supervision_service.dart';
+import '../services/socket_service.dart';
+import '../chat/pagina_individual.dart';
+import 'dart:async';
 
 class ChatSoporte extends StatefulWidget {
   @override
@@ -6,9 +10,188 @@ class ChatSoporte extends StatefulWidget {
 }
 
 class _ChatSoporteState extends State<ChatSoporte> {
-  final List<Map<String, dynamic>> chatMessages = [
-    {"message": "Bienvenido al soporte. ¿En qué puedo ayudarte?", "isUserMessage": false},
-  ];
+  List<Map<String, dynamic>> chatMessages = [];
+  bool mostrarOpciones = true;
+  bool _isCreatingRequest = false;
+  bool _hasActivePetition = false;
+  Map<String, dynamic>? _peticionActiva;
+  
+  // Para escuchar notificaciones de peticiones
+  final SocketService _socketService = SocketService.instance;
+  StreamSubscription? _peticionesSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    
+    // Verificar petición activa al inicializar
+    _verificarPeticionActiva();
+    
+    // Configurar listener para notificaciones de peticiones
+    _setupPeticionesListener();
+  }
+
+  Future<void> _verificarPeticionActiva() async {
+    try {
+      final resultado = await PeticionSupervisionService.verificarPeticionActiva();
+      
+      if (resultado['success'] && resultado['tieneActiva']) {
+        setState(() {
+          _hasActivePetition = true;
+          _peticionActiva = resultado['data'];
+        });
+        
+        // Mostrar mensaje de bienvenida con estado de petición activa
+        chatMessages.clear();
+        chatMessages.add({
+          "message": "¡Bienvenido de vuelta! Tienes una petición de supervisión activa.",
+          "isUserMessage": false
+        });
+        
+        if (_peticionActiva?['rutAdministrador'] != null) {
+          final nombreAdmin = _peticionActiva?['administrador']?['nombreCompleto'] ?? 'el administrador';
+          chatMessages.add({
+            "message": "Ya tienes un chat abierto con $nombreAdmin. ¿Deseas continuar la conversación?",
+            "isUserMessage": false
+          });
+        }
+      } else {
+        // Mensaje de bienvenida normal
+        chatMessages.add({
+          "message": "Bienvenido al soporte. ¿En qué puedo ayudarte?",
+          "isUserMessage": false
+        });
+      }
+    } catch (e) {
+      print('Error verificando petición activa: $e');
+      // Mensaje de bienvenida por defecto
+      chatMessages.add({
+        "message": "Bienvenido al soporte. ¿En qué puedo ayudarte?",
+        "isUserMessage": false
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _peticionesSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _setupPeticionesListener() {
+    // Escuchar eventos de peticiones de supervisión a través del stream de chat grupal
+    _peticionesSubscription = _socketService.groupChatEventsStream.listen((data) {
+      final eventType = data['_eventType'];
+      
+      if (eventType == 'peticion_aceptada_abrir_chat') {
+        _manejarPeticionAceptada(data);
+      } else if (eventType == 'peticion_respondida') {
+        _manejarPeticionRespondida(data);
+      } else if (eventType == 'peticion_solucionada') {
+        _manejarPeticionSolucionada(data);
+      }
+    });
+  }
+
+  void _manejarPeticionAceptada(Map<String, dynamic> data) async {
+    final rutAdministrador = data['_rutAdministrador'];
+    final nombreAdministrador = data['_nombreAdministrador'];
+    final respuesta = data['respuesta'];
+    
+    if (rutAdministrador != null && nombreAdministrador != null) {
+      // Agregar mensaje sobre la aceptación
+      setState(() {
+        chatMessages.add({
+          "message": "✅ ¡Excelente! Tu petición ha sido aceptada.\n\n${respuesta != null && respuesta.isNotEmpty ? 'Respuesta del administrador: $respuesta\n\n' : ''}Se abrirá el chat con $nombreAdministrador para continuar la conversación.",
+          "isUserMessage": false
+        });
+      });
+      
+      // Mostrar notificación
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Abriendo chat con $nombreAdministrador...'),
+          backgroundColor: Color(0xFF6B3B2D),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+      
+      // Esperar un momento antes de abrir el chat
+      await Future.delayed(const Duration(milliseconds: 1500));
+      
+      // Abrir el chat con el administrador
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => PaginaIndividualWebSocket(
+            nombre: nombreAdministrador,
+            rutAmigo: rutAdministrador,
+            rutUsuarioAutenticado: null, // Se obtendrá automáticamente del storage
+          ),
+        ),
+      );
+    }
+  }
+
+  void _manejarPeticionRespondida(Map<String, dynamic> data) {
+    final estado = data['estado'];
+    final respuesta = data['respuesta'];
+    final administrador = data['administrador'];
+    
+    String mensaje;
+    if (estado == 'denegada') {
+      mensaje = "❌ Tu petición de supervisión ha sido denegada.";
+      if (respuesta != null && respuesta.isNotEmpty) {
+        mensaje += "\n\nMotivo: $respuesta";
+      }
+      if (administrador != null) {
+        mensaje += "\n\nRevisado por: $administrador";
+      }
+    } else {
+      mensaje = "ℹ️ Tu petición ha sido procesada.";
+      if (respuesta != null && respuesta.isNotEmpty) {
+        mensaje += "\n\nRespuesta: $respuesta";
+      }
+    }
+    
+    setState(() {
+      chatMessages.add({
+        "message": mensaje,
+        "isUserMessage": false
+      });
+    });
+  }
+
+  void _manejarPeticionSolucionada(Map<String, dynamic> data) {
+    setState(() {
+      // Reiniciar el estado del chat
+      _hasActivePetition = false;
+      _peticionActiva = null;
+      
+      // Limpiar mensajes y mostrar mensaje de bienvenida normal
+      chatMessages.clear();
+      chatMessages.add({
+        "message": "✅ Tu petición de supervisión ha sido marcada como solucionada.\n\nGracias por usar nuestro servicio de soporte. Si necesitas ayuda nuevamente, puedes crear una nueva petición.",
+        "isUserMessage": false
+      });
+      chatMessages.add({
+        "message": "Bienvenido al soporte. ¿En qué puedo ayudarte?",
+        "isUserMessage": false
+      });
+      
+      // Mostrar opciones nuevamente
+      mostrarOpciones = true;
+    });
+    
+    // Mostrar notificación
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Tu petición de supervisión ha sido solucionada'),
+        backgroundColor: Colors.blue,
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
 
   final List<String> options = [
     "1. ¿Tienes problemas de conexión?",
@@ -29,9 +212,6 @@ class _ChatSoporteState extends State<ChatSoporte> {
     "Para errores al pagar: Verifica que tu método de pago esté habilitado, y que tengas saldo disponible. Si el problema persiste, intenta con otro método.",
     "Si la app se cierra sola: Borra la caché de la aplicación o reinstálala desde la tienda.",
   ];
-
-  bool mostrarOpciones = true;
-  final ScrollController _scrollController = ScrollController();
 
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -55,14 +235,58 @@ class _ChatSoporteState extends State<ChatSoporte> {
     _scrollToBottom();
   }
 
-  void handleSupervisorRequest() {
+  void handleSupervisorRequest() async {
     setState(() {
       chatMessages.add({"message": "Quiero hablar con un supervisor.", "isUserMessage": true});
-      chatMessages.add({"message": "Un supervisor se pondrá en contacto contigo pronto.", "isUserMessage": false});
+      chatMessages.add({"message": "Procesando tu solicitud de supervisión...", "isUserMessage": false});
       mostrarOpciones = false;
+      _isCreatingRequest = true;
     });
     _scrollToBottom();
+
+    try {
+      // Crear la petición de supervisión automáticamente
+      final resultado = await PeticionSupervisionService.crearPeticionSupervision(
+        motivo: "Solicitud de chat de soporte",
+        mensaje: "El usuario ha solicitado hablar con un supervisor desde el chat de soporte automático.",
+        prioridad: "media",
+      );
+
+      setState(() {
+        _isCreatingRequest = false;
+        if (resultado['success']) {
+          chatMessages.removeLast(); // Remover mensaje de "procesando"
+          chatMessages.add({
+            "message": "✅ Tu solicitud ha sido enviada exitosamente.\n\nUn administrador revisará tu petición y te contactará pronto. Puedes revisar el estado de tu solicitud en tu perfil.",
+            "isUserMessage": false
+          });
+        } else {
+          chatMessages.removeLast(); // Remover mensaje de "procesando"
+          chatMessages.add({
+            "message": "❌ Hubo un error al enviar tu solicitud: ${resultado['message']}\n\nPor favor, intenta nuevamente más tarde.",
+            "isUserMessage": false
+          });
+          // Volver a mostrar opciones si hay error
+          mostrarOpciones = true;
+        }
+      });
+    } catch (e) {
+      setState(() {
+        _isCreatingRequest = false;
+        chatMessages.removeLast(); // Remover mensaje de "procesando"
+        chatMessages.add({
+          "message": "❌ Error de conexión al enviar la solicitud.\n\nVerifica tu conexión a internet e intenta nuevamente.",
+          "isUserMessage": false
+        });
+        // Volver a mostrar opciones si hay error
+        mostrarOpciones = true;
+      });
+    }
+
+    _scrollToBottom();
   }
+
+  final ScrollController _scrollController = ScrollController();
 
   @override
   Widget build(BuildContext context) {
@@ -99,13 +323,32 @@ class _ChatSoporteState extends State<ChatSoporte> {
                   },
                 ),
               ),
-              if (mostrarOpciones)
+              if (mostrarOpciones && !_isCreatingRequest)
                 Column(
                   children: [
                     for (int i = 0; i < options.length; i++)
                       _buildOptionButton(options[i], () => handleOptionSelection(i), principal: principal, secundario: secundario),
                     _buildSupervisorButton("Hablar con un supervisor", principal: principal, secundario: secundario),
                   ],
+                ),
+              if (_isCreatingRequest)
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    children: [
+                      CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(principal),
+                      ),
+                      SizedBox(height: 8),
+                      Text(
+                        'Enviando solicitud de supervisión...',
+                        style: TextStyle(
+                          color: secundario,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
             ],
           ),
@@ -162,6 +405,45 @@ class _ChatSoporteState extends State<ChatSoporte> {
   }
 
   Widget _buildSupervisorButton(String text, {required Color principal, required Color secundario}) {
+    // Si hay petición activa, mostrar botón para reanudar chat
+    if (_hasActivePetition && _peticionActiva?['rutAdministrador'] != null) {
+      return Column(
+        children: [
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            onPressed: () => _reanudarChatConAdministrador(),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.chat, color: Colors.white, size: 20),
+                SizedBox(width: 8),
+                Text(
+                  'Reanudar chat con ${_peticionActiva?['administrador']?['nombreCompleto'] ?? 'administrador'}',
+                  style: TextStyle(fontSize: 16, color: Colors.white),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(height: 8),
+          Text(
+            'Ya tienes un chat activo con un administrador',
+            style: TextStyle(
+              fontSize: 12,
+              color: secundario,
+              fontStyle: FontStyle.italic,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      );
+    }
+    
+    // Botón normal para solicitar supervisor
     return ElevatedButton(
       style: ElevatedButton.styleFrom(
         backgroundColor: secundario,
@@ -169,11 +451,36 @@ class _ChatSoporteState extends State<ChatSoporte> {
           borderRadius: BorderRadius.circular(10),
         ),
       ),
-      onPressed: handleSupervisorRequest,
-      child: Text(
-        text,
-        style: TextStyle(fontSize: 16, color: Colors.white),
+      onPressed: _isCreatingRequest ? null : handleSupervisorRequest,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.support_agent, color: Colors.white, size: 20),
+          SizedBox(width: 8),
+          Text(
+            text,
+            style: TextStyle(fontSize: 16, color: Colors.white),
+          ),
+        ],
       ),
     );
+  }
+
+  void _reanudarChatConAdministrador() {
+    final rutAdministrador = _peticionActiva?['rutAdministrador'];
+    final nombreAdministrador = _peticionActiva?['administrador']?['nombreCompleto'] ?? 'Administrador';
+    
+    if (rutAdministrador != null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => PaginaIndividualWebSocket(
+            nombre: nombreAdministrador,
+            rutAmigo: rutAdministrador,
+            rutUsuarioAutenticado: null, // Se obtendrá automáticamente del storage
+          ),
+        ),
+      );
+    }
   }
 }

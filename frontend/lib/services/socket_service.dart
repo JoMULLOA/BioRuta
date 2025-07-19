@@ -260,6 +260,26 @@ class SocketService {
         print('❌ Error de mensaje: $data');
       });
 
+      // === EVENTOS DE PETICIONES DE SUPERVISIÓN ===
+      
+      // Escuchar respuestas a peticiones de supervisión
+      socket!.on('respuesta_peticion_supervision', (data) {
+        print('📋 Respuesta de petición de supervisión recibida: $data');
+        _handlePeticionSupervisionResponse(data);
+      });
+
+      // Escuchar nuevas peticiones de supervisión (para administradores)
+      socket!.on('nueva_peticion_supervision', (data) {
+        print('📋 Nueva petición de supervisión recibida: $data');
+        _handleNuevaPeticionSupervision(data);
+      });
+
+      // Escuchar cuando una petición es marcada como solucionada
+      socket!.on('peticion_solucionada', (data) {
+        print('📋 Petición marcada como solucionada: $data');
+        _handlePeticionSolucionada(data);
+      });
+
       // Esperar un poco para que la conexión se establezca
       await Future.delayed(Duration(milliseconds: 500));
       
@@ -739,6 +759,71 @@ class SocketService {
       print('🚗❌ Error de mensaje grupal procesado');
     } catch (e) {
       print('❌ Error procesando error de mensaje grupal: $e');
+    }
+  }
+
+  // === HANDLERS PARA PETICIONES DE SUPERVISIÓN ===
+
+  // Manejar respuesta a petición de supervisión (para usuarios)
+  void _handlePeticionSupervisionResponse(dynamic data) {
+    try {
+      print('📋 Procesando respuesta de petición de supervisión: $data');
+      final responseData = Map<String, dynamic>.from(data);
+      
+      // Si la petición fue aceptada y debe abrir chat
+      if (responseData['abrirChat'] == true && responseData['chatConAdministrador'] != null) {
+        final chatInfo = responseData['chatConAdministrador'];
+        final rutAdministrador = chatInfo['rutAdministrador'];
+        final nombreAdministrador = chatInfo['nombreAdministrador'];
+        
+        print('📋 Petición aceptada, preparando para abrir chat con $nombreAdministrador');
+        
+        // Agregar información adicional para que el widget pueda manejar la apertura del chat
+        responseData['_eventType'] = 'peticion_aceptada_abrir_chat';
+        responseData['_rutAdministrador'] = rutAdministrador;
+        responseData['_nombreAdministrador'] = nombreAdministrador;
+      } else {
+        responseData['_eventType'] = 'peticion_respondida';
+      }
+      
+      // Emitir la respuesta a través del stream de eventos grupales (para reutilizar la infraestructura existente)
+      _groupChatEventsStreamController.add(responseData);
+      
+      print('📋 Respuesta de petición procesada exitosamente');
+    } catch (e) {
+      print('❌ Error procesando respuesta de petición: $e');
+    }
+  }
+
+  // Manejar nueva petición de supervisión (para administradores)
+  void _handleNuevaPeticionSupervision(dynamic data) {
+    try {
+      print('📋 Procesando nueva petición de supervisión: $data');
+      final peticionData = Map<String, dynamic>.from(data);
+      peticionData['_eventType'] = 'nueva_peticion_supervision';
+      
+      // Emitir la nueva petición
+      _groupChatEventsStreamController.add(peticionData);
+      
+      print('📋 Nueva petición de supervisión procesada exitosamente');
+    } catch (e) {
+      print('❌ Error procesando nueva petición de supervisión: $e');
+    }
+  }
+
+  // Manejar petición solucionada
+  void _handlePeticionSolucionada(dynamic data) {
+    try {
+      print('📋 Procesando petición solucionada: $data');
+      final solucionData = Map<String, dynamic>.from(data);
+      solucionData['_eventType'] = 'peticion_solucionada';
+      
+      // Emitir la solución
+      _groupChatEventsStreamController.add(solucionData);
+      
+      print('📋 Petición solucionada procesada exitosamente');
+    } catch (e) {
+      print('❌ Error procesando petición solucionada: $e');
     }
   }
 

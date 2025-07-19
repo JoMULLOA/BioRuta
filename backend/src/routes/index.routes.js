@@ -8,6 +8,7 @@ import vehiculoRoutes from "./vehiculo.routes.js";
 import amistadRoutes from "./amistad.routes.js";
 import notificacionRoutes from "./notificacion.routes.js";
 import contactoEmergenciaRoutes from "./contactoEmergencia.routes.js";
+import peticionSupervisionRoutes from "./peticionSupervision.routes.js";
 
 const router = Router();
 
@@ -19,5 +20,6 @@ router
     .use("/vehiculos", vehiculoRoutes)
     .use("/amistad", amistadRoutes)
     .use("/notificaciones", notificacionRoutes)
-    .use("/contactos-emergencia", contactoEmergenciaRoutes);
+    .use("/contactos-emergencia", contactoEmergenciaRoutes)
+    .use("/peticiones-supervision", peticionSupervisionRoutes);
 export default router;
