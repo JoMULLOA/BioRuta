@@ -9,7 +9,20 @@ const _dirname = path.dirname(_filename);
 
 const envFilePath = path.resolve(_dirname, ".env");
 
-dotenv.config({ path: envFilePath });
+// 🌍 Carga el archivo .env correcto según el entorno
+function loadEnvironmentFile() {
+  // En producción (GitHub Actions), las variables ya están en process.env
+  if (process.env.GITHUB_ACTIONS || process.env.NODE_ENV === 'production') {
+    console.log('🚀 Ejecutándose en CI/CD - usando variables de entorno del sistema');
+    return;
+  }
+  
+  // En desarrollo local, cargar desde archivo
+  dotenv.config({ path: envFilePath });
+  console.log('🏠 Ejecutándose en desarrollo - cargando desde .env');
+}
+
+loadEnvironmentFile();
 
 // Debug: Verificar que las variables se carguen correctamente
 console.log("🔧 DEBUG - Variables de entorno cargadas:");
