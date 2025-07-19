@@ -262,7 +262,7 @@ class _RankingState extends State<ranking> {
     Color color;
     Color? marcoColor;
 
-    // Definir colores de marco para los primeros 3 lugares
+    // Definir colores solo para el top 3, el resto será neutro
     switch (posicion) {
       case 1:
         icono = Icons.emoji_events;
@@ -280,8 +280,9 @@ class _RankingState extends State<ranking> {
         marcoColor = Color(0xFF8B4513); // Marco café (SaddleBrown) para el tercer lugar
         break;
       default:
+        // Para usuarios fuera del podio, usar colores neutros
         icono = isClasificacion ? Icons.grade : Icons.star_border;
-        color = secundario;
+        color = Colors.grey[400]!; // Color gris neutro
         marcoColor = null; // Sin marco especial para otros lugares
         break;
     }
@@ -305,7 +306,7 @@ class _RankingState extends State<ranking> {
         child: Card(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
-            side: _buildBorder(isCurrentUser, marcoColor),
+            side: _buildBorder(isCurrentUser, marcoColor, posicion),
           ),
           margin: const EdgeInsets.symmetric(vertical: 2),
           elevation: _getElevation(isCurrentUser, posicion),
@@ -313,7 +314,7 @@ class _RankingState extends State<ranking> {
             ? fondo.withOpacity(0.9) 
             : Colors.white,
           child: Container(
-            decoration: _buildContainerDecoration(isCurrentUser, marcoColor),
+            decoration: _buildContainerDecoration(isCurrentUser, marcoColor, posicion),
             child: ListTile(
               contentPadding: EdgeInsets.symmetric(
                 horizontal: isCurrentUser ? 20.0 : 16.0,
@@ -323,10 +324,10 @@ class _RankingState extends State<ranking> {
                 children: [
                   CircleAvatar(
                     radius: isCurrentUser ? 24.0 : 20.0, // Avatar más grande para usuario actual
-                    backgroundColor: color.withOpacity(0.8),
+                    backgroundColor: color.withOpacity(posicion <= 3 ? 0.8 : 0.3), // Menos opacidad fuera del podio
                     child: Icon(
                       icono, 
-                      color: Colors.white,
+                      color: posicion <= 3 ? Colors.white : Colors.grey[600], // Color más neutro fuera del podio
                       size: isCurrentUser ? 28.0 : 24.0, // Ícono más grande para usuario actual
                     ),
                   ),
@@ -352,15 +353,15 @@ class _RankingState extends State<ranking> {
               title: Text(
                 nombre, 
                 style: TextStyle(
-                  color: principal, 
-                  fontWeight: isCurrentUser ? FontWeight.w900 : FontWeight.bold,
+                  color: posicion <= 3 ? principal : Colors.grey[700], // Color más neutro fuera del podio
+                  fontWeight: isCurrentUser ? FontWeight.w900 : (posicion <= 3 ? FontWeight.bold : FontWeight.w500),
                   fontSize: isCurrentUser ? 18 : 14, // Texto más grande para usuario actual
                 ),
               ),
               subtitle: Text(
                 isClasificacion ? 'Calificación: $valorTexto ⭐' : 'Puntos: $valorTexto', 
                 style: TextStyle(
-                  color: secundario,
+                  color: posicion <= 3 ? secundario : Colors.grey[500], // Color más neutro fuera del podio
                   fontWeight: isCurrentUser ? FontWeight.w600 : FontWeight.normal,
                   fontSize: isCurrentUser ? 15 : 12, // Subtítulo más grande para usuario actual
                 ),
@@ -371,13 +372,13 @@ class _RankingState extends State<ranking> {
                   vertical: isCurrentUser ? 6 : 4,
                 ),
                 decoration: BoxDecoration(
-                  color: _getTrailingColor(isCurrentUser, marcoColor),
+                  color: _getTrailingColor(isCurrentUser, marcoColor, posicion),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   '#$posicion', 
                   style: TextStyle(
-                    color: _getTrailingTextColor(isCurrentUser, marcoColor), 
+                    color: _getTrailingTextColor(isCurrentUser, marcoColor, posicion), 
                     fontSize: isCurrentUser ? 18 : 16, // Posición más grande para usuario actual
                     fontWeight: FontWeight.bold,
                   ),
@@ -391,15 +392,15 @@ class _RankingState extends State<ranking> {
   }
 
   // Función para determinar el borde
-  BorderSide _buildBorder(bool isCurrentUser, Color? marcoColor) {
-    if (marcoColor != null) {
-      // Marco especial para top 3
+  BorderSide _buildBorder(bool isCurrentUser, Color? marcoColor, int posicion) {
+    if (posicion <= 3 && marcoColor != null) {
+      // Marco especial solo para top 3
       return BorderSide(color: marcoColor, width: 3);
-    } else if (isCurrentUser) {
-      // Marco para usuario actual (fuera del top 3)
+    } else if (isCurrentUser && posicion <= 3) {
+      // Marco para usuario actual solo si está en el podio
       return BorderSide(color: principal, width: 3);
     } else {
-      // Sin marco
+      // Sin marco para usuarios fuera del podio, incluso si es el usuario actual
       return BorderSide.none;
     }
   }
@@ -413,15 +414,15 @@ class _RankingState extends State<ranking> {
       // Elevación para usuario actual
       return 8.0;
     } else {
-      // Elevación normal
-      return 2.0;
+      // Elevación mínima para usuarios fuera del podio
+      return 1.0;
     }
   }
 
   // Función para determinar la decoración del contenedor
-  BoxDecoration? _buildContainerDecoration(bool isCurrentUser, Color? marcoColor) {
-    if (marcoColor != null) {
-      // Gradiente especial para top 3
+  BoxDecoration? _buildContainerDecoration(bool isCurrentUser, Color? marcoColor, int posicion) {
+    if (marcoColor != null && posicion <= 3) {
+      // Gradiente especial solo para top 3
       return BoxDecoration(
         borderRadius: BorderRadius.circular(12),
         gradient: LinearGradient(
@@ -433,8 +434,8 @@ class _RankingState extends State<ranking> {
           ],
         ),
       );
-    } else if (isCurrentUser) {
-      // Gradiente para usuario actual
+    } else if (isCurrentUser && posicion <= 3) {
+      // Gradiente para usuario actual solo si está en el podio
       return BoxDecoration(
         borderRadius: BorderRadius.circular(12),
         gradient: LinearGradient(
@@ -447,26 +448,33 @@ class _RankingState extends State<ranking> {
         ),
       );
     }
+    // Sin decoración especial para usuarios fuera del podio (fondo blanco simple)
     return null;
   }
 
   // Función para determinar el color de fondo del trailing
-  Color _getTrailingColor(bool isCurrentUser, Color? marcoColor) {
-    if (marcoColor != null) {
+  Color _getTrailingColor(bool isCurrentUser, Color? marcoColor, int posicion) {
+    if (marcoColor != null && posicion <= 3) {
       return marcoColor;
-    } else if (isCurrentUser) {
+    } else if (isCurrentUser && posicion <= 3) {
+      // Solo usar color principal si el usuario actual está en el podio
       return principal;
     } else {
+      // Color transparente para usuarios fuera del podio, incluso si es el usuario actual
       return Colors.transparent;
     }
   }
 
   // Función para determinar el color del texto del trailing
-  Color _getTrailingTextColor(bool isCurrentUser, Color? marcoColor) {
-    if (marcoColor != null || isCurrentUser) {
+  Color _getTrailingTextColor(bool isCurrentUser, Color? marcoColor, int posicion) {
+    if (marcoColor != null && posicion <= 3) {
+      return Colors.white;
+    } else if (isCurrentUser && posicion <= 3) {
+      // Solo usar texto blanco si el usuario actual está en el podio
       return Colors.white;
     } else {
-      return principal;
+      // Color gris para usuarios fuera del podio, incluso si es el usuario actual
+      return Colors.grey[600]!;
     }
   }
 }
