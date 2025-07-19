@@ -10,29 +10,7 @@ env:
   NODE_VERSION: '18'
 
 jobs:
-  # PASO      - name: 🏥 Health Check Post-Deploy  
-        run: |
-          echo "🏥 Verificando salud de la aplicación..."
-          
-          # Verificar que la aplicación responde
-          sleep 5  # Dar tiempo para que inicie
-          
-          # Health check real al servidor
-          response=$(curl -s -o /dev/null -w "%{http_code}" http://${{ secrets.HOST }}:${{ secrets.PORT }}/health || echo "000")
-          
-          if [ "$response" -eq "200" ]; then
-            echo "✅ Aplicación funcionando correctamente (HTTP $response)"
-          else
-            echo "⚠️  Aplicación puede estar iniciando (HTTP $response)"
-            echo "🔍 Verificando logs en servidor..."
-            
-            sshpass -p '${{ secrets.SSH_PASSWORD }}' ssh -o StrictHostKeyChecking=no \
-              ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
-              "pm2 logs index --lines 10"
-          fi
-          
-          echo "📊 Métricas disponibles"
-          echo "🎉 Deploy completado!"caciones automáticas
+  # PASO 1: Verificaciones automáticas
   ci-checks:
     name: 🔍 Verificaciones CI
     runs-on: ubuntu-latest
@@ -147,7 +125,7 @@ jobs:
         run: |
           echo "🔍 Configurando entorno de producción..."
           echo "✅ Todas las variables de entorno cargadas"
-          echo "� Entorno: PRODUCTION"
+          echo "🌍 Entorno: PRODUCTION"
           echo "🗄️ MongoDB: Servidor 146.83.198.35:1250"
           echo "🖥️ PostgreSQL: Servidor 146.83.198.35:5432"
           
@@ -212,16 +190,29 @@ jobs:
           echo "🌐 Aplicación disponible en: http://$HOST:$PORT"
         working-directory: .
       
-      - name: � Health Check Post-Deploy  
+      - name: 🏥 Health Check Post-Deploy  
         run: |
           echo "🏥 Verificando salud de la aplicación..."
           
-          # Aquí podrías hacer un curl al servidor para verificar
-          # curl -f http://146.83.198.35:1245/health || exit 1
+          # Verificar que la aplicación responde
+          sleep 5  # Dar tiempo para que inicie
           
-          echo "✅ Aplicación funcionando correctamente"
+          # Health check real al servidor
+          response=$(curl -s -o /dev/null -w "%{http_code}" http://${{ secrets.HOST }}:${{ secrets.PORT }}/health || echo "000")
+          
+          if [ "$response" -eq "200" ]; then
+            echo "✅ Aplicación funcionando correctamente (HTTP $response)"
+          else
+            echo "⚠️  Aplicación puede estar iniciando (HTTP $response)"
+            echo "🔍 Verificando logs en servidor..."
+            
+            sshpass -p '${{ secrets.SSH_PASSWORD }}' ssh -o StrictHostKeyChecking=no \
+              ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
+              "pm2 logs index --lines 10"
+          fi
+          
           echo "📊 Métricas disponibles"
-          echo "🎉 Deploy exitoso y verificado!"
+          echo "🎉 Deploy completado!"
 
   # PASO 4: Notificaciones
   notify:
