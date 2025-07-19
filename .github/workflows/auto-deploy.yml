@@ -73,7 +73,7 @@ jobs:
     needs: [ci-checks, auto-merge-test]
     if: needs.ci-checks.outputs.deploy-ready == 'true'
     runs-on: ubuntu-latest
-    # environment: s
+    # environment: 
     #   name: production
     #   url: http://146.83.198.35:1245  # URL donde se puede verificar el deploy
     
