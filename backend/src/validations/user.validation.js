@@ -144,6 +144,12 @@ export const userBodyValidation = Joi.object({
       "date.base": "La fecha de nacimiento debe ser una fecha válida.",
       "date.max": "La fecha de nacimiento no puede ser en el futuro.",
     }),
+  genero: Joi.string()
+    .valid("masculino", "femenino", "no_binario", "prefiero_no_decir")
+    .messages({
+      "string.base": "El género debe ser de tipo string.",
+      "any.only": "El género debe ser uno de: masculino, femenino, no_binario, prefiero_no_decir.",
+    }),
 })
   .or(
     "nombreCompleto",
@@ -154,11 +160,12 @@ export const userBodyValidation = Joi.object({
     "rol",
     "carrera",
     "descripcion",
-    "fechaNacimiento"
+    "fechaNacimiento",
+    "genero"
   )
   .unknown(false)
   .messages({
     "object.unknown": "No se permiten propiedades adicionales.",
     "object.missing":
-      "Debes proporcionar al menos un campo: nombreCompleto, email, password, newPassword, rut, rol, carrera, descripcion, fechaNacimiento.",
+      "Debes proporcionar al menos un campo: nombreCompleto, email, password, newPassword, rut, rol, carrera, descripcion, fechaNacimiento, genero.",
   });

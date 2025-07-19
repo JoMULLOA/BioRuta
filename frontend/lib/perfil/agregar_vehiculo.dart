@@ -14,17 +14,61 @@ class AgregarVehiculoPage extends StatefulWidget {
 class _AgregarVehiculoPageState extends State<AgregarVehiculoPage> {
   final _formKey = GlobalKey<FormState>();
   final _patenteController = TextEditingController();
+  final _tipoController = TextEditingController();
+  final _marcaController = TextEditingController();
   final _modeloController = TextEditingController();
+  final _anoController = TextEditingController();
   final _colorController = TextEditingController();
   final _asientosController = TextEditingController();
   final _documentacionController = TextEditingController();
   
+  String? _tipoSeleccionado;
   bool _isSaving = false;
+
+  final List<String> _tiposVehiculo = [
+    'sedan',
+    'hatchback',
+    'suv',
+    'pickup',
+    'furgon',
+    'camioneta',
+    'coupe',
+    'convertible',
+    'otro'
+  ];
+
+  String _getNombreTipo(String tipo) {
+    switch (tipo) {
+      case 'sedan':
+        return 'Sedán';
+      case 'hatchback':
+        return 'Hatchback';
+      case 'suv':
+        return 'SUV';
+      case 'pickup':
+        return 'Pickup';
+      case 'furgon':
+        return 'Furgón';
+      case 'camioneta':
+        return 'Camioneta';
+      case 'coupe':
+        return 'Coupé';
+      case 'convertible':
+        return 'Convertible';
+      case 'otro':
+        return 'Otro';
+      default:
+        return tipo;
+    }
+  }
 
   @override
   void dispose() {
     _patenteController.dispose();
+    _tipoController.dispose();
+    _marcaController.dispose();
     _modeloController.dispose();
+    _anoController.dispose();
     _colorController.dispose();
     _asientosController.dispose();
     _documentacionController.dispose();
@@ -53,7 +97,10 @@ class _AgregarVehiculoPageState extends State<AgregarVehiculoPage> {
       // Preparar datos del vehículo
       final vehiculoData = {
         'patente': _patenteController.text.toUpperCase(),
+        'tipo': _tipoSeleccionado ?? 'otro',
+        'marca': _marcaController.text,
         'modelo': _modeloController.text,
+        'año': int.parse(_anoController.text),
         'color': _colorController.text,
         'nro_asientos': int.parse(_asientosController.text),
         'documentacion': _documentacionController.text,
@@ -200,18 +247,102 @@ class _AgregarVehiculoPageState extends State<AgregarVehiculoPage> {
                       },
                     ),
                     SizedBox(height: 16),
+
+                    // Dropdown para tipo de vehículo
+                    DropdownButtonFormField<String>(
+                      value: _tipoSeleccionado,
+                      hint: Text('Selecciona el tipo de vehículo'),
+                      decoration: InputDecoration(
+                        labelText: 'Tipo de Vehículo',
+                        prefixIcon: Icon(Icons.category, color: primario),
+                        labelStyle: TextStyle(color: primario),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Color(0xFF8D4F3A).withOpacity(0.3)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: primario, width: 2),
+                        ),
+                        errorBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.red, width: 2),
+                        ),
+                        focusedErrorBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.red, width: 2),
+                        ),
+                        filled: true,
+                        fillColor: Colors.grey[50],
+                      ),
+                      items: _tiposVehiculo.map((String tipo) {
+                        return DropdownMenuItem<String>(
+                          value: tipo,
+                          child: Text(_getNombreTipo(tipo)),
+                        );
+                      }).toList(),
+                      onChanged: (String? nuevoTipo) {
+                        setState(() {
+                          _tipoSeleccionado = nuevoTipo;
+                        });
+                      },
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Selecciona un tipo de vehículo';
+                        }
+                        return null;
+                      },
+                    ),
+                    SizedBox(height: 16),
+
+                    _buildTextField(
+                      controller: _marcaController,
+                      label: 'Marca',
+                      icon: Icons.branding_watermark,
+                      hint: 'Ej: Toyota, Ford, Chevrolet',
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'La marca es obligatoria';
+                        }
+                        if (value.length < 2) {
+                          return 'La marca debe tener al menos 2 caracteres';
+                        }
+                        return null;
+                      },
+                    ),
+                    SizedBox(height: 16),
                     
                     _buildTextField(
                       controller: _modeloController,
                       label: 'Modelo',
                       icon: Icons.directions_car,
-                      hint: 'Ej: Toyota Corolla 2020',
+                      hint: 'Ej: Corolla, Focus, Aveo',
                       validator: (value) {
                         if (value == null || value.isEmpty) {
                           return 'El modelo es obligatorio';
                         }
-                        if (value.length < 3) {
-                          return 'El modelo debe tener al menos 3 caracteres';
+                        if (value.length < 2) {
+                          return 'El modelo debe tener al menos 2 caracteres';
+                        }
+                        return null;
+                      },
+                    ),
+                    SizedBox(height: 16),
+
+                    _buildTextField(
+                      controller: _anoController,
+                      label: 'Año',
+                      icon: Icons.calendar_today,
+                      hint: 'Ej: 2020, 2018, 2015',
+                      keyboardType: TextInputType.number,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'El año es obligatorio';
+                        }
+                        final ano = int.tryParse(value);
+                        final currentYear = DateTime.now().year;
+                        if (ano == null || ano < 1990 || ano > currentYear + 1) {
+                          return 'Ingresa un año válido (1990-${currentYear + 1})';
                         }
                         return null;
                       },

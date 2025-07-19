@@ -54,17 +54,12 @@ export async function getVehiculosByUserService(userRut) {
 
     // Formatear datos para el frontend
     const vehiculosFormateados = vehiculos.map(vehiculo => {
-      // Extraer marca del modelo (asumiendo formato "Marca Modelo")
-      const modeloCompleto = vehiculo.modelo || '';
-      const partesModelo = modeloCompleto.split(' ');
-      const marca = partesModelo[0] || 'Desconocida';
-      const modelo = partesModelo.slice(1).join(' ') || modeloCompleto;
-
       return {
         patente: vehiculo.patente,
-        marca: marca,
-        modelo: modelo,
-        modeloCompleto: vehiculo.modelo,
+        tipo: vehiculo.tipo,
+        marca: vehiculo.marca,
+        modelo: vehiculo.modelo,
+        año: vehiculo.año,
         color: vehiculo.color,
         nro_asientos: vehiculo.nro_asientos,
         documentacion: vehiculo.documentacion

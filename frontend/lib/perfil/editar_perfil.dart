@@ -24,6 +24,7 @@ class _EditarPerfilPageState extends State<EditarPerfilPage> {
   final _descripcionController = TextEditingController();
   final _fechaNacimientoController = TextEditingController();
   
+  String? _generoSeleccionado;
   bool _isLoading = true;
   bool _isSaving = false;
   bool _obscureCurrentPassword = true;
@@ -31,6 +32,28 @@ class _EditarPerfilPageState extends State<EditarPerfilPage> {
   
   // Datos originales para comparar cambios
   Map<String, dynamic> _originalData = {};
+
+  final List<String> _opcionesGenero = [
+    'masculino',
+    'femenino', 
+    'no_binario',
+    'prefiero_no_decir'
+  ];
+
+  String _getNombreGenero(String genero) {
+    switch (genero) {
+      case 'masculino':
+        return 'Masculino';
+      case 'femenino':
+        return 'Femenino';
+      case 'no_binario':
+        return 'No binario';
+      case 'prefiero_no_decir':
+        return 'Prefiero no decir';
+      default:
+        return genero;
+    }
+  }
 
   @override
   void initState() {
@@ -85,6 +108,7 @@ class _EditarPerfilPageState extends State<EditarPerfilPage> {
             _emailController.text = userData['email'] ?? '';
             _carreraController.text = userData['carrera'] ?? '';
             _descripcionController.text = userData['descripcion'] ?? '';
+            _generoSeleccionado = userData['genero'];
             
             // Formatear fecha de nacimiento para mostrar
             if (userData['fechaNacimiento'] != null) {
@@ -135,6 +159,11 @@ class _EditarPerfilPageState extends State<EditarPerfilPage> {
       
       if (_descripcionController.text != _originalData['descripcion']) {
         updateData['descripcion'] = _descripcionController.text;
+      }
+
+      // Verificar cambios en género
+      if (_generoSeleccionado != _originalData['genero']) {
+        updateData['genero'] = _generoSeleccionado;
       }
 
       // Validar y agregar fecha de nacimiento si cambió
@@ -344,6 +373,8 @@ class _EditarPerfilPageState extends State<EditarPerfilPage> {
                           label: 'Carrera',
                           icon: Icons.school,
                         ),
+                        SizedBox(height: 16),
+                        _buildGenderDropdown(),
                         SizedBox(height: 16),
                         _buildDateField(
                           controller: _fechaNacimientoController,
@@ -649,6 +680,57 @@ class _EditarPerfilPageState extends State<EditarPerfilPage> {
         filled: true,
         fillColor: Colors.grey[50],
       ),
+    );
+  }
+
+  Widget _buildGenderDropdown() {
+    final Color primario = Color(0xFF6B3B2D);
+    final Color secundario = Color(0xFF8D4F3A);
+
+    return DropdownButtonFormField<String>(
+      value: _generoSeleccionado,
+      hint: Text('Selecciona tu género'),
+      decoration: InputDecoration(
+        labelText: 'Género',
+        prefixIcon: Icon(Icons.person_outline, color: primario),
+        labelStyle: TextStyle(color: primario),
+        hintStyle: TextStyle(color: Colors.grey[400]),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: secundario.withOpacity(0.3)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: primario, width: 2),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.red, width: 2),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.red, width: 2),
+        ),
+        filled: true,
+        fillColor: Colors.grey[50],
+      ),
+      items: _opcionesGenero.map((String genero) {
+        return DropdownMenuItem<String>(
+          value: genero,
+          child: Text(_getNombreGenero(genero)),
+        );
+      }).toList(),
+      onChanged: (String? nuevoGenero) {
+        setState(() {
+          _generoSeleccionado = nuevoGenero;
+        });
+      },
+      validator: (value) {
+        if (value == null || value.isEmpty) {
+          return 'Selecciona un género';
+        }
+        return null;
+      },
     );
   }
 }

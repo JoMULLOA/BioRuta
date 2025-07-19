@@ -14,14 +14,40 @@ export const vehiculoBodyValidation = Joi.object({
       "string.max": "La patente debe tener exactamente 6 caracteres.",
       "string.pattern.base": "Formato de patente inválido. Debe ser AA1234 o AAAA12.",
     }),
+  tipo: Joi.string()
+    .valid("sedan", "hatchback", "suv", "pickup", "furgon", "camioneta", "coupe", "convertible", "otro")
+    .messages({
+      "string.empty": "El tipo de vehículo no puede estar vacío.",
+      "string.base": "El tipo debe ser de tipo string.",
+      "any.only": "El tipo debe ser uno de: sedan, hatchback, suv, pickup, furgon, camioneta, coupe, convertible, otro.",
+    }),
+  marca: Joi.string()
+    .min(2)
+    .max(50)
+    .messages({
+      "string.empty": "La marca no puede estar vacía.",
+      "string.base": "La marca debe ser de tipo string.",
+      "string.min": "La marca debe tener al menos 2 caracteres.",
+      "string.max": "La marca debe tener máximo 50 caracteres.",
+    }),
   modelo: Joi.string()
-    .min(3)
-    .max(100)
+    .min(2)
+    .max(50)
     .messages({
       "string.empty": "El modelo no puede estar vacío.",
       "string.base": "El modelo debe ser de tipo string.",
-      "string.min": "El modelo debe tener al menos 3 caracteres.",
-      "string.max": "El modelo debe tener máximo 100 caracteres.",
+      "string.min": "El modelo debe tener al menos 2 caracteres.",
+      "string.max": "El modelo debe tener máximo 50 caracteres.",
+    }),
+  año: Joi.number()
+    .integer()
+    .min(1990)
+    .max(new Date().getFullYear() + 1)
+    .messages({
+      "number.base": "El año debe ser un número.",
+      "number.integer": "El año debe ser un número entero.",
+      "number.min": "El año debe ser a partir de 1990.",
+      "number.max": `El año debe ser máximo ${new Date().getFullYear() + 1}.`,
     }),
   color: Joi.string()
     .min(2)

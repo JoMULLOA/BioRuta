@@ -18,12 +18,52 @@ class _EditarVehiculoPageState extends State<EditarVehiculoPage> {
   
   // Controladores
   late TextEditingController _patenteController;
+  late TextEditingController _marcaController;
   late TextEditingController _modeloController;
+  late TextEditingController _anoController;
   late TextEditingController _colorController;
   late TextEditingController _nroAsientosController;
   late TextEditingController _documentacionController;
   
+  String? _tipoSeleccionado;
   bool _isLoading = false;
+
+  final List<String> _tiposVehiculo = [
+    'sedan',
+    'hatchback',
+    'suv',
+    'pickup',
+    'furgon',
+    'camioneta',
+    'coupe',
+    'convertible',
+    'otro'
+  ];
+
+  String _getNombreTipo(String tipo) {
+    switch (tipo) {
+      case 'sedan':
+        return 'Sedán';
+      case 'hatchback':
+        return 'Hatchback';
+      case 'suv':
+        return 'SUV';
+      case 'pickup':
+        return 'Pickup';
+      case 'furgon':
+        return 'Furgón';
+      case 'camioneta':
+        return 'Camioneta';
+      case 'coupe':
+        return 'Coupé';
+      case 'convertible':
+        return 'Convertible';
+      case 'otro':
+        return 'Otro';
+      default:
+        return tipo;
+    }
+  }
 
   @override
   void initState() {
@@ -31,7 +71,10 @@ class _EditarVehiculoPageState extends State<EditarVehiculoPage> {
     
     // Inicializar controladores con los datos actuales del vehículo
     _patenteController = TextEditingController(text: widget.vehiculo['patente'] ?? '');
+    _tipoSeleccionado = widget.vehiculo['tipo'] ?? 'otro';
+    _marcaController = TextEditingController(text: widget.vehiculo['marca'] ?? '');
     _modeloController = TextEditingController(text: widget.vehiculo['modelo'] ?? '');
+    _anoController = TextEditingController(text: (widget.vehiculo['año'] ?? widget.vehiculo['ano'] ?? '').toString());
     _colorController = TextEditingController(text: widget.vehiculo['color'] ?? '');
     _nroAsientosController = TextEditingController(text: (widget.vehiculo['nro_asientos'] ?? '').toString());
     _documentacionController = TextEditingController(text: widget.vehiculo['documentacion'] ?? '');
@@ -40,7 +83,9 @@ class _EditarVehiculoPageState extends State<EditarVehiculoPage> {
   @override
   void dispose() {
     _patenteController.dispose();
+    _marcaController.dispose();
     _modeloController.dispose();
+    _anoController.dispose();
     _colorController.dispose();
     _nroAsientosController.dispose();
     _documentacionController.dispose();
@@ -67,7 +112,10 @@ class _EditarVehiculoPageState extends State<EditarVehiculoPage> {
       headers['Content-Type'] = 'application/json';
 
       final body = {
+        'tipo': _tipoSeleccionado ?? 'otro',
+        'marca': _marcaController.text.trim(),
         'modelo': _modeloController.text.trim(),
+        'año': int.tryParse(_anoController.text.trim()) ?? 0,
         'color': _colorController.text.trim(),
         'nro_asientos': int.tryParse(_nroAsientosController.text.trim()) ?? 0,
         'documentacion': _documentacionController.text.trim(),
@@ -212,6 +260,61 @@ class _EditarVehiculoPageState extends State<EditarVehiculoPage> {
                           
                           SizedBox(height: 20),
                           
+                          // Dropdown para tipo de vehículo
+                          DropdownButtonFormField<String>(
+                            value: _tipoSeleccionado,
+                            hint: Text('Selecciona el tipo de vehículo'),
+                            decoration: InputDecoration(
+                              labelText: 'Tipo de Vehículo',
+                              prefixIcon: Icon(Icons.category, color: primario),
+                              labelStyle: TextStyle(color: primario),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(color: primario.withOpacity(0.3)),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(color: primario, width: 2),
+                              ),
+                              filled: true,
+                              fillColor: Colors.grey[50],
+                            ),
+                            items: _tiposVehiculo.map((String tipo) {
+                              return DropdownMenuItem<String>(
+                                value: tipo,
+                                child: Text(_getNombreTipo(tipo)),
+                              );
+                            }).toList(),
+                            onChanged: (String? nuevoTipo) {
+                              setState(() {
+                                _tipoSeleccionado = nuevoTipo;
+                              });
+                            },
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Selecciona un tipo de vehículo';
+                              }
+                              return null;
+                            },
+                          ),
+                          
+                          SizedBox(height: 16),
+                          
+                          // Campo Marca
+                          _buildFormField(
+                            controller: _marcaController,
+                            label: 'Marca',
+                            icon: Icons.branding_watermark,
+                            validator: (value) {
+                              if (value == null || value.trim().isEmpty) {
+                                return 'La marca es obligatoria';
+                              }
+                              return null;
+                            },
+                          ),
+                          
+                          SizedBox(height: 16),
+                          
                           // Campo Modelo
                           _buildFormField(
                             controller: _modeloController,
@@ -220,6 +323,27 @@ class _EditarVehiculoPageState extends State<EditarVehiculoPage> {
                             validator: (value) {
                               if (value == null || value.trim().isEmpty) {
                                 return 'El modelo es obligatorio';
+                              }
+                              return null;
+                            },
+                          ),
+                          
+                          SizedBox(height: 16),
+                          
+                          // Campo Año
+                          _buildFormField(
+                            controller: _anoController,
+                            label: 'Año',
+                            icon: Icons.calendar_today,
+                            keyboardType: TextInputType.number,
+                            validator: (value) {
+                              if (value == null || value.trim().isEmpty) {
+                                return 'El año es obligatorio';
+                              }
+                              final ano = int.tryParse(value);
+                              final currentYear = DateTime.now().year;
+                              if (ano == null || ano < 1990 || ano > currentYear + 1) {
+                                return 'Ingresa un año válido (1990-${currentYear + 1})';
                               }
                               return null;
                             },
