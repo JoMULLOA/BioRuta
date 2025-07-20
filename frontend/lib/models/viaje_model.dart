@@ -55,24 +55,32 @@ class Viaje {
     this.esUnido,
   });
 
-  // Getters para extraer la hora de las fechas
+  // Getters para extraer la hora de las fechas (en hora local de Chile)
   String get horaIda {
-    return '${fechaIda.hour.toString().padLeft(2, '0')}:${fechaIda.minute.toString().padLeft(2, '0')}';
+    // Convertir UTC a hora de Chile (UTC-4)
+    final fechaChile = fechaIda.subtract(const Duration(hours: 4));
+    return '${fechaChile.hour.toString().padLeft(2, '0')}:${fechaChile.minute.toString().padLeft(2, '0')}';
   }
 
   String? get horaVuelta {
     if (fechaVuelta == null) return null;
-    return '${fechaVuelta!.hour.toString().padLeft(2, '0')}:${fechaVuelta!.minute.toString().padLeft(2, '0')}';
+    // Convertir UTC a hora de Chile (UTC-4)
+    final fechaChile = fechaVuelta!.subtract(const Duration(hours: 4));
+    return '${fechaChile.hour.toString().padLeft(2, '0')}:${fechaChile.minute.toString().padLeft(2, '0')}';
   }
 
-  // Getters para formatear las fechas
+  // Getters para formatear las fechas (en hora local de Chile)
   String get fechaIdaFormateada {
-    return '${fechaIda.day}/${fechaIda.month}/${fechaIda.year}';
+    // Convertir UTC a hora de Chile (UTC-4)
+    final fechaChile = fechaIda.subtract(const Duration(hours: 4));
+    return '${fechaChile.day}/${fechaChile.month}/${fechaChile.year}';
   }
 
   String? get fechaVueltaFormateada {
     if (fechaVuelta == null) return null;
-    return '${fechaVuelta!.day}/${fechaVuelta!.month}/${fechaVuelta!.year}';
+    // Convertir UTC a hora de Chile (UTC-4)
+    final fechaChile = fechaVuelta!.subtract(const Duration(hours: 4));
+    return '${fechaChile.day}/${fechaChile.month}/${fechaChile.year}';
   }
 
   factory Viaje.fromJson(Map<String, dynamic> json) {
@@ -314,14 +322,18 @@ class ViajeProximidad {
     this.conductor,
   });
 
-  // Getter para extraer la hora de la fecha
+  // Getter para extraer la hora de la fecha (en hora local de Chile)
   String get horaIda {
-    return '${fechaIda.hour.toString().padLeft(2, '0')}:${fechaIda.minute.toString().padLeft(2, '0')}';
+    // Convertir UTC a hora de Chile (UTC-4)
+    final fechaChile = fechaIda.subtract(const Duration(hours: 4));
+    return '${fechaChile.hour.toString().padLeft(2, '0')}:${fechaChile.minute.toString().padLeft(2, '0')}';
   }
 
-  // Getter para formatear la fecha
+  // Getter para formatear la fecha (en hora local de Chile)
   String get fechaIdaFormateada {
-    return '${fechaIda.day}/${fechaIda.month}/${fechaIda.year}';
+    // Convertir UTC a hora de Chile (UTC-4)
+    final fechaChile = fechaIda.subtract(const Duration(hours: 4));
+    return '${fechaChile.day}/${fechaChile.month}/${fechaChile.year}';
   }
 
   factory ViajeProximidad.fromJson(Map<String, dynamic> json) {
