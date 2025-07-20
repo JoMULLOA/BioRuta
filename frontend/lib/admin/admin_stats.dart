@@ -107,7 +107,7 @@ class _AdminStatsState extends State<AdminStats> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     final Color fondo = Color(0xFFF8F2EF);
-    final Color primario = Color(0xFF6B3B2D);
+    final Color primario = Color(0xFF854937);
     final Color secundario = Color(0xFF8D4F3A);
 
     return Scaffold(

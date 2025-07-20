@@ -501,10 +501,10 @@ class Perfil_ extends State<Perfil> {
     return Scaffold(
       backgroundColor: fondo,
       appBar: AppBar(
-        backgroundColor: fondo,
+        title: const Text('Perfil'),
+        backgroundColor: const Color(0xFF854937),
+        foregroundColor: Colors.white,
         elevation: 0,
-        title: Text('Perfil', style: TextStyle(color: primario)),
-        iconTheme: IconThemeData(color: primario),
         actions: [
           //Botón de amistades
           IconButton(

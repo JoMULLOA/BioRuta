@@ -294,21 +294,21 @@ class _AdminProfileState extends State<AdminProfile> {
   @override
   Widget build(BuildContext context) {
     final Color fondo = Color(0xFFF8F2EF);
-    final Color primario = Color(0xFF6B3B2D);
+    final Color primario = Color(0xFF854937);
     final Color secundario = Color(0xFF8D4F3A);
 
     return Scaffold(
       backgroundColor: fondo,
       appBar: AppBar(
-        backgroundColor: fondo,
+        title: const Text('Perfil Administrador'),
+        backgroundColor: const Color(0xFF854937),
+        foregroundColor: Colors.white,
         elevation: 0,
-        title: Text('Perfil Administrador', style: TextStyle(color: primario)),
-        iconTheme: IconThemeData(color: primario),
         automaticallyImplyLeading: false,
         actions: [
           //Botón de logout
           IconButton(
-            icon: Icon(Icons.logout),
+            icon: const Icon(Icons.logout, color: Colors.white),
             tooltip: 'Cerrar Sesión',
             onPressed: () => _showLogoutDialog(context),
           ),

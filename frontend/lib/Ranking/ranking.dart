@@ -91,10 +91,10 @@ class _RankingState extends State<ranking> {
     return Scaffold(
       backgroundColor: fondo,
       appBar: AppBar(
-        backgroundColor: fondo,
+        title: const Text('Ranking'),
+        backgroundColor: const Color(0xFF854937),
+        foregroundColor: Colors.white,
         elevation: 0,
-        title: Text('Ranking', style: TextStyle(color: principal)),
-        iconTheme: IconThemeData(color: principal),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
