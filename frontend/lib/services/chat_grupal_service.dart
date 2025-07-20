@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../config/confGlobal.dart';
 import '../models/chat_grupal_models.dart';
+import '../models/viaje_chat_model.dart';
 import '../services/socket_service.dart';
 import '../utils/date_utils.dart' as date_utils;
 
@@ -58,6 +59,78 @@ class ChatGrupalService {
     } catch (e) {
       print('❌ Error obteniendo viaje activo: $e');
       return ChatGrupalInfo.empty();
+    }
+  }
+
+  // Obtener todos los viajes donde el usuario está confirmado (para lista de chats)
+  static Future<List<ViajeChat>> obtenerMisViajesParaChat() async {
+    try {
+      final token = await _storage.read(key: 'jwt_token');
+      final userRut = await _storage.read(key: 'user_rut');
+      
+      if (token == null || userRut == null) {
+        print('❌ No hay token o RUT disponible');
+        return [];
+      }
+
+      final response = await http.get(
+        Uri.parse('${confGlobal.baseUrl}/viajes/mis-viajes'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      print('🚗 Respuesta mis-viajes-chat: ${response.statusCode}');
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['success'] == true && data['data'] != null) {
+          final List<dynamic> viajes = data['data'];
+          List<ViajeChat> viajesParaChat = [];
+          
+          for (var viajeData in viajes) {
+            final estado = viajeData['estado']?.toString().toLowerCase();
+            final List<dynamic> pasajeros = viajeData['pasajeros'] ?? [];
+            final conductorRut = viajeData['usuario_rut'];
+            
+            // Verificar si hay pasajeros confirmados O si soy el conductor
+            bool hayPasajerosConfirmados = pasajeros.any((p) => p['estado'] == 'confirmado');
+            bool soyElConductor = conductorRut == userRut;
+            
+            // Solo incluir viajes activos con pasajeros confirmados O donde soy conductor
+            if ((estado == 'activo' || estado == 'en_progreso' || estado == 'confirmado') && 
+                (hayPasajerosConfirmados || soyElConductor)) {
+              
+              var viajeChat = ViajeChat.fromJson(viajeData);
+              // Establecer si soy el conductor
+              viajeChat = ViajeChat(
+                idViaje: viajeChat.idViaje,
+                origen: viajeChat.origen,
+                destino: viajeChat.destino,
+                fechaViaje: viajeChat.fechaViaje,
+                horaViaje: viajeChat.horaViaje,
+                conductorNombre: viajeChat.conductorNombre,
+                conductorRut: viajeChat.conductorRut,
+                cantidadPasajeros: viajeChat.cantidadPasajeros,
+                soyElConductor: soyElConductor,
+                estado: viajeChat.estado,
+              );
+              
+              viajesParaChat.add(viajeChat);
+              print('🚗✅ Viaje agregado para chat: ${viajeChat.idViaje} - ${viajeChat.rutaCompleta}');
+            }
+          }
+          
+          print('🚗📋 Total viajes para chat: ${viajesParaChat.length}');
+          return viajesParaChat;
+        }
+      }
+      
+      return [];
+    } catch (e) {
+      print('❌ Error obteniendo viajes para chat: $e');
+      return [];
     }
   }
 
