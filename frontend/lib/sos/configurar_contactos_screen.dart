@@ -424,7 +424,7 @@ class _ConfigurarContactosScreenState extends State<ConfigurarContactosScreen> {
               ),
             )
           else
-            ..._contactos.map((contacto) => _buildContactoItem(contacto)),
+            ..._contactos.map((contacto) => _buildContactoItem(contacto)).toList(),
         ],
       ),
     );

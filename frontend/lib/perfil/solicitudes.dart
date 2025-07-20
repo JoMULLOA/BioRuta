@@ -8,8 +8,6 @@ import '../utils/token_manager.dart';
 import '../helpers/notificacion_helpers.dart';
 
 class Solicitud extends StatefulWidget {
-  const Solicitud({super.key});
-
   @override
   State<Solicitud> createState() => _SolicitudState();
 }

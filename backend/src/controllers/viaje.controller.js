@@ -1,7 +1,7 @@
 "use strict";
 import Viaje from "../entity/viaje.entity.js";
 import { AppDataSource } from "../config/configDb.js";
-import { handleErrorServer, handleSuccess, handleErrorClient } from "../handlers/responseHandlers.js";
+import { handleErrorServer, handleSuccess } from "../handlers/responseHandlers.js";
 import { crearChatGrupal, agregarParticipante, eliminarParticipante, finalizarChatGrupal } from "../services/chatGrupal.service.js";
 import { 
   notificarChatGrupalCreado, 
@@ -9,7 +9,6 @@ import {
   notificarParticipanteEliminado, 
   notificarChatGrupalFinalizado 
 } from "../socket.js";
-import { convertirFechaChile, obtenerFechaActualChile, debugFecha, esFechaFutura, formatearFechaChile } from "../utils/dateChile.js";
 
 // Obtener repositorios de PostgreSQL
 const userRepository = AppDataSource.getRepository("User");
@@ -69,44 +68,38 @@ export async function crearViaje(req, res) {
     }
 
     // Validar fecha y hora no sea pasada - usar zona horaria de Chile
-    console.log("📅 DEBUG - Fecha recibida del frontend:", fechaHoraIda);
-    
-    // Convertir fechas usando zona horaria de Chile
-    const fechaHoraIdaChile = convertirFechaChile(fechaHoraIda);
-    console.log("📅 DEBUG - Fecha convertida para DB (UTC):", fechaHoraIdaChile.toISOString());
-    console.log("📅 DEBUG - Info detallada:", debugFecha(fechaHoraIda));
-    
-    let fechaHoraVueltaChile = null;
+    console.log("📅 DEBUG - Fecha y hora de ida recibida:", fechaHoraIda);
     if (viajeIdaYVuelta && fechaHoraVuelta) {
-      console.log("📅 DEBUG - Fecha vuelta recibida:", fechaHoraVuelta);
-      fechaHoraVueltaChile = convertirFechaChile(fechaHoraVuelta);
-      console.log("📅 DEBUG - Fecha vuelta convertida para DB (UTC):", fechaHoraVueltaChile.toISOString());
+      console.log("📅 DEBUG - Fecha y hora de vuelta recibida:", fechaHoraVuelta);
     }
 
-    // Obtener fecha y hora actual en Chile
-    const ahoraChile = obtenerFechaActualChile();
-    console.log("📅 DEBUG - Fecha y hora actual (Chile):", ahoraChile.toISOString());
+    // Convertir fecha y hora de ida a Date
+    const fechaHoraIdaDate = new Date(fechaHoraIda);
+    console.log("📅 DEBUG - Fecha y hora de ida convertida:", fechaHoraIdaDate.toISOString());
 
-    // Validar que la fecha de ida esté en el futuro
-    if (!esFechaFutura(fechaHoraIda)) {
-      console.log("❌ DEBUG - La fecha y hora de ida ya pasó en zona horaria de Chile");
-      return handleErrorClient(res, 400, "La fecha y hora de ida no puede ser anterior o igual a la actual (hora de Chile)");
+    // Obtener fecha y hora actual
+    const ahora = new Date();
+    console.log("📅 DEBUG - Fecha y hora actual:", ahora.toISOString());
+
+    // Comparar las fechas
+    if (fechaHoraIdaDate <= ahora) {
+      console.log("❌ DEBUG - La fecha y hora de ida ya pasó");
+      return handleErrorClient(res, 400, "La fecha y hora de ida no puede ser anterior o igual a la actual");
     }
 
     if (viajeIdaYVuelta && fechaHoraVuelta) {
-      const fechaHoraVueltaChile = convertirFechaChile(fechaHoraVuelta);
-      console.log("📅 DEBUG - Fecha y hora de vuelta convertida (Chile):", fechaHoraVueltaChile.toISOString());
+      const fechaHoraVueltaDate = new Date(fechaHoraVuelta);
+      console.log("📅 DEBUG - Fecha y hora de vuelta convertida:", fechaHoraVueltaDate.toISOString());
 
-      if (fechaHoraVueltaChile <= fechaHoraIdaChile) {
-        console.log("❌ DEBUG - La fecha y hora de vuelta es anterior o igual a la de ida en zona horaria de Chile");
+      if (fechaHoraVueltaDate <= fechaHoraIdaDate) {
+        console.log("❌ DEBUG - La fecha y hora de vuelta es anterior o igual a la de ida");
         return handleErrorClient(res, 400, "La fecha y hora de vuelta no puede ser anterior o igual a la de ida");
       }
     }
 
-    console.log("✅ DEBUG - Fechas y horas válidas en zona horaria de Chile");
+    console.log("✅ DEBUG - Fechas y horas válidas");
 
     // Crear el viaje de ida
-    console.log("🚀 DEBUG - Creando viaje con fecha_ida:", fechaHoraIdaChile.toISOString());
     const viajeIda = new Viaje({
       usuario_rut: req.user.rut,
       origen: {
@@ -123,8 +116,10 @@ export async function crearViaje(req, res) {
           coordinates: [destino.lon, destino.lat]
         }
       },
-      fecha_ida: fechaHoraIdaChile, // Usar fecha convertida a zona horaria de Chile
+      fecha_ida: new Date(fechaHoraIda),
+      hora_ida: new Date(fechaHoraIda).toTimeString().substring(0, 5), // Extraer solo HH:mm
       fecha_vuelta: null, // Los viajes separados no tienen vuelta
+      hora_vuelta: null,
       viaje_ida_vuelta: false, // Marcar como viaje simple
       max_pasajeros: maxPasajeros,
       solo_mujeres: soloMujeres,
@@ -171,8 +166,10 @@ export async function crearViaje(req, res) {
             coordinates: [origen.lon, origen.lat]
           }
         },
-        fecha_ida: fechaHoraVueltaChile, // Usar fecha convertida a zona horaria de Chile
+        fecha_ida: new Date(fechaHoraVuelta),
+        hora_ida: new Date(fechaHoraVuelta).toTimeString().substring(0, 5),
         fecha_vuelta: null, // Los viajes separados no tienen vuelta
+        hora_vuelta: null,
         viaje_ida_vuelta: false, // Marcar como viaje simple
         max_pasajeros: maxPasajeros,
         solo_mujeres: soloMujeres,
@@ -498,6 +495,7 @@ export async function buscarViajesPorProximidad(req, res) {
           origen: 1,
           destino: 1,
           fecha_ida: 1,
+          hora_ida: 1,
           precio: 1,
           plazas_disponibles: 1,
           max_pasajeros: 1,
@@ -512,7 +510,8 @@ export async function buscarViajesPorProximidad(req, res) {
       {
         $sort: { 
           distancia_total: 1, // Ordenar por distancia total ascendente
-          fecha_ida: 1
+          fecha_ida: 1, 
+          hora_ida: 1 
         }
       }
     ]);    console.log('📊 Resultados de agregación:');
@@ -622,6 +621,7 @@ export async function obtenerViajesParaMapa(req, res) {
         origen: 1,
         destino: 1,
         fecha_ida: 1,
+        hora_ida: 1,
         precio: 1,
         plazas_disponibles: 1
       })
@@ -650,7 +650,7 @@ export async function obtenerViajesParaMapa(req, res) {
           },
           detalles_viaje: {
             fecha: viaje.fecha_ida,
-            hora: formatearFechaChile(viaje.fecha_ida, 'HH:mm'), // Extraer HH:MM en zona horaria de Chile
+            hora: viaje.hora_ida,
             precio: viaje.precio,
             plazas_disponibles: viaje.plazas_disponibles,
             vehiculo: vehiculo ? {
@@ -797,10 +797,6 @@ async function obtenerViajeConDatos(viajeId) {
 
   return {
     ...viaje.toObject(),
-    // Agregar hora_ida extraída de fecha_ida en zona horaria de Chile para compatibilidad con frontend
-    hora_ida: formatearFechaChile(viaje.fecha_ida, 'HH:mm'),
-    // Agregar hora_vuelta si existe fecha_vuelta
-    hora_vuelta: viaje.fecha_vuelta ? formatearFechaChile(viaje.fecha_vuelta, 'HH:mm') : null,
     conductor: conductor ? {
       rut: conductor.rut,
       nombre: conductor.nombreCompleto,

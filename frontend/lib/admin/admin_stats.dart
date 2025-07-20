@@ -813,7 +813,7 @@ class _AdminStatsState extends State<AdminStats> with TickerProviderStateMixin {
           ),
           _buildAnalysisItem(
             'Viajes activos vs completados',
-            '$_viajesActivos vs $_viajesCompletados',
+            '${_viajesActivos} vs ${_viajesCompletados}',
             Icons.compare_arrows,
             secundario,
           ),

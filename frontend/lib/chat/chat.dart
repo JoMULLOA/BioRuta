@@ -8,8 +8,6 @@ import '../models/chat_grupal_models.dart'; // Importar modelos de chat grupal
 import '../services/amistad_service.dart'; // Importar el servicio de amistad
 import '../services/chat_grupal_service.dart'; // Importar servicio de chat grupal
 class Chat extends StatefulWidget {
-  const Chat({super.key});
-
   @override
   ChatState createState() => ChatState();
 }
@@ -188,8 +186,8 @@ class ChatState extends State<Chat> {
                         Text(errorMessage!, style: TextStyle(color: Colors.red)),
                         ElevatedButton(
                           onPressed: _cargarAmigosDisponibles,
-                          style: ElevatedButton.styleFrom(backgroundColor: principal),
                           child: const Text('Reintentar', style: TextStyle(color: Colors.white)),
+                          style: ElevatedButton.styleFrom(backgroundColor: principal),
                         )
                       ],
                     ),
@@ -268,7 +266,7 @@ class ChatState extends State<Chat> {
                               },
                             ),
                           );
-                        }),
+                        }).toList(),
                     ],
                   ),
       ),

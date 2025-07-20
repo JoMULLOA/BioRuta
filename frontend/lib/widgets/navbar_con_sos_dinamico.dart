@@ -7,10 +7,10 @@ class NavbarConSOSDinamico extends StatefulWidget {
   final Function(int) onTap;
 
   const NavbarConSOSDinamico({
-    super.key,
+    Key? key,
     required this.currentIndex,
     required this.onTap,
-  });
+  }) : super(key: key);
 
   @override
   State<NavbarConSOSDinamico> createState() => _NavbarConSOSDinamicoState();

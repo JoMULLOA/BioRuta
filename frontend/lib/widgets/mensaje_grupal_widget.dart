@@ -10,12 +10,12 @@ class MensajeGrupalWidget extends StatefulWidget {
   final Function(MensajeGrupal) onDelete;
 
   const MensajeGrupalWidget({
-    super.key,
+    Key? key,
     required this.mensaje,
     required this.isOwn,
     required this.onEdit,
     required this.onDelete,
-  });
+  }) : super(key: key);
 
   @override
   MensajeGrupalWidgetState createState() => MensajeGrupalWidgetState();

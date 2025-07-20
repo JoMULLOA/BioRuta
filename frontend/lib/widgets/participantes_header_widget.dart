@@ -7,10 +7,10 @@ class ParticipantesHeaderWidget extends StatelessWidget {
   final String? userRut;
 
   const ParticipantesHeaderWidget({
-    super.key,
+    Key? key,
     required this.participantes,
     this.userRut,
-  });
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {

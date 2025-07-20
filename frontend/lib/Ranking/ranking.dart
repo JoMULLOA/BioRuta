@@ -8,8 +8,6 @@ import '../services/amistad_service.dart'; // Importar servicio de amistad
 import '../helpers/notificacion_helpers.dart'; // Importar helpers de notificación
 
 class ranking extends StatefulWidget {
-  const ranking({super.key});
-
   @override
   State<ranking> createState() => _RankingState();
 }
@@ -20,7 +18,6 @@ class _RankingState extends State<ranking> {
   String? _currentUserEmail; // Email del usuario actual
   bool _isClasificaciones = false; // false = puntos, true = clasificaciones
 
-  @override
   void initState() {
     super.initState();
     _loadCurrentUser();

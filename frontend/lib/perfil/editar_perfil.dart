@@ -458,7 +458,7 @@ class _EditarPerfilPageState extends State<EditarPerfilPage> {
                     SizedBox(height: 32),
 
                     // Botón de Guardar
-                    SizedBox(
+                    Container(
                       width: double.infinity,
                       child: ElevatedButton(
                         onPressed: _isSaving ? null : _saveChanges,

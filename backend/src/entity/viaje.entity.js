@@ -53,13 +53,21 @@ const viajeSchema = new mongoose.Schema({
     }
   },
   
-  // FECHAS Y HORARIOS (fecha y hora combinadas)
+  // FECHAS Y HORARIOS
   fecha_ida: { 
     type: Date, 
     required: true 
   },
+  hora_ida: { 
+    type: String, 
+    required: true 
+  }, // "HH:MM"
   fecha_vuelta: { 
     type: Date, 
+    default: null 
+  },
+  hora_vuelta: { 
+    type: String, 
     default: null 
   },
   viaje_ida_vuelta: { 

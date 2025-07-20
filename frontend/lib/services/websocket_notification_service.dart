@@ -23,7 +23,7 @@ class WebSocketNotificationService {
       _isInitialized = true;
     } catch (e) {
       print('❌ Error inicializando notificaciones WebSocket: $e');
-      rethrow;
+      throw e;
     }
   }
   

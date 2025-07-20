@@ -219,8 +219,8 @@ class _MisVehiculosPageState extends State<MisVehiculosPage> {
       floatingActionButton: FloatingActionButton(
         onPressed: _navigateToAgregarVehiculo,
         backgroundColor: primario,
-        tooltip: 'Agregar Vehículo',
         child: Icon(Icons.add, color: Colors.white),
+        tooltip: 'Agregar Vehículo',
       ),
     );
   }

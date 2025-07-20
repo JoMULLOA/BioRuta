@@ -11,10 +11,10 @@ class ChatGrupalScreen extends StatefulWidget {
   final String? nombreViaje;
 
   ChatGrupalScreen({
-    super.key,
+    Key? key,
     required this.idViaje,
     this.nombreViaje,
-  }) {
+  }) : super(key: key) {
     print('🚗🏗️ CONSTRUCTOR ChatGrupalScreen llamado para viaje: $idViaje');
   }
 

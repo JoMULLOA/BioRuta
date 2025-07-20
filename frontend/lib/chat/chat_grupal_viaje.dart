@@ -72,12 +72,12 @@ class ChatGrupalViaje extends StatefulWidget {
   final String? rutUsuarioAutenticado;
 
   const ChatGrupalViaje({
-    super.key,
+    Key? key,
     required this.idViaje,
     required this.nombreViaje,
     required this.participantes,
     this.rutUsuarioAutenticado,
-  });
+  }) : super(key: key);
 
   @override
   _ChatGrupalViajeState createState() => _ChatGrupalViajeState();

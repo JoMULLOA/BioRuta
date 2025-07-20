@@ -199,7 +199,7 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
                           ),
                         ],
                       ),
-                    )),
+                    )).toList(),
                   ],
                 ),
               ),
@@ -686,7 +686,7 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
             ],
           ),
           const SizedBox(height: 12),
-          ..._contactos.map((contacto) => _buildContactoItem(contacto)),
+          ..._contactos.map((contacto) => _buildContactoItem(contacto)).toList(),
           const SizedBox(height: 12),
           SizedBox(
             width: double.infinity,
