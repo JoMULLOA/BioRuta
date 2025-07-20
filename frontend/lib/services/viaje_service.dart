@@ -565,4 +565,65 @@ class ViajeService {
       return false;
     }
   }
+
+  /// Buscar viajes en un radio específico
+  static Future<List<Map<String, dynamic>>> buscarViajesEnRadio({
+    required double lat,
+    required double lng,
+    required double radio, // en kilómetros
+  }) async {
+    try {
+      debugPrint("🎯 Buscando viajes en radio de ${radio}km desde lat: $lat, lng: $lng");
+
+      final headers = await _getHeaders();
+      if (headers == null) {
+        debugPrint("❌ No se pudieron obtener headers de autenticación");
+        return [];
+      }
+
+      // Obtener fecha de hoy en formato YYYY-MM-DD
+      final hoy = DateTime.now();
+      final fechaHoy = "${hoy.year}-${hoy.month.toString().padLeft(2, '0')}-${hoy.day.toString().padLeft(2, '0')}";
+
+      final url = Uri.parse('$baseUrl/viajes/radar');
+      final body = {
+        'lat': lat.toString(),
+        'lng': lng.toString(),
+        'radio': radio.toString(),
+        'fecha': fechaHoy, // Solo viajes de hoy
+      };
+
+      debugPrint("📡 Enviando petición a: $url");
+      debugPrint("📤 Body: $body");
+
+      final response = await http.post(
+        url,
+        headers: headers,
+        body: json.encode(body),
+      );
+
+      debugPrint("📨 Respuesta status: ${response.statusCode}");
+      debugPrint("📄 Respuesta body: ${response.body}");
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['success'] == true && data['data'] != null) {
+          final List<dynamic> viajesData = data['data'];
+          debugPrint("✅ ${viajesData.length} viajes encontrados en el radar");
+          
+          // Convertir a lista de Map<String, dynamic>
+          return viajesData.cast<Map<String, dynamic>>();
+        } else {
+          debugPrint("⚠️ Respuesta sin datos de viajes");
+          return [];
+        }
+      } else {
+        debugPrint("❌ Error en la petición: ${response.statusCode} - ${response.body}");
+        return [];
+      }
+    } catch (e) {
+      debugPrint("💥 Error buscando viajes en radar: $e");
+      return [];
+    }
+  }
 }

@@ -1200,3 +1200,223 @@ export async function abandonarViaje(req, res) {
     handleErrorServer(res, 500, "Error interno del servidor");
   }
 }
+
+/**
+ * Buscar viajes en un radio específico para la funcionalidad de radar
+ */
+export async function obtenerViajesEnRadio(req, res) {
+  try {
+    console.log("🎯 Iniciando búsqueda de viajes en radar");
+    console.log("📤 Body recibido:", req.body);
+
+    const { lat, lng, radio, fecha } = req.body;
+
+    // Validar parámetros requeridos
+    if (!lat || !lng || !radio) {
+      return handleErrorServer(res, 400, "Faltan parámetros requeridos: lat, lng, radio");
+    }
+
+    // Convertir a números
+    const latitud = parseFloat(lat);
+    const longitud = parseFloat(lng);
+    const radioKm = parseFloat(radio);
+
+    console.log(`📍 Buscando viajes en: lat=${latitud}, lng=${longitud}, radio=${radioKm}km`);
+
+    // Debug: Verificar si hay viajes activos en general
+    const totalViajesActivos = await Viaje.countDocuments({ estado: "activo" });
+    console.log(`📊 Total de viajes activos en DB: ${totalViajesActivos}`);
+
+    // Debug: Mostrar algunos viajes de ejemplo
+    const viajesEjemplo = await Viaje.find({ estado: "activo" })
+      .select('_id origen.nombre origen.ubicacion.coordinates fecha_ida plazas_disponibles')
+      .limit(3);
+    
+    console.log(`📋 Ejemplos de viajes activos:`);
+    viajesEjemplo.forEach((viaje, index) => {
+      console.log(`  ${index + 1}. ID: ${viaje._id}`);
+      console.log(`     Origen: ${viaje.origen.nombre}`);
+      console.log(`     Coordenadas: [${viaje.origen.ubicacion.coordinates[0]}, ${viaje.origen.ubicacion.coordinates[1]}]`);
+      console.log(`     Fecha: ${viaje.fecha_ida}`);
+      console.log(`     Plazas: ${viaje.plazas_disponibles}`);
+    });
+
+    // Preparar filtro de fecha si se proporciona
+    let filtroFecha = {};
+    if (fecha) {
+      // Crear rango de fecha para todo el día
+      const fechaInicio = new Date(fecha + 'T00:00:00.000Z');
+      const fechaFin = new Date(fecha + 'T23:59:59.999Z');
+      
+      filtroFecha = {
+        fecha_ida: {
+          $gte: fechaInicio,
+          $lte: fechaFin
+        }
+      };
+      console.log(`📅 Filtrando por fecha: ${fecha} (${fechaInicio.toISOString()} - ${fechaFin.toISOString()})`);
+      
+      // Debug: Verificar cuántos viajes hay en esa fecha
+      const viajesEnFecha = await Viaje.countDocuments({
+        estado: "activo",
+        ...filtroFecha
+      });
+      console.log(`📅 Viajes activos en la fecha ${fecha}: ${viajesEnFecha}`);
+    }
+
+    console.log(`🔍 Ejecutando agregación $geoNear con:`);
+    console.log(`   - Punto: [${longitud}, ${latitud}]`);
+    console.log(`   - Radio máximo: ${radioKm * 1000} metros`);
+    console.log(`   - Filtros: estado=activo${fecha ? `, fecha=${fecha}` : ''}`);
+
+    // Buscar viajes usando agregación con geoNear
+
+    // Buscar viajes usando agregación con geoNear
+    const viajes = await Viaje.aggregate([
+      {
+        $geoNear: {
+          near: {
+            type: "Point",
+            coordinates: [longitud, latitud]
+          },
+          distanceField: "distancia",
+          maxDistance: radioKm * 1000, // Convertir km a metros
+          spherical: true,
+          key: "origen.ubicacion", // Especificar cuál campo usar para evitar ambigüedad
+          query: {
+            estado: "activo",
+            ...filtroFecha
+          }
+        }
+      },
+      // COMENTADO: No excluir propios viajes para permitir ver todos los viajes en el radar
+      // {
+      //   $match: {
+      //     // Asegurar que no sea el propio viaje del usuario si está autenticado
+      //     usuario_rut: { $ne: req.user?.rut }
+      //   }
+      // },
+      {
+        $limit: 50 // Limitar resultados para mejor rendimiento
+      }
+    ]);
+
+    console.log(`✅ Agregación $geoNear completada`);
+    console.log(`📊 Viajes encontrados por agregación: ${viajes.length}`);
+    
+    if (viajes.length === 0) {
+      console.log(`❌ No se encontraron viajes. Posibles causas:`);
+      console.log(`   1. No hay viajes activos cerca del punto [${longitud}, ${latitud}]`);
+      console.log(`   2. Problema con índice geoespacial en 'origen.ubicacion'`);
+      console.log(`   3. Radio muy pequeño (${radioKm}km = ${radioKm * 1000}m)`);
+      
+      // Buscar el viaje más cercano sin límite de distancia
+      console.log(`🔍 Buscando viaje más cercano sin límite de distancia...`);
+      try {
+        const viajesCercanos = await Viaje.aggregate([
+          {
+            $geoNear: {
+              near: {
+                type: "Point",
+                coordinates: [longitud, latitud]
+              },
+              distanceField: "distancia",
+              spherical: true,
+              key: "origen.ubicacion",
+              query: {
+                estado: "activo",
+                ...filtroFecha
+              }
+            }
+          },
+          { $limit: 3 }
+        ]);
+        
+        console.log(`🎯 ${viajesCercanos.length} viajes más cercanos encontrados:`);
+        viajesCercanos.forEach((viaje, index) => {
+          console.log(`   ${index + 1}. Distancia: ${Math.round(viaje.distancia)}m`);
+          console.log(`      Origen: ${viaje.origen.nombre}`);
+          console.log(`      Coordenadas: [${viaje.origen.ubicacion.coordinates[0]}, ${viaje.origen.ubicacion.coordinates[1]}]`);
+        });
+        
+      } catch (err) {
+        console.error(`❌ Error buscando viajes cercanos:`, err.message);
+      }
+    } else {
+      console.log(`✅ Primeros 3 viajes encontrados:`);
+      viajes.slice(0, 3).forEach((viaje, index) => {
+        console.log(`   ${index + 1}. ID: ${viaje._id}`);
+        console.log(`      Distancia: ${Math.round(viaje.distancia)}m`);
+        console.log(`      Origen: ${viaje.origen.nombre}`);
+        console.log(`      Coordenadas: [${viaje.origen.ubicacion.coordinates[0]}, ${viaje.origen.ubicacion.coordinates[1]}]`);
+      });
+    }
+
+    console.log(`✅ ${viajes.length} viajes encontrados en el radar`);
+
+    // Enriquecer con datos de PostgreSQL
+    const viajesEnriquecidos = await Promise.all(
+      viajes.map(async (viaje) => {
+        try {
+          // Obtener datos del conductor usando usuario_rut
+          const conductor = await userRepository.findOne({
+            where: { rut: viaje.usuario_rut },
+            select: ["rut", "nombreCompleto", "email"]
+          });
+
+          // Obtener datos del vehículo usando vehiculo_patente
+          const vehiculo = await vehiculoRepository.findOne({
+            where: { patente: viaje.vehiculo_patente },
+            select: ["patente", "marca", "modelo", "año", "color", "tipo"]
+          });
+
+          return {
+            id: viaje._id,
+            origen: {
+              nombre: viaje.origen.nombre,
+              coordenadas: viaje.origen.ubicacion.coordinates
+            },
+            destino: {
+              nombre: viaje.destino.nombre,
+              coordenadas: viaje.destino.ubicacion.coordinates
+            },
+            fechaHoraIda: viaje.fecha_ida,
+            maxPasajeros: viaje.max_pasajeros,
+            precio: viaje.precio,
+            plazasDisponibles: viaje.plazas_disponibles,
+            distancia: Math.round(viaje.distancia), // Distancia en metros
+            esPropio: viaje.usuario_rut === req.user?.rut, // Indicar si es del usuario actual
+            conductor: conductor ? {
+              rut: conductor.rut,
+              nombre: conductor.nombreCompleto
+            } : null,
+            vehiculo: vehiculo ? {
+              patente: vehiculo.patente,
+              marca: vehiculo.marca,
+              modelo: vehiculo.modelo,
+              año: vehiculo.año,
+              color: vehiculo.color,
+              tipo: vehiculo.tipo
+            } : null,
+            coordenadas: {
+              lat: viaje.origen.ubicacion.coordinates[1],
+              lng: viaje.origen.ubicacion.coordinates[0]
+            }
+          };
+        } catch (err) {
+          console.error(`❌ Error enriqueciendo viaje ${viaje._id}:`, err);
+          return null;
+        }
+      })
+    );
+
+    // Filtrar viajes nulos y devolver resultado
+    const viajesValidos = viajesEnriquecidos.filter(viaje => viaje !== null);
+    
+    handleSuccess(res, 200, `${viajesValidos.length} viajes encontrados en el radar`, viajesValidos);
+
+  } catch (error) {
+    console.error("❌ Error en búsqueda de viajes por radar:", error);
+    handleErrorServer(res, 500, "Error interno del servidor");
+  }
+}

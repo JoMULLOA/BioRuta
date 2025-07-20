@@ -10,13 +10,15 @@ import {
   eliminarViaje,
   confirmarPasajero,
   cambiarEstadoViaje,
-  abandonarViaje
+  abandonarViaje,
+  obtenerViajesEnRadio
 } from "../controllers/viaje.controller.js";
 import { 
   viajeBodyValidation,
   busquedaProximidadValidation,
   unirseViajeValidation,
-  viajesMapaValidation 
+  viajesMapaValidation,
+  viajesRadarValidation
 } from "../validations/viaje.validation.js";
 import { authenticateJwt } from "../middlewares/authentication.middleware.js";
 import { validateBody, validateQuery } from "../middlewares/validation.middleware.js";
@@ -83,5 +85,13 @@ router.post(
 );
 
 router.delete("/:viajeId/eliminar", authenticateJwt, eliminarViaje);
+
+// Buscar viajes en radio (radar) - POST /api/viajes/radar
+router.post(
+  "/radar",
+  authenticateJwt,
+  validateBody(viajesRadarValidation),
+  obtenerViajesEnRadio
+);
 
 export default router;

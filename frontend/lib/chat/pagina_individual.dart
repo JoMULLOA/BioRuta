@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'dart:async';
 import '../config/confGlobal.dart';
 import '../services/socket_service.dart';
+import '../utils/date_utils.dart' as date_utils;
 
 // Clase Message temporal inline para debugging
 class Message {
@@ -522,7 +523,7 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
                     return ListTile(
                       title: Text(json['contenido']),
                       subtitle: Text(
-                        '${json['emisor'] == _rutUsuarioAutenticadoReal ? "Tú" : widget.nombre} - ${DateTime.parse(json['fecha']).day}/${DateTime.parse(json['fecha']).month}/${DateTime.parse(json['fecha']).year}',
+                        '${json['emisor'] == _rutUsuarioAutenticadoReal ? "Tú" : widget.nombre} - ${date_utils.DateUtils.obtenerFechaChile(DateTime.parse(json['fecha']))}',
                       ),
                       dense: true,
                     );
@@ -723,7 +724,7 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Text(
-                                      '${message.timestamp.hour.toString().padLeft(2, '0')}:${message.timestamp.minute.toString().padLeft(2, '0')}',
+                                      date_utils.DateUtils.obtenerHoraChile(message.timestamp),
                                       style: TextStyle(
                                         color: isMe ? Colors.white70 : Colors.black54,
                                         fontSize: 10,

@@ -4,6 +4,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../config/confGlobal.dart';
 import '../models/chat_grupal_models.dart';
 import '../services/socket_service.dart';
+import '../utils/date_utils.dart' as date_utils;
 
 class ChatGrupalService {
   static final FlutterSecureStorage _storage = const FlutterSecureStorage();
@@ -410,22 +411,25 @@ class ChatGrupalService {
 
   // Formatear fecha para mostrar en el chat
   static String formatearFecha(DateTime fecha) {
+    // Convertir la fecha UTC a hora local de Chile
+    final fechaChile = date_utils.DateUtils.utcAHoraChile(fecha);
     final now = DateTime.now();
-    final difference = now.difference(fecha);
+    final nowChile = date_utils.DateUtils.utcAHoraChile(now.toUtc());
+    final difference = nowChile.difference(fechaChile);
 
     if (difference.inDays == 0) {
       // Hoy - mostrar solo la hora
-      return '${fecha.hour.toString().padLeft(2, '0')}:${fecha.minute.toString().padLeft(2, '0')}';
+      return date_utils.DateUtils.obtenerHoraChile(fecha);
     } else if (difference.inDays == 1) {
       // Ayer
-      return 'Ayer ${fecha.hour.toString().padLeft(2, '0')}:${fecha.minute.toString().padLeft(2, '0')}';
+      return 'Ayer ${date_utils.DateUtils.obtenerHoraChile(fecha)}';
     } else if (difference.inDays < 7) {
       // Esta semana
       const diasSemana = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
-      return '${diasSemana[fecha.weekday - 1]} ${fecha.hour.toString().padLeft(2, '0')}:${fecha.minute.toString().padLeft(2, '0')}';
+      return '${diasSemana[fechaChile.weekday - 1]} ${date_utils.DateUtils.obtenerHoraChile(fecha)}';
     } else {
       // Más de una semana
-      return '${fecha.day}/${fecha.month}/${fecha.year}';
+      return date_utils.DateUtils.obtenerFechaChile(fecha);
     }
   }
 }

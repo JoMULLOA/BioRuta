@@ -93,3 +93,25 @@ export const viajesMapaValidation = Joi.object({
   fecha_desde: Joi.date().allow(''),
   fecha_hasta: Joi.date().min(Joi.ref('fecha_desde')).allow('')
 });
+
+// Validación para búsqueda de viajes en radar
+export const viajesRadarValidation = Joi.object({
+  lat: Joi.number().min(-90).max(90).required().messages({
+    'any.required': 'La latitud es requerida',
+    'number.min': 'La latitud debe estar entre -90 y 90',
+    'number.max': 'La latitud debe estar entre -90 y 90'
+  }),
+  lng: Joi.number().min(-180).max(180).required().messages({
+    'any.required': 'La longitud es requerida', 
+    'number.min': 'La longitud debe estar entre -180 y 180',
+    'number.max': 'La longitud debe estar entre -180 y 180'
+  }),
+  radio: Joi.number().min(0.1).max(10).required().messages({
+    'any.required': 'El radio de búsqueda es requerido',
+    'number.min': 'El radio mínimo es 0.1 km (100 metros)',
+    'number.max': 'El radio máximo es 10 km'
+  }),
+  fecha: Joi.string().pattern(/^\d{4}-\d{2}-\d{2}$/).optional().messages({
+    'string.pattern.base': 'La fecha debe tener el formato YYYY-MM-DD'
+  })
+});

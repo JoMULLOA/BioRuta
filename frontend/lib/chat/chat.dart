@@ -36,6 +36,12 @@ class ChatState extends State<Chat> {
     _initChatScreen();
   }
 
+  @override
+  void dispose() {
+    // Cancelar cualquier operación pendiente
+    super.dispose();
+  }
+
   Future<void> _initChatScreen() async {
     await _loadAuthData(); // Carga el token y el RUT
     if (_jwtToken != null && _rutUsuarioAutenticado != null) {
@@ -45,10 +51,12 @@ class ChatState extends State<Chat> {
         _cargarViajeActivo(),
       ]);
     } else {
-      setState(() {
-        isLoading = false;
-        errorMessage = 'Error: No se pudo cargar el token o el RUT del usuario. Por favor, reinicia la sesión.';
-      });
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+          errorMessage = 'Error: No se pudo cargar el token o el RUT del usuario. Por favor, reinicia la sesión.';
+        });
+      }
       print('ERROR: Token o RUT nulo al iniciar ChatScreen.');
     }
   }
@@ -64,10 +72,12 @@ class ChatState extends State<Chat> {
 
     } catch (e) {
       print('ERROR: Error al cargar token/rut de SecureStorage: $e');
-      setState(() {
-        errorMessage = 'Error al cargar datos de sesión: $e';
-        isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          errorMessage = 'Error al cargar datos de sesión: $e';
+          isLoading = false;
+        });
+      }
     }
   }
 
@@ -77,9 +87,11 @@ class ChatState extends State<Chat> {
       // Usar directamente ChatGrupalService para evitar conflictos
       final viajeActivo = await ChatGrupalService.obtenerViajeActivo();
       
-      setState(() {
-        _viajeActivo = viajeActivo;
-      });
+      if (mounted) {
+        setState(() {
+          _viajeActivo = viajeActivo;
+        });
+      }
       
       print('🚗 Viaje activo cargado: ${viajeActivo.estaActivo}');
       
@@ -92,18 +104,22 @@ class ChatState extends State<Chat> {
   Future<void> _cargarAmigosDisponibles() async {
     // Asegurarse de que el token esté disponible antes de la petición
     if (_jwtToken == null) {
-      setState(() {
-        isLoading = false;
-        errorMessage = 'No hay token de autenticación disponible. Por favor, vuelve a iniciar sesión.';
-      });
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+          errorMessage = 'No hay token de autenticación disponible. Por favor, vuelve a iniciar sesión.';
+        });
+      }
       print('ERROR: _cargarAmigosDisponibles llamado sin token JWT.');
       return;
     }
 
-    setState(() {
-      isLoading = true;
-      errorMessage = null;
-    });
+    if (mounted) {
+      setState(() {
+        isLoading = true;
+        errorMessage = null;
+      });
+    }
 
     try {
       // Usar el servicio de amistad para obtener SOLO los amigos confirmados
@@ -138,23 +154,29 @@ class ChatState extends State<Chat> {
         
         print('DEBUG: Total de amigos obtenidos: ${amigos.length}');
         
-        setState(() {
-          amigosDisponibles = amigos;
-          isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            amigosDisponibles = amigos;
+            isLoading = false;
+          });
+        }
       } else {
         print('DEBUG: Success no es true. Resultado: $resultado');
-        setState(() {
-          errorMessage = resultado['message'] ?? 'Error al cargar amigos';
-          isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            errorMessage = resultado['message'] ?? 'Error al cargar amigos';
+            isLoading = false;
+          });
+        }
       }
       
     } catch (e) {
-      setState(() {
-        errorMessage = 'Error al cargar amigos: $e';
-        isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          errorMessage = 'Error al cargar amigos: $e';
+          isLoading = false;
+        });
+      }
       print('ERROR: Excepción al intentar cargar amigos: $e');
     }
   }
@@ -275,9 +297,11 @@ class ChatState extends State<Chat> {
         onTap: (index) {
           if (index == _selectedIndex) return;
 
-          setState(() {
-            _selectedIndex = index;
-          });
+          if (mounted) {
+            setState(() {
+              _selectedIndex = index;
+            });
+          }
 
           switch (index) {
             case 0:
