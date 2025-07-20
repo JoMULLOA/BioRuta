@@ -1,4 +1,5 @@
 "use strict";
+import { formatearFechaChile } from "../utils/dateChile.js";
 import { AppDataSource } from "../config/configDb.js";
 import SolicitudAmistad from "../entity/solicitudAmistad.entity.js";
 import Notificacion from "../entity/notificacion.entity.js";
@@ -279,7 +280,7 @@ export async function crearSolicitudViaje({ conductorRut, pasajeroRut, viajeId, 
         origen: viaje.origen.nombre,
         destino: viaje.destino.nombre,
         fecha: viaje.fecha_ida,
-        hora: viaje.hora_ida
+        hora: formatearFechaChile(viaje.fecha_ida, 'HH:mm') // Extraer HH:MM en zona horaria de Chile
       },
       fechaCreacion: new Date(),
       leida: false

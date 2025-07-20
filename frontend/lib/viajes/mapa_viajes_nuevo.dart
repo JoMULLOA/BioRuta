@@ -6,6 +6,8 @@ import '../models/marcador_viaje_model.dart';
 import 'vehiculo_icon_helper.dart';
 
 class MapaViajesInteractivo extends StatefulWidget {
+  const MapaViajesInteractivo({super.key});
+
   @override
   _MapaViajesInteractivoState createState() => _MapaViajesInteractivoState();
 }

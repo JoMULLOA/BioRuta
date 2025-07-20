@@ -6,10 +6,10 @@ class CustomNavbarConNotificaciones extends StatefulWidget {
   final Function(int) onTap;
 
   const CustomNavbarConNotificaciones({
-    Key? key,
+    super.key,
     required this.currentIndex,
     required this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   _CustomNavbarConNotificacionesState createState() => _CustomNavbarConNotificacionesState();

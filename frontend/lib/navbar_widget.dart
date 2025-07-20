@@ -6,11 +6,11 @@ class CustomNavbar extends StatelessWidget {
   final bool showSOS; // Nueva propiedad para controlar el botón SOS
 
   const CustomNavbar({
-    Key? key,
+    super.key,
     required this.currentIndex,
     required this.onTap,
     this.showSOS = false, // Por defecto no mostrar SOS
-  }) : super(key: key);
+  });
   
   @override
   Widget build(BuildContext context) {

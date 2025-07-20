@@ -406,7 +406,7 @@ class _EditarVehiculoPageState extends State<EditarVehiculoPage> {
                     SizedBox(height: 24),
                     
                     // Botón de actualizar
-                    Container(
+                    SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
                         onPressed: _isLoading ? null : _actualizarVehiculo,

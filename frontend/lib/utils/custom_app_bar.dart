@@ -7,10 +7,10 @@ class CustomAppBar extends StatefulWidget implements PreferredSizeWidget {
   final bool showNotifications;
 
   const CustomAppBar({
-    Key? key,
+    super.key,
     required this.title,
     this.showNotifications = true,
-  }) : super(key: key);
+  });
 
   @override
   State<CustomAppBar> createState() => _CustomAppBarState();

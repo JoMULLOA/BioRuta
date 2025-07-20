@@ -314,7 +314,7 @@ class _TutorialSOSScreenState extends State<TutorialSOSScreen> {
                       ),
                     ],
                   ),
-                )).toList(),
+                )),
               ],
             ),
           ),

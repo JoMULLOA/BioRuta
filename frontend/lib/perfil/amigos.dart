@@ -4,6 +4,8 @@ import '../services/amistad_service.dart';
 import '../chat/pagina_individual.dart';
 
 class AmigosScreen extends StatefulWidget {
+  const AmigosScreen({super.key});
+
   @override
   State<AmigosScreen> createState() => _AmigosScreenState();
 }
@@ -370,15 +372,15 @@ class _AmigosScreenState extends State<AmigosScreen> {
             onPressed: () => Navigator.pushReplacementNamed(context, '/chat'),
             backgroundColor: Color(0xFF854937),
             foregroundColor: Colors.white,
-            child: Icon(Icons.chat),
             tooltip: 'Ir al Chat',
+            child: Icon(Icons.chat),
           )
         : FloatingActionButton(
             onPressed: () => Navigator.pop(context),
             backgroundColor: Color(0xFF854937),
             foregroundColor: Colors.white,
-            child: Icon(Icons.person_add),
             tooltip: 'Agregar Amigos',
+            child: Icon(Icons.person_add),
           ),
     );
   }

@@ -4,6 +4,8 @@ import '../perfil/amigos.dart';
 import '../utils/custom_app_bar.dart';
 
 class AmistadMenuScreen extends StatelessWidget {
+  const AmistadMenuScreen({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(

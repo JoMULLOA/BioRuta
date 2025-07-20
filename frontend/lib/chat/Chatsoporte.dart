@@ -5,6 +5,8 @@ import '../chat/pagina_individual.dart';
 import 'dart:async';
 
 class ChatSoporte extends StatefulWidget {
+  const ChatSoporte({super.key});
+
   @override
   _ChatSoporteState createState() => _ChatSoporteState();
 }

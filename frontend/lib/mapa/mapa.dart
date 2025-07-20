@@ -35,7 +35,7 @@ class _MapPageState extends State<MapPage> {
   // Variables para los marcadores de viajes
   List<MarcadorViaje> _marcadoresViajes = [];
   bool _cargandoViajes = false;
-  Map<String, GeoPoint> _marcadoresEnMapa = {};
+  final Map<String, GeoPoint> _marcadoresEnMapa = {};
 
   // Variables para manejar rutas específicas pasadas como argumentos
   bool _rutaEspecificaCargada = false;

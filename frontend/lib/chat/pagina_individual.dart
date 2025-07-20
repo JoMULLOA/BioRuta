@@ -50,11 +50,11 @@ class PaginaIndividualWebSocket extends StatefulWidget {
   final String? rutUsuarioAutenticado;
 
   const PaginaIndividualWebSocket({
-    Key? key,
+    super.key,
     required this.nombre,
     required this.rutAmigo,
     this.rutUsuarioAutenticado,
-  }) : super(key: key);
+  });
 
   @override
   _PaginaIndividualWebSocketState createState() => _PaginaIndividualWebSocketState();
@@ -510,7 +510,7 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text('Resultados para "$query"'),
-        content: Container(
+        content: SizedBox(
           width: double.maxFinite,
           height: 300,
           child: results.isEmpty

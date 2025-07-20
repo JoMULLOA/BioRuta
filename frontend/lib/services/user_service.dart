@@ -392,10 +392,10 @@ class Usuario {
     
     if (diferencia.inDays >= 365) {
       final anios = (diferencia.inDays / 365).floor();
-      return '${anios} año${anios > 1 ? 's' : ''}';
+      return '$anios año${anios > 1 ? 's' : ''}';
     } else if (diferencia.inDays >= 30) {
       final meses = (diferencia.inDays / 30).floor();
-      return '${meses} mes${meses > 1 ? 'es' : ''}';
+      return '$meses mes${meses > 1 ? 'es' : ''}';
     } else if (diferencia.inDays > 0) {
       return '${diferencia.inDays} día${diferencia.inDays > 1 ? 's' : ''}';
     } else {

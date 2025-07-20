@@ -13,6 +13,8 @@ import '../auth/login.dart';
 import '../services/socket_service.dart';
 
 class Perfil extends StatefulWidget {
+  const Perfil({super.key});
+
   @override
   Perfil_ createState() => Perfil_();
 }
@@ -818,8 +820,8 @@ class Perfil_ extends State<Perfil> {
           );
         },
         backgroundColor: primario,
-        child: Icon(Icons.support_agent, color: Colors.white),
         tooltip: 'Gestionar Amistades',
+        child: Icon(Icons.support_agent, color: Colors.white),
       ),
       bottomNavigationBar: NavbarConSOSDinamico(
         currentIndex: _selectedIndex,

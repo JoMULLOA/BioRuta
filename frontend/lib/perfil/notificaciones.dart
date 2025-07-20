@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../services/amistad_service.dart';
 
 class NotificacionesScreen extends StatefulWidget {
+  const NotificacionesScreen({super.key});
+
   @override
   State<NotificacionesScreen> createState() => _NotificacionesScreenState();
 }
