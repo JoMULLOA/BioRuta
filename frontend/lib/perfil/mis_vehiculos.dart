@@ -210,10 +210,10 @@ class _MisVehiculosPageState extends State<MisVehiculosPage> {
     return Scaffold(
       backgroundColor: fondo,
       appBar: AppBar(
-        backgroundColor: fondo,
+        backgroundColor: const Color(0xFF8D4F3A),
         elevation: 0,
-        title: Text('Mis Vehículos', style: TextStyle(color: primario)),
-        iconTheme: IconThemeData(color: primario),
+        title: Text('Mis Vehículos', style: TextStyle(color: fondo)),
+        iconTheme: IconThemeData(color: fondo),
       ),
       body: _buildBody(),
       floatingActionButton: FloatingActionButton(

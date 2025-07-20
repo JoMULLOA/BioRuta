@@ -183,7 +183,7 @@ class _MapaSeleccionPageState extends State<MapaSeleccionPage> {
         markerIcon: MarkerIcon(
           icon: Icon(
             widget.esOrigen ? Icons.my_location : Icons.place,
-            color: widget.esOrigen ? const Color(0xFF2E7D32) : Colors.orange,
+            color: widget.esOrigen ? const Color(0xFF8D4F3A) : const Color(0xFFEDCAB6),
             size: 56,
           ),
         ),
@@ -229,7 +229,7 @@ class _MapaSeleccionPageState extends State<MapaSeleccionPage> {
             ),
           ],
         ),
-        backgroundColor: const Color(0xFF2E7D32),
+        backgroundColor: const Color(0xFF8D4F3A),
         foregroundColor: Colors.white,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -284,7 +284,7 @@ class _MapaSeleccionPageState extends State<MapaSeleccionPage> {
               heroTag: 'centrar',
               onPressed: _centrarEnMiUbicacion,
               tooltip: 'Centrar en mi ubicación',
-              backgroundColor: const Color(0xFF2E7D32),
+              backgroundColor: const Color(0xFF8D4F3A),
               foregroundColor: Colors.white,
               child: const Icon(Icons.my_location),
             ),
@@ -298,7 +298,7 @@ class _MapaSeleccionPageState extends State<MapaSeleccionPage> {
               child: Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF2E7D32),
+                  color: const Color(0xFF8D4F3A),
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
@@ -329,8 +329,8 @@ class _MapaSeleccionPageState extends State<MapaSeleccionPage> {
                       child: ElevatedButton(
                         onPressed: _confirmarSeleccion,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          foregroundColor: const Color(0xFF2E7D32),
+                          backgroundColor: const Color(0xFFEDCAB6),
+                          foregroundColor: const Color(0xFF8D4F3A),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
                           ),

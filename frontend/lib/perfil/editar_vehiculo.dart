@@ -69,9 +69,18 @@ class _EditarVehiculoPageState extends State<EditarVehiculoPage> {
   void initState() {
     super.initState();
     
+    // Debug: Imprimir los datos del vehículo
+    print('DEBUG EditarVehiculo - Datos recibidos: ${widget.vehiculo}');
+    
     // Inicializar controladores con los datos actuales del vehículo
     _patenteController = TextEditingController(text: widget.vehiculo['patente'] ?? '');
-    _tipoSeleccionado = widget.vehiculo['tipo'] ?? 'otro';
+    
+    // Validar que el tipo del vehículo esté en la lista válida
+    String tipoActual = widget.vehiculo['tipo'] ?? 'otro';
+    _tipoSeleccionado = _tiposVehiculo.contains(tipoActual) ? tipoActual : 'otro';
+    
+    print('DEBUG EditarVehiculo - Tipo actual: $tipoActual, Tipo seleccionado: $_tipoSeleccionado');
+    
     _marcaController = TextEditingController(text: widget.vehiculo['marca'] ?? '');
     _modeloController = TextEditingController(text: widget.vehiculo['modelo'] ?? '');
     _anoController = TextEditingController(text: (widget.vehiculo['año'] ?? widget.vehiculo['ano'] ?? '').toString());
@@ -262,7 +271,7 @@ class _EditarVehiculoPageState extends State<EditarVehiculoPage> {
                           
                           // Dropdown para tipo de vehículo
                           DropdownButtonFormField<String>(
-                            value: _tipoSeleccionado,
+                            value: _tiposVehiculo.contains(_tipoSeleccionado) ? _tipoSeleccionado : null,
                             hint: Text('Selecciona el tipo de vehículo'),
                             decoration: InputDecoration(
                               labelText: 'Tipo de Vehículo',
