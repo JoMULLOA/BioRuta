@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/amistad_service.dart';
+import '../services/websocket_notification_service.dart';
 
 class NotificacionesScreen extends StatefulWidget {
   @override
@@ -135,12 +136,46 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
     );
   }
 
+  // Método para mostrar una notificación externa del sistema
+  void _mostrarNotificacionExterna(Map<String, dynamic> solicitud, Map<String, dynamic> emisor) {
+    // Simular notificación del sistema como las que llegan por WebSocket
+    WebSocketNotificationService.showLocalNotification(
+      title: '👋 Nueva solicitud de amistad',
+      body: '${emisor['nombreCompleto'] ?? 'Un usuario'} te ha enviado una solicitud de amistad',
+      payload: '{"tipo": "solicitud_amistad", "rutEmisor": "${emisor['rut']}", "nombreEmisor": "${emisor['nombreCompleto']}"}',
+    );
+
+    // Mostrar también un SnackBar para confirmación
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(Icons.notifications, color: Colors.white),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text('Se ha mostrado una notificación del sistema para esta solicitud'),
+            ),
+          ],
+        ),
+        backgroundColor: Color(0xFF854937),
+        duration: Duration(seconds: 3),
+        action: SnackBarAction(
+          label: 'Ver',
+          textColor: Colors.white,
+          onPressed: () {
+            // Navegar a notificaciones si el usuario quiere ver más detalles
+          },
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        title: const Text('Solicitudes de Amistad'),
+        title: const Text('Notificaciones'),
         backgroundColor: const Color(0xFF854937),
         foregroundColor: Colors.white,
         elevation: 0,
@@ -182,7 +217,7 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
                       ),
                       SizedBox(height: 16),
                       Text(
-                        'No tienes solicitudes pendientes',
+                        'No tienes notificaciones',
                         style: TextStyle(
                           fontSize: 18,
                           color: Colors.grey[600],
@@ -320,6 +355,37 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
                               ),
                               
                               SizedBox(height: 16),
+                              
+                              // Botón "Ver solicitud" - para mostrar notificación externa
+                              Container(
+                                width: double.infinity,
+                                child: OutlinedButton(
+                                  onPressed: () => _mostrarNotificacionExterna(solicitud, emisor),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: Color(0xFF854937),
+                                    side: BorderSide(color: Color(0xFF854937)),
+                                    padding: EdgeInsets.symmetric(vertical: 12),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.visibility, size: 18),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        'Ver solicitud',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              
+                              SizedBox(height: 12),
                               
                               // Botones de acción
                               Row(

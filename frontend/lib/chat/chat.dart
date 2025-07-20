@@ -191,10 +191,10 @@ class ChatState extends State<Chat> {
     return Scaffold(
       backgroundColor: fondo,
       appBar: AppBar(
-        backgroundColor: fondo,
+        title: const Text('Chats'),
+        backgroundColor: const Color(0xFF854937),
+        foregroundColor: Colors.white,
         elevation: 0,
-        title: Text('Chats', style: TextStyle(color: principal)),
-        iconTheme: IconThemeData(color: principal),
       ),
       body: Padding(
         padding: const EdgeInsets.all(12.0),

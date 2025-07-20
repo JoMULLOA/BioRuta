@@ -4,6 +4,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 import '../config/confGlobal.dart';
 import '../utils/token_manager.dart';
+import 'navigation_service.dart';
 
 class WebSocketNotificationService {
   static IO.Socket? _socket;
@@ -328,6 +329,19 @@ class WebSocketNotificationService {
     }
   }
   
+  /// Mostrar notificación local pública (para uso externo)
+  static Future<void> showLocalNotification({
+    required String title,
+    required String body,
+    String? payload,
+  }) async {
+    await _showLocalNotification(
+      title: title,
+      body: body,
+      payload: payload,
+    );
+  }
+  
   /// Mostrar notificación local
   static Future<void> _showLocalNotification({
     required String title,
@@ -352,29 +366,76 @@ class WebSocketNotificationService {
         print('🔔 *** PERMISOS DE NOTIFICACIONES HABILITADOS ***: $enabled');
       }
       
-      const AndroidNotificationDetails androidNotificationDetails =
-          AndroidNotificationDetails(
-        'bioruta_channel',
-        'BioRuta Notificaciones',
-        channelDescription: 'Notificaciones de la aplicación BioRuta',
-        importance: Importance.max,
-        priority: Priority.high,
-        icon: '@mipmap/ic_launcher',
-        color: Color(0xFF2E7D32),
-        enableVibration: true,
-        playSound: true,
-        showWhen: true,
-        channelShowBadge: true,
-        onlyAlertOnce: false,
-        autoCancel: true,
-        ongoing: false,
-        silent: false,
-        enableLights: true,
-        ledColor: Color(0xFF2E7D32),
-        ledOnMs: 1000,
-        ledOffMs: 500,
-        ticker: 'BioRuta',
-      );
+      // Determinar si es una solicitud de amistad para agregar botones
+      bool esSolicitudAmistad = false;
+      try {
+        if (payload != null) {
+          final data = json.decode(payload);
+          esSolicitudAmistad = data['tipo'] == 'solicitud_amistad';
+        }
+      } catch (e) {
+        print('❌ Error parseando payload para determinar tipo: $e');
+      }
+      
+      AndroidNotificationDetails androidNotificationDetails;
+      
+      if (esSolicitudAmistad) {
+        // Notificación con botón "Ver solicitud" únicamente
+        androidNotificationDetails = AndroidNotificationDetails(
+          'bioruta_channel',
+          'BioRuta Notificaciones',
+          channelDescription: 'Notificaciones de la aplicación BioRuta',
+          importance: Importance.max,
+          priority: Priority.high,
+          icon: '@mipmap/ic_launcher',
+          color: Color(0xFF2E7D32),
+          enableVibration: true,
+          playSound: true,
+          showWhen: true,
+          channelShowBadge: true,
+          onlyAlertOnce: false,
+          autoCancel: false, // No auto-cancelar para que el usuario pueda ver el botón
+          ongoing: false,
+          silent: false,
+          enableLights: true,
+          ledColor: Color(0xFF2E7D32),
+          ledOnMs: 1000,
+          ledOffMs: 500,
+          ticker: 'BioRuta',
+          actions: [
+            AndroidNotificationAction(
+              'view_request',
+              'Ver solicitud',
+              showsUserInterface: true,
+              cancelNotification: true, // Cancelar la notificación al presionar
+            ),
+          ],
+        );
+      } else {
+        // Notificación normal sin botones
+        androidNotificationDetails = const AndroidNotificationDetails(
+          'bioruta_channel',
+          'BioRuta Notificaciones',
+          channelDescription: 'Notificaciones de la aplicación BioRuta',
+          importance: Importance.max,
+          priority: Priority.high,
+          icon: '@mipmap/ic_launcher',
+          color: Color(0xFF2E7D32),
+          enableVibration: true,
+          playSound: true,
+          showWhen: true,
+          channelShowBadge: true,
+          onlyAlertOnce: false,
+          autoCancel: true,
+          ongoing: false,
+          silent: false,
+          enableLights: true,
+          ledColor: Color(0xFF2E7D32),
+          ledOnMs: 1000,
+          ledOffMs: 500,
+          ticker: 'BioRuta',
+        );
+      }
       
       const DarwinNotificationDetails iOSNotificationDetails =
           DarwinNotificationDetails(
@@ -384,7 +445,7 @@ class WebSocketNotificationService {
         badgeNumber: 1,
       );
       
-      const NotificationDetails notificationDetails = NotificationDetails(
+      final NotificationDetails notificationDetails = NotificationDetails(
         android: androidNotificationDetails,
         iOS: iOSNotificationDetails,
       );
@@ -408,28 +469,57 @@ class WebSocketNotificationService {
     }
   }
   
-  /// Manejar tap en notificación
+  /// Manejar tap en notificación y acciones de botones
   static void _onNotificationTapped(NotificationResponse notificationResponse) {
     final payload = notificationResponse.payload;
+    final actionId = notificationResponse.actionId;
+    
     if (payload != null) {
       try {
         final data = json.decode(payload);
-        print('📱 Notificación tocada: ${data['tipo']}');
+        print('📱 Notificación procesada: ${data['tipo']}, Acción: $actionId');
         
-        // Aquí puedes navegar a diferentes pantallas según el tipo
-        switch (data['tipo']) {
-          case 'solicitud_amistad':
-            // Navegar a pantalla de solicitudes de amistad
-            break;
-          case 'amistad_aceptada':
-          case 'amistad_rechazada':
-            // Navegar a pantalla de amigos
-            break;
+        // Manejar acciones de botones específicas para solicitudes de amistad
+        if (data['tipo'] == 'solicitud_amistad') {
+          switch (actionId) {
+            case 'view_request':
+              print('👀 Usuario presionó "Ver solicitud" en la notificación del sistema');
+              _navigateToNotifications();
+              break;
+            default:
+              // Tap normal en la notificación (sin botón específico)
+              print('📱 Tap normal en notificación de solicitud de amistad');
+              _navigateToNotifications();
+              break;
+          }
+        } else {
+          // Manejar otros tipos de notificaciones
+          switch (data['tipo']) {
+            case 'amistad_aceptada':
+            case 'amistad_rechazada':
+              _navigateToFriends();
+              break;
+            default:
+              _navigateToNotifications();
+              break;
+          }
         }
       } catch (e) {
         print('❌ Error procesando tap en notificación: $e');
       }
     }
+  }
+  
+  /// Navegar a la pantalla de notificaciones
+  static void _navigateToNotifications() {
+    print('🔄 Navegando a pantalla de solicitudes...');
+    NavigationService.navigateToRequests();
+  }
+  
+  /// Navegar a la pantalla de amigos
+  static void _navigateToFriends() {
+    print('🔄 Navegando a pantalla de amigos...');
+    NavigationService.navigateToFriends();
   }
   
   /// Verificar si el servicio está conectado

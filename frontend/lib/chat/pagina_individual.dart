@@ -600,14 +600,14 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF2E8B57),
+        backgroundColor: const Color(0xFF854937),
         title: Row(
           children: [
             CircleAvatar(
               backgroundColor: Colors.white,
               child: Text(
                 widget.nombre.isNotEmpty ? widget.nombre[0] : '?',
-                style: const TextStyle(color: Color(0xFF2E8B57)),
+                style: const TextStyle(color: Color(0xFF854937)),
               ),
             ),
             const SizedBox(width: 8),
@@ -625,9 +625,10 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
                   ),
                   Text(
                     _isConnected ? 'En línea' : 'Desconectado',
-                    style: const TextStyle(
-                      color: Colors.white70,
+                    style: TextStyle(
+                      color: _isConnected ? Colors.white70 : Colors.white70,
                       fontSize: 12,
+                      fontWeight: _isConnected ? FontWeight.w500 : FontWeight.normal,
                     ),
                   ),
                 ],
@@ -799,7 +800,7 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
                 const SizedBox(width: 8),
                 FloatingActionButton(
                   onPressed: _sendMessage,
-                  backgroundColor: const Color(0xFF2E8B57),
+                  backgroundColor: const Color(0xFF854937),
                   mini: true,
                   child: const Icon(Icons.send, color: Colors.white),
                 ),

@@ -86,7 +86,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   Widget _buildDashboardHome() {
     final Color fondo = Color(0xFFF8F2EF);
-    final Color primario = Color(0xFF6B3B2D);
+    final Color primario = Color(0xFF854937);
     final Color secundario = Color(0xFF8D4F3A);
 
     return Scaffold(
@@ -259,7 +259,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   Widget _buildUsersPage() {
     final Color fondo = Color(0xFFF8F2EF);
-    final Color primario = Color(0xFF6B3B2D);
+    final Color primario = Color(0xFF854937);
 
     return Scaffold(
       backgroundColor: fondo,
@@ -457,7 +457,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   Widget _buildSupportPage() {
     final Color fondo = Color(0xFFF8F2EF);
-    final Color primario = Color(0xFF6B3B2D);
+    final Color primario = Color(0xFF854937);
     final Color secundario = Color(0xFF8D4F3A);
 
     return Scaffold(
