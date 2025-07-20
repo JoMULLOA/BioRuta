@@ -92,7 +92,7 @@ class _RankingState extends State<ranking> {
       backgroundColor: fondo,
       appBar: AppBar(
         title: const Text('Ranking'),
-        backgroundColor: const Color(0xFF854937),
+        backgroundColor: secundario,
         foregroundColor: Colors.white,
         elevation: 0,
       ),

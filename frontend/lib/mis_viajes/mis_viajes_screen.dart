@@ -173,7 +173,7 @@ void _mostrarSolicitudesPasajeros() {
       backgroundColor: const Color(0xFFF2EEED),
       appBar: AppBar(
         title: const Text('Mis Viajes'),
-        backgroundColor: const Color(0xFF854937),
+        backgroundColor: const Color(0xFF8D4F3A),
         foregroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,

@@ -225,7 +225,7 @@ class _PublicarViajeFinalState extends State<PublicarViajeFinal> {
       backgroundColor: const Color(0xFFF2EEED),
       appBar: AppBar(
         title: const Text('Publicar'),
-        backgroundColor: const Color(0xFF854937),
+        backgroundColor: const Color(0xFF8D4F3A),
         foregroundColor: Colors.white,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -576,7 +576,7 @@ class _PublicarViajeFinalState extends State<PublicarViajeFinal> {
         child: ElevatedButton(
           onPressed: (vehiculoSeleccionado != null && !cargandoVehiculos) ? _publicarViaje : null,
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF854937),
+            backgroundColor: const Color(0xFF8D4F3A),
             foregroundColor: Colors.white,
             minimumSize: const Size(double.infinity, 50),
             shape: RoundedRectangleBorder(

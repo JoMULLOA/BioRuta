@@ -220,7 +220,7 @@ class ChatState extends State<Chat> with TickerProviderStateMixin {
       backgroundColor: fondo,
       appBar: AppBar(
         title: const Text('Chats'),
-        backgroundColor: const Color(0xFF854937),
+        backgroundColor: secundario,
         foregroundColor: Colors.white,
         elevation: 0,
         bottom: TabBar(
@@ -301,11 +301,7 @@ class ChatState extends State<Chat> with TickerProviderStateMixin {
                 )
               : ListView(
                   children: [
-                    Text(
-                      'Amistades',
-                      style: TextStyle(color: principal, fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 4),
                     // Verificar si hay amigos
                     if (amigosDisponibles.isEmpty)
                       Card(
@@ -384,11 +380,7 @@ class ChatState extends State<Chat> with TickerProviderStateMixin {
           ? Center(child: CircularProgressIndicator(color: principal))
           : ListView(
               children: [
-                Text(
-                  'Mis Viajes',
-                  style: TextStyle(color: principal, fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 4),
                 // Verificar si hay viajes
                 if (viajesDisponibles.isEmpty)
                   Card(
@@ -434,9 +426,7 @@ class ChatState extends State<Chat> with TickerProviderStateMixin {
                       margin: const EdgeInsets.symmetric(vertical: 6),
                       child: ListTile(
                         leading: CircleAvatar(
-                          backgroundColor: viaje.soyElConductor 
-                              ? Colors.brown.withOpacity(0.8) 
-                              : principal.withOpacity(0.8),
+                          backgroundColor: principal.withOpacity(0.8),
                           child: Icon(
                             viaje.soyElConductor ? Icons.drive_eta : Icons.person,
                             color: Colors.white,

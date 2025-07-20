@@ -502,7 +502,7 @@ class Perfil_ extends State<Perfil> {
       backgroundColor: fondo,
       appBar: AppBar(
         title: const Text('Perfil'),
-        backgroundColor: const Color(0xFF854937),
+        backgroundColor: secundario,
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [

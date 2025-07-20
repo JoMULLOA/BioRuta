@@ -1365,7 +1365,7 @@ class _MapPageState extends State<MapPage> {
             ),
           ],
         ),
-        backgroundColor: const Color(0xFF854937),
+        backgroundColor:const Color(0xFF8D4F3A),
         foregroundColor: Colors.white,
         actions: [
           IconButton(

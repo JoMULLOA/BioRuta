@@ -412,7 +412,7 @@ class ChatGrupalScreenState extends State<ChatGrupalScreen> {
     return Scaffold(
       backgroundColor: fondo,
       appBar: AppBar(
-        backgroundColor: principal,
+        backgroundColor: secundario,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
