@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../perfil/solicitudes.dart';
 import '../perfil/amigos.dart';
+import '../perfil/notificaciones.dart';
 import '../utils/custom_app_bar.dart';
 
 class AmistadMenuScreen extends StatelessWidget {
@@ -10,7 +11,7 @@ class AmistadMenuScreen extends StatelessWidget {
       backgroundColor: Colors.grey[50],
       appBar: CustomAppBar(
         title: 'Amistades',
-        showNotifications: true,
+        showNotifications: false,
       ),
       body: Padding(
         padding: const EdgeInsets.all(20.0),
@@ -37,6 +38,22 @@ class AmistadMenuScreen extends StatelessWidget {
             const SizedBox(height: 30),
 
             // Tarjetas de opciones
+            _buildOptionCard(
+              context,
+              icon: Icons.notifications_active,
+              title: 'Solicitudes',
+              subtitle: 'Gestiona las solicitudes de amistad pendientes',
+              color: Colors.orange,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => NotificacionesScreen()),
+                );
+              },
+            ),
+
+            const SizedBox(height: 16),
+
             _buildOptionCard(
               context,
               icon: Icons.person_add,

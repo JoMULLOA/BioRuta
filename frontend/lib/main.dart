@@ -9,7 +9,10 @@ import 'buscar/inicio.dart';
 import 'publicar/publicar.dart';
 import 'chat/chat.dart';
 import 'perfil/perfil.dart';
+import 'perfil/notificaciones.dart';
+import 'perfil/amistad_menu.dart';
 import 'services/viaje_estado_service.dart';
+import 'services/navigation_service.dart';
 import 'Ranking/ranking.dart';
 import 'sos/sos_screen.dart';
 
@@ -36,6 +39,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: NavigationService.navigatorKey,
       title: 'BioRuta',
       localizationsDelegates: [
         GlobalMaterialLocalizations.delegate,
@@ -65,6 +69,8 @@ class MyApp extends StatelessWidget {
         '/ranking': (context) => ranking(),
         '/sos': (context) => const SOSScreen(),
         '/perfil': (context) => Perfil(),
+        '/amistades': (context) => AmistadMenuScreen(),
+        '/solicitudes': (context) => NotificacionesScreen(),
       },
     );
   }

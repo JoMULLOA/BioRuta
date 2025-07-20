@@ -40,15 +40,29 @@ export async function enviarSolicitudAmistadService(rutEmisor, rutReceptor, mens
     }
 
     // Verificar si ya existe una solicitud pendiente
-    const solicitudExistente = await solicitudRepository.findOne({
+    const solicitudPendiente = await solicitudRepository.findOne({
       where: [
         { rutEmisor, rutReceptor, estado: "pendiente" },
         { rutEmisor: rutReceptor, rutReceptor: rutEmisor, estado: "pendiente" }
       ]
     });
 
-    if (solicitudExistente) {
+    if (solicitudPendiente) {
       return [null, "Ya existe una solicitud pendiente entre estos usuarios"];
+    }
+
+    // Verificar si existe una solicitud rechazada y eliminarla para permitir nueva solicitud
+    const solicitudRechazada = await solicitudRepository.findOne({
+      where: [
+        { rutEmisor, rutReceptor, estado: "rechazada" },
+        { rutEmisor: rutReceptor, rutReceptor: rutEmisor, estado: "rechazada" }
+      ]
+    });
+
+    if (solicitudRechazada) {
+      // Eliminar la solicitud rechazada anterior para permitir nueva solicitud
+      await solicitudRepository.remove(solicitudRechazada);
+      console.log(`🗑️ Solicitud rechazada anterior eliminada entre ${rutEmisor} y ${rutReceptor}`);
     }
 
     // Crear nueva solicitud
