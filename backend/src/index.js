@@ -15,6 +15,7 @@ import viajeRoutes from "./routes/viaje.routes.js";
 import indexRoutes from "./routes/index.routes.js";
 import pingRoutes from "./routes/ping.routes.js";
 import estadisticasRoutes from "./routes/estadisticas.routes.js";
+import reporteRoutes from "./routes/reporte.routes.js";
 import { connectMongoDB } from "./config/mongooseClient.js";
 import { initSocket, getSocketInstance } from "./socket.js"; 
 import { cookieKey, HOST, PORT } from "./config/configEnv.js";
@@ -70,6 +71,7 @@ async function setupServer() {
     app.use("/api", pingRoutes);  // Rutas de MongoDB
     app.use("/api/pagos", pagoRoutes); // Rutas de pagos
     app.use("/api/estadisticas", estadisticasRoutes); // Rutas de estadísticas
+    app.use("/api/reportes", reporteRoutes); // Rutas de reportes
 
     const server = http.createServer(app);
     initSocket(server); // Inicializa Socket.IO con el servidor

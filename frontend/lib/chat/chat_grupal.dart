@@ -5,6 +5,8 @@ import '../services/chat_grupal_service.dart';
 import '../services/socket_service.dart';
 import '../widgets/mensaje_grupal_widget.dart';
 import '../widgets/participantes_header_widget.dart';
+import '../widgets/reportar_usuario_dialog.dart';
+import '../models/reporte_model.dart';
 
 class ChatGrupalScreen extends StatefulWidget {
   final String idViaje;
@@ -435,6 +437,11 @@ class ChatGrupalScreenState extends State<ChatGrupalScreen> {
         ),
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
+          // Botón para ver participantes y reportar
+          IconButton(
+            icon: Icon(Icons.people, color: Colors.white),
+            onPressed: _mostrarMenuParticipantes,
+          ),
           // Indicador de conexión
           Container(
             margin: const EdgeInsets.only(right: 16),
@@ -596,6 +603,123 @@ class ChatGrupalScreenState extends State<ChatGrupalScreen> {
                     ),
                   ],
                 ),
+    );
+  }
+
+  void _mostrarMenuParticipantes() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (BuildContext context) {
+        return Container(
+          padding: EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.people, color: Color(0xFF8D4F3A)),
+                  SizedBox(width: 8),
+                  Text(
+                    'Participantes del Chat',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF8D4F3A),
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 16),
+              Flexible(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: participantes.length,
+                  itemBuilder: (context, index) {
+                    final participante = participantes[index];
+                    final isCurrentUser = participante.rut == userRut;
+                    
+                    return ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: Color(0xFF8D4F3A),
+                        child: Text(
+                          participante.nombre.isNotEmpty 
+                              ? participante.nombre[0].toUpperCase()
+                              : '?',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      title: Text(
+                        participante.nombre,
+                        style: TextStyle(
+                          fontWeight: isCurrentUser ? FontWeight.bold : FontWeight.normal,
+                        ),
+                      ),
+                      subtitle: isCurrentUser 
+                          ? Text(
+                              'Tú',
+                              style: TextStyle(
+                                color: Color(0xFF8D4F3A),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            )
+                          : null,
+                      trailing: isCurrentUser 
+                          ? null 
+                          : PopupMenuButton<String>(
+                              onSelected: (String value) {
+                                if (value == 'reportar') {
+                                  Navigator.pop(context); // Cerrar el bottom sheet
+                                  _mostrarDialogoReporte(
+                                    participante.rut,
+                                    participante.nombre,
+                                  );
+                                }
+                              },
+                              itemBuilder: (BuildContext context) => [
+                                PopupMenuItem<String>(
+                                  value: 'reportar',
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.report, color: Colors.red, size: 20),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        'Reportar',
+                                        style: TextStyle(color: Colors.red),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _mostrarDialogoReporte(String rutUsuario, String nombreUsuario) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return ReportarUsuarioDialog(
+          usuarioReportado: rutUsuario,
+          nombreUsuario: nombreUsuario,
+          tipoReporte: TipoReporte.chatGrupal,
+        );
+      },
     );
   }
 }

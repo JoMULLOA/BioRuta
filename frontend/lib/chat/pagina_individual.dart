@@ -6,6 +6,8 @@ import 'dart:async';
 import '../config/confGlobal.dart';
 import '../services/socket_service.dart';
 import '../utils/date_utils.dart' as date_utils;
+import '../widgets/reportar_usuario_dialog.dart';
+import '../models/reporte_model.dart';
 
 // Clase Message temporal inline para debugging
 class Message {
@@ -672,6 +674,28 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
               );
             },
           ),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert, color: Colors.white),
+            onSelected: (String value) {
+              switch (value) {
+                case 'reportar':
+                  _mostrarDialogoReporte();
+                  break;
+              }
+            },
+            itemBuilder: (BuildContext context) => [
+              PopupMenuItem<String>(
+                value: 'reportar',
+                child: Row(
+                  children: [
+                    Icon(Icons.report, color: Colors.red),
+                    SizedBox(width: 8),
+                    Text('Reportar usuario'),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ],
       ),
       body: Column(
@@ -998,5 +1022,18 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
         );
       }
     });
+  }
+
+  void _mostrarDialogoReporte() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return ReportarUsuarioDialog(
+          usuarioReportado: widget.rutAmigo,
+          nombreUsuario: widget.nombre,
+          tipoReporte: TipoReporte.chatIndividual,
+        );
+      },
+    );
   }
 }

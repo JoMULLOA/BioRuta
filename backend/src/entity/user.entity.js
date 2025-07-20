@@ -51,6 +51,12 @@ const UserSchema = new EntitySchema({
       type: "int",
       nullable: true,
     },
+    contadorReportes: {
+      type: "int",
+      nullable: false,
+      default: 0,
+      comment: "Número total de reportes recibidos por este usuario",
+    },
     email: {
       type: "varchar",
       length: 255,

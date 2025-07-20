@@ -3,6 +3,7 @@ import User from "../entity/user.entity.js";
 import Vehiculo from "../entity/vehiculo.entity.js";
 import Viaje from "../entity/viaje.entity.js";
 import Amistad from "../entity/amistad.entity.js";
+import Reporte from "../entity/reporte.entity.js";
 import { AppDataSource } from "./configDb.js";
 import { encryptPassword } from "../helpers/bcrypt.helper.js";
 //Los ruts estan hasta un maximo de 29.999.999-9, por lo que no se pueden crear usuarios con ruts mayores a ese valor, se creara, 
@@ -208,8 +209,30 @@ async function createMongoIndexes() {
     await collection.createIndex({ vehiculo_patente: 1 });
 
     console.log("* => Índices de MongoDB creados exitosamente");
+
+    // Configurar reportes de prueba (opcional)
+    await createInitialReports();
   } catch (error) {
     console.error("❌ Error al crear índices de MongoDB:", error);
+  }
+}
+
+async function createInitialReports() {
+  try {
+    const reporteRepository = AppDataSource.getRepository(Reporte);
+    const reporteCount = await reporteRepository.count();
+    
+    if (reporteCount === 0) {
+      console.log("* => Creando reportes de ejemplo...");
+      
+      // No crear reportes de ejemplo por defecto
+      // Solo configurar la estructura
+      console.log("* => Sistema de reportes configurado correctamente");
+    } else {
+      console.log("* => Sistema de reportes ya configurado");
+    }
+  } catch (error) {
+    console.error("❌ Error al configurar sistema de reportes:", error);
   }
 }
 

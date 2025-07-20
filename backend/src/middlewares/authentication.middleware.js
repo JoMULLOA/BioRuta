@@ -55,6 +55,7 @@ export function authenticateJwt(req, res, next) {
     // BACKEND DEBUG: Usuario autenticado exitosamente
     console.log("BACKEND DEBUG: Usuario autenticado por Passport:", user.email || user.rut); // Log el email o rut del usuario
     req.user = user;
+    req.rut = user.rut; // Asignar el RUT directamente para facilitar su uso en controladores
     next();
   })(req, res, next);
 }
