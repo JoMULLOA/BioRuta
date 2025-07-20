@@ -117,9 +117,7 @@ export async function crearViaje(req, res) {
         }
       },
       fecha_ida: new Date(fechaHoraIda),
-      hora_ida: new Date(fechaHoraIda).toTimeString().substring(0, 5), // Extraer solo HH:mm
       fecha_vuelta: null, // Los viajes separados no tienen vuelta
-      hora_vuelta: null,
       viaje_ida_vuelta: false, // Marcar como viaje simple
       max_pasajeros: maxPasajeros,
       solo_mujeres: soloMujeres,
@@ -167,9 +165,7 @@ export async function crearViaje(req, res) {
           }
         },
         fecha_ida: new Date(fechaHoraVuelta),
-        hora_ida: new Date(fechaHoraVuelta).toTimeString().substring(0, 5),
         fecha_vuelta: null, // Los viajes separados no tienen vuelta
-        hora_vuelta: null,
         viaje_ida_vuelta: false, // Marcar como viaje simple
         max_pasajeros: maxPasajeros,
         solo_mujeres: soloMujeres,
@@ -495,7 +491,6 @@ export async function buscarViajesPorProximidad(req, res) {
           origen: 1,
           destino: 1,
           fecha_ida: 1,
-          hora_ida: 1,
           precio: 1,
           plazas_disponibles: 1,
           max_pasajeros: 1,
@@ -510,8 +505,7 @@ export async function buscarViajesPorProximidad(req, res) {
       {
         $sort: { 
           distancia_total: 1, // Ordenar por distancia total ascendente
-          fecha_ida: 1, 
-          hora_ida: 1 
+          fecha_ida: 1
         }
       }
     ]);    console.log('📊 Resultados de agregación:');
@@ -621,7 +615,6 @@ export async function obtenerViajesParaMapa(req, res) {
         origen: 1,
         destino: 1,
         fecha_ida: 1,
-        hora_ida: 1,
         precio: 1,
         plazas_disponibles: 1
       })
@@ -650,7 +643,7 @@ export async function obtenerViajesParaMapa(req, res) {
           },
           detalles_viaje: {
             fecha: viaje.fecha_ida,
-            hora: viaje.hora_ida,
+            hora: viaje.fecha_ida.toTimeString().substring(0, 5), // Extraer hora de fecha_ida
             precio: viaje.precio,
             plazas_disponibles: viaje.plazas_disponibles,
             vehiculo: vehiculo ? {

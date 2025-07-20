@@ -5,9 +5,7 @@ class Viaje {
   final UbicacionViaje origen;
   final UbicacionViaje destino;
   final DateTime fechaIda;
-  final String horaIda;
   final DateTime? fechaVuelta;
-  final String? horaVuelta;
   final bool viajeIdaVuelta;
   final int maxPasajeros;
   final bool soloMujeres;
@@ -37,9 +35,7 @@ class Viaje {
     required this.origen,
     required this.destino,
     required this.fechaIda,
-    required this.horaIda,
     this.fechaVuelta,
-    this.horaVuelta,
     required this.viajeIdaVuelta,
     required this.maxPasajeros,
     required this.soloMujeres,
@@ -59,6 +55,26 @@ class Viaje {
     this.esUnido,
   });
 
+  // Getters para extraer la hora de las fechas
+  String get horaIda {
+    return '${fechaIda.hour.toString().padLeft(2, '0')}:${fechaIda.minute.toString().padLeft(2, '0')}';
+  }
+
+  String? get horaVuelta {
+    if (fechaVuelta == null) return null;
+    return '${fechaVuelta!.hour.toString().padLeft(2, '0')}:${fechaVuelta!.minute.toString().padLeft(2, '0')}';
+  }
+
+  // Getters para formatear las fechas
+  String get fechaIdaFormateada {
+    return '${fechaIda.day}/${fechaIda.month}/${fechaIda.year}';
+  }
+
+  String? get fechaVueltaFormateada {
+    if (fechaVuelta == null) return null;
+    return '${fechaVuelta!.day}/${fechaVuelta!.month}/${fechaVuelta!.year}';
+  }
+
   factory Viaje.fromJson(Map<String, dynamic> json) {
     return Viaje(
       id: json['_id'] ?? '',
@@ -67,11 +83,9 @@ class Viaje {
       origen: UbicacionViaje.fromJson(json['origen']),
       destino: UbicacionViaje.fromJson(json['destino']),
       fechaIda: DateTime.parse(json['fecha_ida']),
-      horaIda: json['hora_ida'] ?? '',
       fechaVuelta: json['fecha_vuelta'] != null 
         ? DateTime.parse(json['fecha_vuelta']) 
         : null,
-      horaVuelta: json['hora_vuelta'],
       viajeIdaVuelta: json['viaje_ida_vuelta'] ?? false,
       maxPasajeros: json['max_pasajeros'] ?? 0,
       soloMujeres: json['solo_mujeres'] ?? false,
@@ -110,9 +124,7 @@ class Viaje {
       'origen': origen.toJson(),
       'destino': destino.toJson(),
       'fecha_ida': fechaIda.toIso8601String(),
-      'hora_ida': horaIda,
       'fecha_vuelta': fechaVuelta?.toIso8601String(),
-      'hora_vuelta': horaVuelta,
       'viaje_ida_vuelta': viajeIdaVuelta,
       'max_pasajeros': maxPasajeros,
       'solo_mujeres': soloMujeres,
@@ -277,8 +289,7 @@ class ViajeProximidad {
   final String id;
   final UbicacionViaje origen;
   final UbicacionViaje destino;
-  final String fechaIda;
-  final String horaIda;
+  final DateTime fechaIda; // Cambiado a DateTime
   final double precio;
   final int plazasDisponibles;
   final int maxPasajeros;
@@ -293,7 +304,6 @@ class ViajeProximidad {
     required this.origen,
     required this.destino,
     required this.fechaIda,
-    required this.horaIda,
     required this.precio,
     required this.plazasDisponibles,
     required this.maxPasajeros,
@@ -304,13 +314,22 @@ class ViajeProximidad {
     this.conductor,
   });
 
+  // Getter para extraer la hora de la fecha
+  String get horaIda {
+    return '${fechaIda.hour.toString().padLeft(2, '0')}:${fechaIda.minute.toString().padLeft(2, '0')}';
+  }
+
+  // Getter para formatear la fecha
+  String get fechaIdaFormateada {
+    return '${fechaIda.day}/${fechaIda.month}/${fechaIda.year}';
+  }
+
   factory ViajeProximidad.fromJson(Map<String, dynamic> json) {
     return ViajeProximidad(
       id: json['id'] ?? '',
       origen: UbicacionViaje.fromJson(json['origen'] ?? {}),
       destino: UbicacionViaje.fromJson(json['destino'] ?? {}),
-      fechaIda: json['fecha_ida'] ?? '',
-      horaIda: json['hora_ida'] ?? '',
+      fechaIda: DateTime.parse(json['fecha_ida']),
       precio: (json['precio'] ?? 0).toDouble(),
       plazasDisponibles: json['plazas_disponibles'] ?? 0,
       maxPasajeros: json['max_pasajeros'] ?? 0,
@@ -327,8 +346,7 @@ class ViajeProximidad {
       'id': id,
       'origen': origen.toJson(),
       'destino': destino.toJson(),
-      'fecha_ida': fechaIda,
-      'hora_ida': horaIda,
+      'fecha_ida': fechaIda.toIso8601String(),
       'precio': precio,
       'plazas_disponibles': plazasDisponibles,
       'max_pasajeros': maxPasajeros,

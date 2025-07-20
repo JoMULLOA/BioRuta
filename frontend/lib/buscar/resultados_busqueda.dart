@@ -520,7 +520,7 @@ class _ResultadosBusquedaScreenState extends State<ResultadosBusquedaScreen> {
                           const Icon(Icons.calendar_today, size: 16, color: Color(0xFF854937)),
                           const SizedBox(width: 4),
                           Text(
-                            viaje.fechaIda,
+                            viaje.fechaIdaFormateada,
                             style: const TextStyle(fontSize: 14),
                           ),
                         ],

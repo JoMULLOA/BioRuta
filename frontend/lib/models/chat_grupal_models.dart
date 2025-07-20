@@ -56,7 +56,12 @@ class ChatGrupalInfo {
       origen: origenNombre,
       destino: destinoNombre,
       fechaViaje: json['fecha_ida'] != null ? DateTime.parse(json['fecha_ida']) : null, // El backend usa 'fecha_ida'
-      horaViaje: json['hora_ida'], // El backend usa 'hora_ida'
+      horaViaje: json['fecha_ida'] != null 
+        ? () {
+            final fecha = DateTime.parse(json['fecha_ida']);
+            return '${fecha.hour.toString().padLeft(2, '0')}:${fecha.minute.toString().padLeft(2, '0')}';
+          }()
+        : null,
       cantidadPasajeros: (json['pasajeros'] as List<dynamic>?)?.length ?? 0, // Contar pasajeros
       participantes: (json['participantes'] as List<dynamic>?)
           ?.map((p) => ParticipanteChat.fromJson(p))

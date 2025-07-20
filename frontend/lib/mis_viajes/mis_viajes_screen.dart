@@ -25,29 +25,42 @@ class _MisViajesScreenState extends State<MisViajesScreen>
   int _selectedIndex = 0; // Mis viajes ahora está en índice 0
   int numeroSolicitudesPendientes = 0;
   late TabController _tabController;
+  
+  // Variable para rastrear el listener
+  late VoidCallback _tabListener;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this, initialIndex: 1); // Iniciar en "Viajes unidos"
-    _tabController.addListener(() {
-      setState(() {}); // Actualizar el FAB cuando cambie de pestaña
-    });
+    
+    // Crear y asignar el listener
+    _tabListener = () {
+      if (mounted) {
+        setState(() {}); // Actualizar el FAB cuando cambie de pestaña
+      }
+    };
+    _tabController.addListener(_tabListener);
+    
     _cargarViajes();
     _cargarSolicitudesPendientes();
   }
 
   @override
   void dispose() {
+    // Remover listener antes de dispose para evitar llamadas a setState después del dispose
+    _tabController.removeListener(_tabListener);
     _tabController.dispose();
     super.dispose();
   }
 
 Future<void> _cargarViajes() async {
   try {
-    setState(() {
-      cargando = true;
-    });
+    if (mounted) {
+      setState(() {
+        cargando = true;
+      });
+    }
 
     // Cargar viajes usando el método obtenerMisViajes
     final List<Viaje> viajes = await ViajeService.obtenerMisViajes();
@@ -58,19 +71,23 @@ Future<void> _cargarViajes() async {
       print('   Viaje $i: esCreador=${viaje.esCreador}, esUnido=${viaje.esUnido}');
     }
 
-    setState(() {
-      // Separar viajes creados de viajes a los que se unió usando las nuevas propiedades
-      viajesCreados = viajes.where((v) => v.esCreador == true).toList();
-      viajesUnidos = viajes.where((v) => v.esUnido == true).toList();
-      cargando = false;
-    });
+    if (mounted) {
+      setState(() {
+        // Separar viajes creados de viajes a los que se unió usando las nuevas propiedades
+        viajesCreados = viajes.where((v) => v.esCreador == true).toList();
+        viajesUnidos = viajes.where((v) => v.esUnido == true).toList();
+        cargando = false;
+      });
+    }
     
     print('📝 Viajes creados: ${viajesCreados.length}');
     print('🚗 Viajes unidos: ${viajesUnidos.length}');
   } catch (e) {
-    setState(() {
-      cargando = false;
-    });
+    if (mounted) {
+      setState(() {
+        cargando = false;
+      });
+    }
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error al cargar viajes: $e')),
@@ -82,9 +99,11 @@ Future<void> _cargarViajes() async {
 Future<void> _cargarSolicitudesPendientes() async {
   try {
     final numero = await NotificacionService.obtenerNumeroNotificacionesPendientes();
-    setState(() {
-      numeroSolicitudesPendientes = numero;
-    });
+    if (mounted) {
+      setState(() {
+        numeroSolicitudesPendientes = numero;
+      });
+    }
   } catch (e) {
     print('Error al cargar solicitudes pendientes: $e');
   }
@@ -97,27 +116,34 @@ void _mostrarSolicitudesPasajeros() {
     backgroundColor: Colors.transparent,
     builder: (context) => SolicitudesPasajerosModal(
       onSolicitudProcesada: () {
-        // Recargar solicitudes pendientes para actualizar el badge
-        _cargarSolicitudesPendientes();
-        
-        // Recargar viajes para mostrar los cambios en las listas
-        _cargarViajes();
-        
-        // Notificar al sistema global que los marcadores deben actualizarse
-        // Esto permitirá que el mapa se entere cuando se regrese a esa pantalla
-        debugPrint('📱 Solicitud procesada - estado de viajes actualizado');
+        // Verificar que el widget sigue montado antes de recargar
+        if (mounted) {
+          // Recargar solicitudes pendientes para actualizar el badge
+          _cargarSolicitudesPendientes();
+          
+          // Recargar viajes para mostrar los cambios en las listas
+          _cargarViajes();
+          
+          // Notificar al sistema global que los marcadores deben actualizarse
+          // Esto permitirá que el mapa se entere cuando se regrese a esa pantalla
+          debugPrint('📱 Solicitud procesada - estado de viajes actualizado');
+        }
       },
     ),
   ).then((_) {
-    // Recargar solicitudes al cerrar el modal
-    _cargarSolicitudesPendientes();
+    // Recargar solicitudes al cerrar el modal solo si el widget sigue montado
+    if (mounted) {
+      _cargarSolicitudesPendientes();
+    }
   });
 }
 
   void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
+    if (mounted) {
+      setState(() {
+        _selectedIndex = index;
+      });
+    }
 
     switch (index) {
       case 0:
@@ -508,7 +534,7 @@ void _mostrarSolicitudesPasajeros() {
                 const Icon(Icons.calendar_today, color: Colors.blue, size: 16),
                 const SizedBox(width: 8),
                 Text(
-                  '${viaje.fechaIda.day}/${viaje.fechaIda.month}/${viaje.fechaIda.year}',
+                  viaje.fechaIdaFormateada,
                   style: const TextStyle(fontSize: 14),
                 ),
                 const SizedBox(width: 16),
