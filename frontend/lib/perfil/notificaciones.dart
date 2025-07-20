@@ -140,7 +140,7 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        title: const Text('Notificaciones'),
+        title: const Text('Solicitudes de Amistad'),
         backgroundColor: const Color(0xFF854937),
         foregroundColor: Colors.white,
         elevation: 0,
@@ -182,7 +182,7 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
                       ),
                       SizedBox(height: 16),
                       Text(
-                        'No tienes notificaciones',
+                        'No tienes solicitudes pendientes',
                         style: TextStyle(
                           fontSize: 18,
                           color: Colors.grey[600],

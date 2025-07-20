@@ -380,7 +380,7 @@ class WebSocketNotificationService {
       AndroidNotificationDetails androidNotificationDetails;
       
       if (esSolicitudAmistad) {
-        // Notificación con botones de acción para solicitudes de amistad
+        // Notificación con botón "Ver solicitud" únicamente
         androidNotificationDetails = AndroidNotificationDetails(
           'bioruta_channel',
           'BioRuta Notificaciones',
@@ -394,7 +394,7 @@ class WebSocketNotificationService {
           showWhen: true,
           channelShowBadge: true,
           onlyAlertOnce: false,
-          autoCancel: false, // No auto-cancelar para que el usuario vea los botones
+          autoCancel: false, // No auto-cancelar para que el usuario pueda ver el botón
           ongoing: false,
           silent: false,
           enableLights: true,
@@ -407,19 +407,7 @@ class WebSocketNotificationService {
               'view_request',
               'Ver solicitud',
               showsUserInterface: true,
-              cancelNotification: false,
-            ),
-            AndroidNotificationAction(
-              'accept_request',
-              'Aceptar',
-              showsUserInterface: true,
-              cancelNotification: true,
-            ),
-            AndroidNotificationAction(
-              'reject_request',
-              'Rechazar',
-              showsUserInterface: true,
-              cancelNotification: true,
+              cancelNotification: true, // Cancelar la notificación al presionar
             ),
           ],
         );
@@ -498,14 +486,6 @@ class WebSocketNotificationService {
               print('👀 Usuario presionó "Ver solicitud" en la notificación del sistema');
               _navigateToNotifications();
               break;
-            case 'accept_request':
-              print('✅ Usuario presionó "Aceptar" en la notificación del sistema');
-              _handleNotificationAction('accept', data);
-              break;
-            case 'reject_request':
-              print('❌ Usuario presionó "Rechazar" en la notificación del sistema');
-              _handleNotificationAction('reject', data);
-              break;
             default:
               // Tap normal en la notificación (sin botón específico)
               print('📱 Tap normal en notificación de solicitud de amistad');
@@ -540,17 +520,6 @@ class WebSocketNotificationService {
   static void _navigateToFriends() {
     print('🔄 Navegando a pantalla de amigos...');
     NavigationService.navigateToFriends();
-  }
-  
-  /// Manejar acciones directas desde notificaciones (aceptar/rechazar)
-  static void _handleNotificationAction(String action, Map<String, dynamic> data) {
-    print('🎯 Procesando acción "$action" desde notificación del sistema');
-    print('📋 Datos de la solicitud: $data');
-    
-    // Aquí se debería implementar la lógica para aceptar/rechazar directamente
-    // desde la notificación sin abrir la app, pero eso requeriría servicios en background
-    // Por ahora, abrir la app y navegar a notificaciones
-    _navigateToNotifications();
   }
   
   /// Verificar si el servicio está conectado
