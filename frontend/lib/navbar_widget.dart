@@ -17,7 +17,7 @@ class CustomNavbar extends StatelessWidget {
     // Lista base de items sin SOS
     List<BottomNavigationBarItem> items = const [
       BottomNavigationBarItem(icon: Icon(Icons.directions_car), label: 'Viajes'),
-      BottomNavigationBarItem(icon: Icon(Icons.map), label: 'Mapa'),
+      BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Buscar'),
       BottomNavigationBarItem(icon: Icon(Icons.add), label: 'Publicar'),
       BottomNavigationBarItem(icon: Icon(Icons.chat), label: 'Chat'),
       BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: 'Ranking'),
@@ -28,7 +28,7 @@ class CustomNavbar extends StatelessWidget {
     if (showSOS) {
       items = [
         const BottomNavigationBarItem(icon: Icon(Icons.directions_car), label: 'Viajes'),
-        const BottomNavigationBarItem(icon: Icon(Icons.map), label: 'Mapa'),
+        const BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Buscar'),
         const BottomNavigationBarItem(icon: Icon(Icons.add), label: 'Publicar'),
         BottomNavigationBarItem(
           icon: Container(

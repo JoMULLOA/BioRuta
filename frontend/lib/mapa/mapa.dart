@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // Para vibración
 import 'package:flutter_osm_plugin/flutter_osm_plugin.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../widgets/navbar_con_sos_dinamico.dart';
@@ -30,6 +31,7 @@ class _MapPageState extends State<MapPage> {
   final TextEditingController destinoController = TextEditingController();
   int _selectedIndex = 1; // Mapa está en índice 1 cuando showSOS = true
   Timer? _debounceTimer;
+  Timer? _radarTimer; // Timer para controlar el radar
   String _regionActual = "Desconocida";
   
   // Variables para los marcadores de viajes
@@ -506,6 +508,7 @@ class _MapPageState extends State<MapPage> {
   void dispose() {
     // Cancelar cualquier operación asíncrona pendiente
     _debounceTimer?.cancel();
+    _radarTimer?.cancel();
     
     // Limpiar el callback del servicio de ruta
     RutaService.instance.limpiarCallback();
@@ -670,7 +673,7 @@ class _MapPageState extends State<MapPage> {
             icon: Icon(
               Icons.directions_car,
               color: Color(0xFF854937),
-              size: 48,
+              size: 72,
             ),
           ),
         );
@@ -1142,14 +1145,15 @@ class _MapPageState extends State<MapPage> {
         _radarActivo = true;
       });
 
-      // Iniciar búsqueda progresiva de viajes (5 segundos más lento)
+      // Iniciar búsqueda progresiva de viajes (2 segundos total)
       await _buscarViajesProgresivamente(centroDeMapa);
 
-      // Finalizar animación después de 2.5 segundos
-      Timer(const Duration(milliseconds: 2500), () {
+      // Finalizar animación y desactivar radar después de 2 segundos
+      _radarTimer = Timer(const Duration(milliseconds: 2000), () {
         if (mounted) {
           setState(() {
             _mostrandoAnimacionRadar = false;
+            _radarActivo = false; // Desactivar automáticamente
           });
         }
       });
@@ -1166,6 +1170,10 @@ class _MapPageState extends State<MapPage> {
   /// Desactivar radar y limpiar marcadores
   Future<void> _desactivarRadar() async {
     try {
+      // Cancelar el timer si está activo
+      _radarTimer?.cancel();
+      _radarTimer = null;
+      
       setState(() {
         _radarActivo = false;
         _mostrandoAnimacionRadar = false;
@@ -1227,9 +1235,9 @@ class _MapPageState extends State<MapPage> {
         _marcadoresViajesIds = [];
       });
 
-      // Buscar viajes más lento: 5 intervalos de 1 segundo cada uno
-      const int intervalos = 5; // 5 intervalos de 1 segundo cada uno
-      const duracionIntervalo = Duration(seconds: 1);
+      // Buscar viajes más rápido: 2 intervalos de 1 segundo cada uno
+      const int intervalos = 2; // 2 intervalos de 1 segundo = 2 segundos total
+      const duracionIntervalo = Duration(milliseconds: 1000);
 
       for (int i = 0; i < intervalos; i++) {
         if (!_radarActivo) break; // Si se desactiva el radar, detener búsqueda
@@ -1268,6 +1276,15 @@ class _MapPageState extends State<MapPage> {
             backgroundColor: _viajesEnRadio.isNotEmpty ? Colors.green : Colors.orange,
           ),
         );
+
+        // Vibrar si se encontraron viajes
+        if (_viajesEnRadio.isNotEmpty) {
+          try {
+            HapticFeedback.heavyImpact(); // Vibración fuerte
+          } catch (e) {
+            debugPrint("⚠️ No se pudo activar vibración: $e");
+          }
+        }
       }
 
       debugPrint("✅ Búsqueda progresiva completada: ${_viajesEnRadio.length} viajes de hoy encontrados");
@@ -1333,7 +1350,7 @@ class _MapPageState extends State<MapPage> {
             iconWidget: GestureDetector(
               onTap: () => _mostrarDetallesViajeRadar(viaje),
               child: Container(
-                padding: const EdgeInsets.all(2), // Reducir padding
+                padding: const EdgeInsets.all(4), // Reducir padding para icono más pequeño
                 decoration: BoxDecoration(
                   color: vehiculoColor,
                   shape: BoxShape.circle,
@@ -1348,7 +1365,7 @@ class _MapPageState extends State<MapPage> {
                 child: Icon(
                   vehiculoIcon,
                   color: Colors.white,
-                  size: 16, // Reducir tamaño del ícono significativamente
+                  size: 24, // Tamaño reducido para marcadores del radar
                 ),
               ),
             ),
@@ -1695,6 +1712,7 @@ class _MapPageState extends State<MapPage> {
         backgroundColor:const Color(0xFF8D4F3A),
         foregroundColor: Colors.white,
         actions: [
+          // Botón de refresh
           IconButton(
             onPressed: _cargarMarcadoresViajes,
             icon: _cargandoViajes 

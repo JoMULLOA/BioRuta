@@ -13,7 +13,7 @@ class RadarAnimationWidget extends StatefulWidget {
     required this.isActive,
     this.size = 300.0,
     this.color = Colors.red,
-    this.duration = const Duration(milliseconds: 1500), // Duración más corta para mayor rapidez
+    this.duration = const Duration(milliseconds: 1000), // Sincronizar con los intervalos del mapa
   });
 
   @override
