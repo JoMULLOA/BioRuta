@@ -143,6 +143,15 @@ class ChatGrupalService {
         return [];
       }
 
+      // Primero obtenemos los participantes para mapear RUT -> Nombre
+      final participantes = await obtenerParticipantes(idViaje);
+      final Map<String, String> rutANombre = {};
+      for (var participante in participantes) {
+        rutANombre[participante.rut] = participante.nombre;
+      }
+      
+      print('🚗💬 Mapeando participantes: $rutANombre');
+
       // CORRECCIÓN: Usar endpoint de viaje, no de chat grupal específico
       final response = await http.get(
         Uri.parse('${confGlobal.baseUrl}/chat/viaje/$idViaje/mensajes'),
@@ -180,8 +189,17 @@ class ChatGrupalService {
           // Verificar si es mensaje grupal (no tiene receptor específico)
           if (mensajeData['tipo'] == 'grupal' || mensajeData['receptor'] == null) {
             try {
+              // ENRIQUECER: Agregar el nombre del emisor basado en el RUT
+              final emisorRut = mensajeData['emisor'] ?? mensajeData['emisorRut'] ?? '';
+              final emisorNombre = rutANombre[emisorRut] ?? 'Usuario';
+              
+              // Asegurar que el JSON tenga el emisorNombre
+              mensajeData['emisorNombre'] = emisorNombre;
+              
               final mensaje = MensajeGrupal.fromJson(mensajeData);
               mensajesGrupales.add(mensaje);
+              
+              print('🚗💬 Mensaje enriquecido: ${mensaje.emisorNombre} (${mensaje.emisorRut}): ${mensaje.contenido}');
             } catch (e) {
               print('⚠️ Error parseando mensaje grupal: $e');
               print('⚠️ Datos del mensaje: $mensajeData');

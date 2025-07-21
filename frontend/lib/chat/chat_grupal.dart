@@ -140,13 +140,28 @@ class ChatGrupalScreenState extends State<ChatGrupalScreen> {
 
   void _setupSocketListeners() {
     // Listener para mensajes grupales
-    _messageSubscription = _socketService.groupMessageStream.listen((data) {
+    _messageSubscription = _socketService.groupMessageStream.listen((data) async {
       print('🚗💬 Nuevo mensaje grupal recibido en UI: $data');
-      final mensaje = MensajeGrupal.fromJson(data);
-      setState(() {
-        mensajes.add(mensaje);
-      });
-      _scrollToBottom();
+      
+      try {
+        // Enriquecer mensaje usando método helper
+        final mensajeEnriquecido = await _enriquecerMensaje(data);
+        
+        setState(() {
+          mensajes.add(mensajeEnriquecido);
+        });
+        _scrollToBottom();
+      } catch (e) {
+        print('❌ Error procesando mensaje en tiempo real: $e');
+        print('❌ Data del mensaje: $data');
+        
+        // Fallback: crear mensaje sin enriquecimiento
+        final mensaje = MensajeGrupal.fromJson(data);
+        setState(() {
+          mensajes.add(mensaje);
+        });
+        _scrollToBottom();
+      }
     });
 
     // Listener para cambios en participantes
@@ -274,15 +289,73 @@ class ChatGrupalScreenState extends State<ChatGrupalScreen> {
     }
   }
 
-  void _handleMessageEdited(Map<String, dynamic> data) {
+  void _handleMessageEdited(Map<String, dynamic> data) async {
     final mensajeId = data['id'];
     
-    setState(() {
-      final index = mensajes.indexWhere((m) => m.id == mensajeId);
-      if (index != -1) {
-        mensajes[index] = MensajeGrupal.fromJson(data);
+    try {
+      // Enriquecer el mensaje editado también
+      final mensajeEnriquecido = await _enriquecerMensaje(data);
+      
+      setState(() {
+        final index = mensajes.indexWhere((m) => m.id == mensajeId);
+        if (index != -1) {
+          mensajes[index] = mensajeEnriquecido;
+        }
+      });
+    } catch (e) {
+      print('❌ Error enriqueciendo mensaje editado: $e');
+      // Fallback sin enriquecimiento
+      setState(() {
+        final index = mensajes.indexWhere((m) => m.id == mensajeId);
+        if (index != -1) {
+          mensajes[index] = MensajeGrupal.fromJson(data);
+        }
+      });
+    }
+  }
+
+  // --- Método helper para enriquecer mensajes con emisorNombre ---
+  Future<MensajeGrupal> _enriquecerMensaje(Map<String, dynamic> data) async {
+    final emisorRut = data['emisor'] ?? data['emisorRut'] ?? '';
+    
+    print('🚗🔍 Enriqueciendo mensaje de RUT: $emisorRut');
+    print('🚗📋 Participantes actuales: ${participantes.length}');
+    
+    String emisorNombre = 'Usuario';
+    
+    // Si no hay participantes cargados, intentar cargarlos
+    if (participantes.isEmpty) {
+      print('🚗⏳ Lista de participantes vacía, intentando cargar...');
+      try {
+        final participantesResult = await ChatGrupalService.obtenerParticipantes(widget.idViaje);
+        setState(() {
+          participantes = participantesResult;
+        });
+        print('🚗✅ Participantes cargados: ${participantes.length}');
+      } catch (e) {
+        print('🚗❌ Error cargando participantes: $e');
       }
-    });
+    }
+    
+    // Buscar el nombre del emisor
+    final participanteEncontrado = participantes.firstWhere(
+      (p) => p.rut == emisorRut,
+      orElse: () => ParticipanteChat(rut: '', nombre: '', esConductor: false, estaConectado: false),
+    );
+    
+    if (participanteEncontrado.nombre.isNotEmpty) {
+      emisorNombre = participanteEncontrado.nombre;
+      print('🚗👤 Emisor encontrado: $emisorNombre (${emisorRut})');
+    } else {
+      print('🚗❓ Emisor no encontrado para RUT: $emisorRut');
+    }
+    
+    // Agregar emisorNombre al data
+    data['emisorNombre'] = emisorNombre;
+    
+    print('🚗💬 Mensaje enriquecido: $emisorNombre: ${data['contenido']}');
+    
+    return MensajeGrupal.fromJson(data);
   }
 
   void _handleMessageDeleted(Map<String, dynamic> data) {
@@ -643,9 +716,14 @@ class ChatGrupalScreenState extends State<ChatGrupalScreen> {
                     final participante = participantes[index];
                     final isCurrentUser = participante.rut == userRut;
                     
+                    // Obtener colores dinámicos del participante (igual que en los mensajes)
+                    final colorParticipante = Color(
+                      ChatGrupalService.obtenerColorParticipante(participante.rut),
+                    );
+                    
                     return ListTile(
                       leading: CircleAvatar(
-                        backgroundColor: Color(0xFF8D4F3A),
+                        backgroundColor: colorParticipante, // Color dinámico basado en RUT
                         child: Text(
                           participante.nombre.isNotEmpty 
                               ? participante.nombre[0].toUpperCase()
@@ -656,17 +734,30 @@ class ChatGrupalScreenState extends State<ChatGrupalScreen> {
                           ),
                         ),
                       ),
-                      title: Text(
-                        participante.nombre,
-                        style: TextStyle(
-                          fontWeight: isCurrentUser ? FontWeight.bold : FontWeight.normal,
-                        ),
+                      title: Row(
+                        children: [
+                          Text(
+                            participante.nombre,
+                            style: TextStyle(
+                              fontWeight: isCurrentUser ? FontWeight.bold : FontWeight.normal,
+                            ),
+                          ),
+                          SizedBox(width: 8),
+                          Container(
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              color: colorParticipante,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ],
                       ),
                       subtitle: isCurrentUser 
                           ? Text(
                               'Tú',
                               style: TextStyle(
-                                color: Color(0xFF8D4F3A),
+                                color: colorParticipante, // Usar el color dinámico del usuario
                                 fontWeight: FontWeight.w600,
                               ),
                             )
