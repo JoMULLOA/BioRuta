@@ -12,6 +12,7 @@ class ResultadosBusquedaScreen extends StatefulWidget {
   final int pasajeros;
   final String origenTexto;
   final String destinoTexto;
+  final bool soloMujeres; // Nuevo parámetro para filtro de género
 
   const ResultadosBusquedaScreen({
     super.key,
@@ -23,6 +24,7 @@ class ResultadosBusquedaScreen extends StatefulWidget {
     required this.pasajeros,
     required this.origenTexto,
     required this.destinoTexto,
+    this.soloMujeres = false, // Por defecto false
   });
 
   @override
@@ -53,6 +55,7 @@ class _ResultadosBusquedaScreenState extends State<ResultadosBusquedaScreen> {
         destinoLng: widget.destinoLng,
         fechaViaje: widget.fechaViaje,
         pasajeros: widget.pasajeros,
+        soloMujeres: widget.soloMujeres, // Usar el parámetro soloMujeres
       );
 
       // Debug: Verificar datos del conductor

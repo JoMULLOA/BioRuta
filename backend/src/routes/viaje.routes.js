@@ -36,6 +36,7 @@ router.post(
 // Buscar viajes por proximidad - GET /api/viajes/buscar
 router.get(
   "/buscar", 
+  authenticateJwt, // Agregar autenticación para acceder al género del usuario
   validateQuery(busquedaProximidadValidation),
   buscarViajesPorProximidad
 );

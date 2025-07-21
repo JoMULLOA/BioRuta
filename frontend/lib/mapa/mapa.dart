@@ -11,8 +11,10 @@ import '../services/ubicacion_service.dart';
 import '../services/busqueda_service.dart';
 import '../services/viaje_service.dart';
 import '../services/ruta_service.dart';
+import '../services/user_service.dart'; // Importar UserService
 import 'mapa_widget.dart';
 import 'mapa_seleccion.dart';
+import 'mapa_ui_components.dart';
 import '../buscar/resultados_busqueda.dart';
 
 
@@ -48,6 +50,8 @@ class _MapPageState extends State<MapPage> {
   double? destinoLng;
   int pasajeros = 1;
   DateTime? fechaSeleccionada;
+  bool soloMujeres = false; // Nueva variable para la opción "Solo mujeres"
+  bool esUsuarioMujer = false; // Variable para determinar si el usuario es mujer
   
   final TextEditingController _origenController = TextEditingController();
   final TextEditingController _destinoController = TextEditingController();
@@ -60,7 +64,7 @@ class _MapPageState extends State<MapPage> {
   bool _mostrandoAnimacionRadar = false;
   GeoPoint? _marcadorRadar;
   List<Map<String, dynamic>> _viajesEnRadio = [];
-  final double _radioKm = 5.0; // Radio de 5km para mayor cobertura
+  final double _radioKm = 0.5; // Radio de 500 metros para búsqueda más precisa
   List<String> _marcadoresViajesIds = []; // Para trackear marcadores añadidos
   Map<String, String> _marcadorViajeMap = {}; // Mapea ID de marcador con ID de viaje
 
@@ -73,6 +77,12 @@ class _MapPageState extends State<MapPage> {
         unFollowUser: false,
       ),
     );
+    
+    // Inicializar valores por defecto para la barra superior
+    _inicializarValoresPorDefecto();
+    
+    // Verificar género del usuario
+    _verificarGeneroUsuario();
     
     // Registrar callback para recibir notificaciones de cambios de ruta
     RutaService.instance.registrarMapaCallback(_onRutaChanged);
@@ -87,6 +97,295 @@ class _MapPageState extends State<MapPage> {
   }
 
   // ===== MÉTODOS PARA FUNCIONALIDAD DE BÚSQUEDA =====
+
+  /// Inicializar valores por defecto para la barra superior
+  void _inicializarValoresPorDefecto() {
+    // Establecer fecha de hoy por defecto
+    fechaSeleccionada = DateTime.now();
+    // pasajeros ya está inicializado en 1 por defecto
+    // direccionOrigen se establecerá cuando se obtenga la región actual
+  }
+
+  /// Verificar si el usuario actual es mujer
+  Future<bool> _esUsuarioMujer() async {
+    try {
+      final perfilUsuario = await UserService.obtenerPerfilUsuario();
+      if (perfilUsuario != null && perfilUsuario['genero'] != null) {
+        return perfilUsuario['genero'].toString().toLowerCase() == 'femenino';
+      }
+      return false; // Por defecto false si no se puede obtener el género
+    } catch (e) {
+      print('Error al verificar género del usuario: $e');
+      return false; // Por defecto false en caso de error
+    }
+  }
+
+  /// Verificar el género del usuario para mostrar opciones específicas
+  void _verificarGeneroUsuario() async {
+    try {
+      final esMujer = await _esUsuarioMujer();
+      if (mounted) {
+        setState(() {
+          esUsuarioMujer = esMujer;
+        });
+      }
+    } catch (e) {
+      print('Error al verificar género del usuario: $e');
+    }
+  }
+
+  /// Abrir modal de búsqueda rápida al tocar la barra superior
+  void _abrirBusquedaAvanzada() {
+    if (!mounted) return; // Verificar que el widget esté montado
+    
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(20),
+              topRight: Radius.circular(20),
+            ),
+          ),
+        child: Padding(
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 20,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Handle bar
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              
+              // Título
+              const Text(
+                '¿A dónde vas?',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF854937),
+                ),
+              ),
+              const SizedBox(height: 20),
+              
+              // Origen (ahora editable)
+              GestureDetector(
+                onTap: () async {
+                  Navigator.pop(context); // Cerrar modal
+                  await _seleccionarOrigen();
+                  if (mounted) _abrirBusquedaAvanzada(); // Reabrir modal con nuevo origen
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: const Color(0xFF854937)),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.my_location, color: Color(0xFF854937)),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          direccionOrigen ?? 'Mi ubicación actual',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: direccionOrigen != null ? Colors.black87 : Colors.grey[600],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              
+              // Destino
+              GestureDetector(
+                onTap: () async {
+                  Navigator.pop(context); // Cerrar modal
+                  await _seleccionarDestino();
+                  if (mounted) _abrirBusquedaAvanzada(); // Reabrir modal con nuevo destino
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: const Color(0xFF854937)),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.location_on, color: Color(0xFF854937)),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          direccionDestino ?? 'Seleccionar destino',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: direccionDestino != null ? Colors.black87 : Colors.grey[600],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              
+              // Fecha y pasajeros en una fila
+              Row(
+                children: [
+                  // Fecha
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () async {
+                        await _seleccionarFecha();
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: const Color(0xFF854937)),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.calendar_today, color: Color(0xFF854937), size: 20),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                fechaSeleccionada != null
+                                    ? "${fechaSeleccionada!.day}/${fechaSeleccionada!.month}"
+                                    : 'Fecha',
+                                style: const TextStyle(fontSize: 14),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  
+                  // Pasajeros
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: const Color(0xFF854937)),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        IconButton(
+                          onPressed: () {
+                            if (pasajeros > 1 && mounted) {
+                              setState(() {
+                                pasajeros--;
+                              });
+                              setModalState(() {}); // Actualizar modal inmediatamente
+                            }
+                          },
+                          icon: const Icon(Icons.remove, color: Color(0xFF854937)),
+                          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                          padding: EdgeInsets.zero,
+                        ),
+                        Text('$pasajeros', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                        IconButton(
+                          onPressed: () {
+                            if (pasajeros < 5 && mounted) {
+                              setState(() {
+                                pasajeros++;
+                              });
+                              setModalState(() {}); // Actualizar modal inmediatamente
+                            }
+                          },
+                          icon: const Icon(Icons.add, color: Color(0xFF854937)),
+                          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                          padding: EdgeInsets.zero,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              
+              // Opción "Solo mujeres" - Solo visible para usuarias mujeres
+              if (esUsuarioMujer) ...[
+                Row(
+                  children: [
+                    Checkbox(
+                      value: soloMujeres,
+                      onChanged: (value) {
+                        setState(() {
+                          soloMujeres = value ?? false;
+                        });
+                        setModalState(() {}); // Actualizar modal inmediatamente
+                      },
+                      activeColor: const Color(0xFF854937),
+                    ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Solo mujeres',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+              ],
+              
+              // Botón de búsqueda (sin "Más opciones")
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    if (mounted) _buscarViajes();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF854937),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    'Buscar viajes',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ), // Fin del Column
+        ), // Fin del Padding
+      ), // Fin del Container
+      ), // Fin del StatefulBuilder
+    ); // Fin del showModalBottomSheet
+  }
   
   void _toggleFormularioBusqueda() {
     setState(() {
@@ -109,7 +408,7 @@ class _MapPageState extends State<MapPage> {
   }
 
   void _incrementarPasajeros() {
-    if (pasajeros < 8 && mounted) { // Verificar mounted
+    if (pasajeros < 5 && mounted) { // Máximo 5 pasajeros
       setState(() {
         pasajeros++;
       });
@@ -132,6 +431,14 @@ class _MapPageState extends State<MapPage> {
       return;
     }
 
+    // Verificar que tengamos las coordenadas necesarias
+    if (origenLat == null || origenLng == null || destinoLat == null || destinoLng == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error: No se pudieron obtener las coordenadas. Intenta seleccionar las ubicaciones nuevamente.')),
+      );
+      return;
+    }
+
     // Formatear la fecha como string
     final fechaFormateada = "${fechaSeleccionada!.year}-${fechaSeleccionada!.month.toString().padLeft(2, '0')}-${fechaSeleccionada!.day.toString().padLeft(2, '0')}";
 
@@ -147,6 +454,7 @@ class _MapPageState extends State<MapPage> {
           pasajeros: pasajeros,
           origenTexto: direccionOrigen!,
           destinoTexto: direccionDestino!,
+          soloMujeres: soloMujeres, // Parámetro implementado
         ),
       ),
     );
@@ -244,7 +552,11 @@ class _MapPageState extends State<MapPage> {
     final status = await UbicacionService.solicitarPermisos();
     if (status.isGranted) {
       debugPrint("✅ Permiso de ubicación concedido");
-      await _centrarEnMiUbicacionConRegion();
+      // Esperar un poco para que el controlador del mapa esté listo
+      await Future.delayed(const Duration(milliseconds: 500));
+      if (mounted) {
+        await _centrarEnMiUbicacionConRegion();
+      }
     } else if (status.isDenied) {
       if (mounted) {
         UbicacionService.mostrarDialogoPermiso(context,
@@ -268,6 +580,13 @@ class _MapPageState extends State<MapPage> {
       if (mounted) { // Verificar antes de setState
         setState(() {
           _regionActual = region;
+          // Establecer "Mi ubicación actual" como origen por defecto si no se ha seleccionado uno
+          if (direccionOrigen == null) {
+            direccionOrigen = 'Mi ubicación actual';
+            origenLat = miPosicion.latitude;
+            origenLng = miPosicion.longitude;
+            _origenController.text = 'Mi ubicación actual';
+          }
         });
       }
 
@@ -287,6 +606,14 @@ class _MapPageState extends State<MapPage> {
       }
     } catch (e) {
       debugPrint("❌ Error al centrar en ubicación: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Error al obtener la ubicación'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -818,8 +1145,8 @@ class _MapPageState extends State<MapPage> {
       // Iniciar búsqueda progresiva de viajes (5 segundos más lento)
       await _buscarViajesProgresivamente(centroDeMapa);
 
-      // Finalizar animación después de 5 segundos
-      Timer(const Duration(seconds: 5), () {
+      // Finalizar animación después de 2.5 segundos
+      Timer(const Duration(milliseconds: 2500), () {
         if (mounted) {
           setState(() {
             _mostrandoAnimacionRadar = false;
@@ -1390,11 +1717,20 @@ class _MapPageState extends State<MapPage> {
             controller: controller,
             onMapTap: _onMapTap,
           ),
+
+          // Barra superior estilo Uber
+          MapaUIComponents.buildBarraSuperiorUber(
+            regionActual: _regionActual,
+            destinoSeleccionado: direccionDestino,
+            onTap: _abrirBusquedaAvanzada,
+            mostrarBotonUber: true,
+            origenSeleccionado: direccionOrigen,
+          ),
           
           // Indicador de carga de viajes
           if (_cargandoViajes)
             Positioned(
-              top: 80,
+              top: 140, // Movido más abajo para no solapar con la barra superior
               left: 16,
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -1680,17 +2016,6 @@ class _MapPageState extends State<MapPage> {
                   ),
                 )
               : const Icon(Icons.radar),
-          ),
-          const SizedBox(height: 12),
-          
-          // Botón de búsqueda de viajes
-          FloatingActionButton(
-            heroTag: "searchTrips",
-            onPressed: _toggleFormularioBusqueda,
-            tooltip: 'Buscar viajes',
-            backgroundColor: const Color(0xFF854937),
-            foregroundColor: Colors.white,
-            child: const Icon(Icons.search),
           ),
           const SizedBox(height: 12),
           

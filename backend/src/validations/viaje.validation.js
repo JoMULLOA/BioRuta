@@ -79,7 +79,8 @@ export const busquedaProximidadValidation = Joi.object({
   destinoLng: Joi.number().min(-180).max(180).required(),
   fechaViaje: Joi.string().required(),
   pasajeros: Joi.number().integer().min(1).max(8).default(1),
-  radio: Joi.number().min(0.1).max(50).default(2.0) // 2.0 km = 2000 metros por defecto
+  radio: Joi.number().min(0.1).max(50).default(2.0), // 2.0 km = 2000 metros por defecto
+  soloMujeres: Joi.string().valid('true', 'false').default('false') // Filtro de género
 });
 
 // Validación para unirse a viaje

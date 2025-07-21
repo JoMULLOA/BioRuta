@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/viaje_model.dart';
 import '../config/confGlobal.dart';
+import '../utils/token_manager.dart'; // Agregar TokenManager para autenticación
 
 class ApiService {
   // Configuración de la API usando confGlobal
@@ -17,6 +18,7 @@ class ApiService {
     required double destinoLng,
     required String fechaViaje,
     required int pasajeros,
+    bool soloMujeres = false, // Nuevo parámetro para filtro de género
   }) async {
     try {
       final queryParams = {
@@ -26,6 +28,7 @@ class ApiService {
         'destinoLng': destinoLng.toString(),
         'fechaViaje': fechaViaje,
         'pasajeros': pasajeros.toString(),
+        'soloMujeres': soloMujeres.toString(), // Agregar parámetro al query
       };
       
       final uri = Uri.parse('$baseUrl/viajes/buscar').replace(
@@ -36,7 +39,7 @@ class ApiService {
       
       final response = await http.get(
         uri,
-        headers: {
+        headers: await TokenManager.getAuthHeaders() ?? {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },

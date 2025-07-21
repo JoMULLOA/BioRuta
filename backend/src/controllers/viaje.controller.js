@@ -227,13 +227,26 @@ export async function buscarViajesPorProximidad(req, res) {
       destinoLng,
       fechaViaje,
       pasajeros = 1,
-      radio = 2.0 // 2000 metros en kilómetros por defecto
+      radio = 2.0, // 2000 metros en kilómetros por defecto
+      soloMujeres = 'false' // Filtro de género (string que convertiremos a boolean)
     } = req.query;
 
     // Validar parámetros requeridos
     if (!origenLat || !origenLng || !destinoLat || !destinoLng || !fechaViaje) {
       return handleErrorServer(res, 400, "Parámetros requeridos: origenLat, origenLng, destinoLat, destinoLng, fechaViaje");
     }
+
+    // Obtener el género del usuario que está haciendo la consulta
+    const usuarioConsultante = await userRepository.findOne({
+      where: { rut: req.user.rut }
+    });
+
+    if (!usuarioConsultante) {
+      return handleErrorServer(res, 404, "Usuario no encontrado");
+    }
+
+    // Convertir string a boolean
+    const filtraSoloMujeres = soloMujeres === 'true';
 
     // Convertir radio de kilómetros a metros (500 metros = 0.5 km)
     const radioEnMetros = parseFloat(radio) * 1000;
@@ -243,6 +256,8 @@ export async function buscarViajesPorProximidad(req, res) {
     console.log('Destino:', { lat: destinoLat, lng: destinoLng });
     console.log('Fecha:', fechaViaje);
     console.log('Radio (metros):', radioEnMetros);
+    console.log('Solo mujeres:', filtraSoloMujeres);
+    console.log('Género usuario:', usuarioConsultante.genero);
 
     // CORREGIDO: Filtro de fecha - usar la fecha exacta proporcionada
     const fechaBuscada = new Date(fechaViaje + 'T00:00:00.000Z'); // Agregar hora UTC para evitar conversiones
@@ -259,11 +274,37 @@ export async function buscarViajesPorProximidad(req, res) {
     });
 
     // Primero verificar si hay viajes activos en la fecha
-    const viajesEnFecha = await Viaje.find({
+    let filtroBase = {
       estado: 'activo',
       fecha_ida: { $gte: fechaInicio, $lte: fechaFin },
       plazas_disponibles: { $gte: parseInt(pasajeros) }
-    }).select('_id origen.ubicacion.coordinates destino.ubicacion.coordinates fecha_ida plazas_disponibles');
+    };
+
+    // Aplicar filtro de género
+    // Si filtraSoloMujeres es true, solo mostrar viajes marcados como solo_mujeres
+    // Si filtraSoloMujeres es false, aplicar las reglas normales de género
+    if (filtraSoloMujeres) {
+      // Usuario quiere ver solo viajes de mujeres (solo si el usuario es mujer)
+      if (usuarioConsultante.genero === 'femenino') {
+        filtroBase.solo_mujeres = true;
+      } else {
+        // Usuario no es mujer pero pide filtro de solo mujeres - no mostrar nada
+        return handleSuccess(res, 200, "No hay viajes disponibles (filtro solo mujeres aplicado a usuario no femenino)", {
+          viajes: [],
+          total: 0
+        });
+      }
+    } else {
+      // Búsqueda normal - aplicar reglas de visibilidad por género
+      if (usuarioConsultante.genero !== 'femenino') {
+        // Usuario no es mujer - excluir viajes solo para mujeres
+        filtroBase.solo_mujeres = { $ne: true };
+      }
+      // Si usuario es mujer, ver todos los viajes (incluidos los de solo mujeres)
+    }
+
+    const viajesEnFecha = await Viaje.find(filtroBase)
+      .select('_id origen.ubicacion.coordinates destino.ubicacion.coordinates fecha_ida plazas_disponibles solo_mujeres');
 
     console.log('Viajes activos en la fecha:', viajesEnFecha.length);
     
@@ -318,11 +359,7 @@ export async function buscarViajesPorProximidad(req, res) {
       // Búsqueda con agregación para filtrar por proximidad de origen Y destino
       const viajes = await Viaje.aggregate([
       {
-        $match: {
-          estado: 'activo',
-          fecha_ida: { $gte: fechaInicio, $lte: fechaFin },
-          plazas_disponibles: { $gte: parseInt(pasajeros) }
-        }
+        $match: filtroBase // Usar el mismo filtro que incluye las reglas de género
       },
       {
         $addFields: {
@@ -589,6 +626,15 @@ export async function obtenerViajesParaMapa(req, res) {
       fecha_hasta
     } = req.query;
 
+    // Obtener el género del usuario que está haciendo la consulta
+    const usuarioConsultante = await userRepository.findOne({
+      where: { rut: req.user.rut }
+    });
+
+    if (!usuarioConsultante) {
+      return handleErrorServer(res, 404, "Usuario no encontrado");
+    }
+
     let filtroFecha = { estado: 'activo', plazas_disponibles: { $gt: 0 } };
     
     // COMENTAR TEMPORALMENTE el filtro de fecha para mostrar todos los viajes
@@ -605,7 +651,13 @@ export async function obtenerViajesParaMapa(req, res) {
       const fechaHoy = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
       filtroFecha.fecha_ida = { $gte: fechaHoy };
     }
-    
+
+    // Filtrar viajes según el género del usuario
+    // Si el usuario no es mujer, excluir viajes que sean solo para mujeres
+    if (usuarioConsultante.genero !== 'femenino') {
+      filtroFecha.solo_mujeres = { $ne: true };
+    }
+    // Si el usuario es mujer, mostrar todos los viajes (incluidos los de solo mujeres)
 
     const viajes = await Viaje.find(filtroFecha)
       .select({
@@ -616,7 +668,8 @@ export async function obtenerViajesParaMapa(req, res) {
         destino: 1,
         fecha_ida: 1,
         precio: 1,
-        plazas_disponibles: 1
+        plazas_disponibles: 1,
+        solo_mujeres: 1  // Incluir campo solo_mujeres para mostrar en el mapa
       })
       .sort({ fecha_ida: 1 });
 
@@ -646,6 +699,7 @@ export async function obtenerViajesParaMapa(req, res) {
             hora: viaje.fecha_ida.toTimeString().substring(0, 5), // Extraer hora de fecha_ida
             precio: viaje.precio,
             plazas_disponibles: viaje.plazas_disponibles,
+            solo_mujeres: viaje.solo_mujeres, // Incluir información de solo mujeres
             vehiculo: vehiculo ? {
               patente: vehiculo.patente,
               modelo: vehiculo.modelo,
