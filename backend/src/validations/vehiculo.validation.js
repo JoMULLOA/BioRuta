@@ -68,6 +68,13 @@ export const vehiculoBodyValidation = Joi.object({
       "number.min": "El número de asientos debe ser al menos 2.",
       "number.max": "El número de asientos debe ser máximo 9.",
     }),
+  tipoCombustible: Joi.string()
+    .valid("bencina", "petroleo", "electrico", "hibrido", "gas")
+    .default("bencina")
+    .messages({
+      "string.base": "El tipo de combustible debe ser de tipo string.",
+      "any.only": "El tipo de combustible debe ser uno de: bencina, petroleo, electrico, hibrido, gas.",
+    }),
   documentacion: Joi.string()
     .min(5)
     .max(500)

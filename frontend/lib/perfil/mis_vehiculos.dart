@@ -202,6 +202,48 @@ class _MisVehiculosPageState extends State<MisVehiculosPage> {
     }
   }
 
+  String _getNombreTipo(String tipo) {
+    switch (tipo) {
+      case 'sedan':
+        return 'Sedán';
+      case 'hatchback':
+        return 'Hatchback';
+      case 'suv':
+        return 'SUV';
+      case 'pickup':
+        return 'Pickup';
+      case 'furgon':
+        return 'Furgón';
+      case 'camioneta':
+        return 'Camioneta';
+      case 'coupe':
+        return 'Coupé';
+      case 'convertible':
+        return 'Convertible';
+      case 'otro':
+        return 'Otro';
+      default:
+        return 'Auto';
+    }
+  }
+
+  String _getNombreCombustible(String tipoCombustible) {
+    switch (tipoCombustible) {
+      case 'bencina':
+        return 'Bencina';
+      case 'petroleo':
+        return 'Petróleo (Diésel)';
+      case 'electrico':
+        return 'Eléctrico';
+      case 'hibrido':
+        return 'Híbrido';
+      case 'gas':
+        return 'Gas';
+      default:
+        return 'Bencina';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final Color fondo = Color(0xFFF8F2EF);
@@ -399,9 +441,13 @@ class _MisVehiculosPageState extends State<MisVehiculosPage> {
           SizedBox(height: 16),
           
           // Información del vehículo
+          _buildInfoRow(Icons.category, 'Tipo', _getNombreTipo(vehiculo['tipo'] ?? 'otro')),
+          SizedBox(height: 12),
           _buildInfoRow(Icons.directions_car, 'Modelo', vehiculo['modeloCompleto'] ?? vehiculo['modelo'] ?? 'No especificado'),
           SizedBox(height: 12),
           _buildInfoRow(Icons.palette, 'Color', vehiculo['color'] ?? 'No especificado'),
+          SizedBox(height: 12),
+          _buildInfoRow(Icons.local_gas_station, 'Combustible', _getNombreCombustible(vehiculo['tipoCombustible'] ?? 'bencina')),
           SizedBox(height: 12),
           _buildInfoRow(Icons.people, 'Asientos', '${vehiculo['nro_asientos'] ?? 0} asientos'),
           SizedBox(height: 12),

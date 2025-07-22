@@ -34,6 +34,11 @@ const VehiculoSchema = new EntitySchema({
       type: "int",
       nullable: false,
     },
+    tipoCombustible: {
+      type: "varchar",
+      nullable: false,
+      default: "bencina",
+    },
     documentacion: {
       type: "varchar",
       nullable: false,

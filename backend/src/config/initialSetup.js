@@ -100,6 +100,7 @@ async function createInitialData() {
             año: 2020,
             color: "Gris",
             nro_asientos: 5,
+            tipoCombustible: "bencina",
             documentacion: "Permiso de circulación vigente",
             propietario: user1,
           })
@@ -113,6 +114,7 @@ async function createInitialData() {
             año: 2018,
             color: "Rojo",
             nro_asientos: 4,
+            tipoCombustible: "petroleo",
             documentacion: "Seguro obligatorio al día",
             propietario: user1,
           })
@@ -128,6 +130,7 @@ async function createInitialData() {
             año: 2019,
             color: "Azul",
             nro_asientos: 4,
+            tipoCombustible: "electrico",
             documentacion: "Permiso de circulación vigente",
             propietario: user2,
           })
