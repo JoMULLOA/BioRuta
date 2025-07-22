@@ -23,6 +23,7 @@ class _AgregarVehiculoPageState extends State<AgregarVehiculoPage> {
   final _documentacionController = TextEditingController();
   
   String? _tipoSeleccionado;
+  String? _combustibleSeleccionado;
   bool _isSaving = false;
 
   final List<String> _tiposVehiculo = [
@@ -35,6 +36,14 @@ class _AgregarVehiculoPageState extends State<AgregarVehiculoPage> {
     'coupe',
     'convertible',
     'otro'
+  ];
+
+  final List<String> _tiposCombustible = [
+    'bencina',
+    'petroleo',
+    'electrico',
+    'hibrido',
+    'gas'
   ];
 
   String _getNombreTipo(String tipo) {
@@ -59,6 +68,23 @@ class _AgregarVehiculoPageState extends State<AgregarVehiculoPage> {
         return 'Otro';
       default:
         return tipo;
+    }
+  }
+
+  String _getNombreCombustible(String tipoCombustible) {
+    switch (tipoCombustible) {
+      case 'bencina':
+        return 'Bencina';
+      case 'petroleo':
+        return 'Petróleo (Diésel)';
+      case 'electrico':
+        return 'Eléctrico';
+      case 'hibrido':
+        return 'Híbrido';
+      case 'gas':
+        return 'Gas';
+      default:
+        return tipoCombustible;
     }
   }
 
@@ -103,6 +129,7 @@ class _AgregarVehiculoPageState extends State<AgregarVehiculoPage> {
         'año': int.parse(_anoController.text),
         'color': _colorController.text,
         'nro_asientos': int.parse(_asientosController.text),
+        'tipoCombustible': _combustibleSeleccionado ?? 'bencina',
         'documentacion': _documentacionController.text,
       };
 
@@ -391,6 +418,53 @@ class _AgregarVehiculoPageState extends State<AgregarVehiculoPage> {
                       validator: (value) {
                         if (value == null || value.isEmpty) {
                           return 'La documentación es obligatoria';
+                        }
+                        return null;
+                      },
+                    ),
+                    SizedBox(height: 16),
+
+                    // Dropdown para tipo de combustible
+                    DropdownButtonFormField<String>(
+                      value: _combustibleSeleccionado,
+                      hint: Text('Selecciona el tipo de combustible'),
+                      decoration: InputDecoration(
+                        labelText: 'Tipo de Combustible',
+                        prefixIcon: Icon(Icons.local_gas_station, color: primario),
+                        labelStyle: TextStyle(color: primario),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Color(0xFF8D4F3A).withOpacity(0.3)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: primario, width: 2),
+                        ),
+                        errorBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.red, width: 2),
+                        ),
+                        focusedErrorBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.red, width: 2),
+                        ),
+                        filled: true,
+                        fillColor: Colors.grey[50],
+                      ),
+                      items: _tiposCombustible.map((String tipo) {
+                        return DropdownMenuItem<String>(
+                          value: tipo,
+                          child: Text(_getNombreCombustible(tipo)),
+                        );
+                      }).toList(),
+                      onChanged: (String? nuevoCombustible) {
+                        setState(() {
+                          _combustibleSeleccionado = nuevoCombustible;
+                        });
+                      },
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Selecciona un tipo de combustible';
                         }
                         return null;
                       },

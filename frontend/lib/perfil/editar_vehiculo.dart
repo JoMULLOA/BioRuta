@@ -26,6 +26,7 @@ class _EditarVehiculoPageState extends State<EditarVehiculoPage> {
   late TextEditingController _documentacionController;
   
   String? _tipoSeleccionado;
+  String? _combustibleSeleccionado;
   bool _isLoading = false;
 
   final List<String> _tiposVehiculo = [
@@ -38,6 +39,14 @@ class _EditarVehiculoPageState extends State<EditarVehiculoPage> {
     'coupe',
     'convertible',
     'otro'
+  ];
+
+  final List<String> _tiposCombustible = [
+    'bencina',
+    'petroleo',
+    'electrico',
+    'hibrido',
+    'gas'
   ];
 
   String _getNombreTipo(String tipo) {
@@ -65,6 +74,23 @@ class _EditarVehiculoPageState extends State<EditarVehiculoPage> {
     }
   }
 
+  String _getNombreCombustible(String tipoCombustible) {
+    switch (tipoCombustible) {
+      case 'bencina':
+        return 'Bencina';
+      case 'petroleo':
+        return 'Petróleo (Diésel)';
+      case 'electrico':
+        return 'Eléctrico';
+      case 'hibrido':
+        return 'Híbrido';
+      case 'gas':
+        return 'Gas';
+      default:
+        return tipoCombustible;
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -79,7 +105,12 @@ class _EditarVehiculoPageState extends State<EditarVehiculoPage> {
     String tipoActual = widget.vehiculo['tipo'] ?? 'otro';
     _tipoSeleccionado = _tiposVehiculo.contains(tipoActual) ? tipoActual : 'otro';
     
+    // Validar que el tipo de combustible esté en la lista válida
+    String combustibleActual = widget.vehiculo['tipoCombustible'] ?? 'bencina';
+    _combustibleSeleccionado = _tiposCombustible.contains(combustibleActual) ? combustibleActual : 'bencina';
+    
     print('DEBUG EditarVehiculo - Tipo actual: $tipoActual, Tipo seleccionado: $_tipoSeleccionado');
+    print('DEBUG EditarVehiculo - Combustible actual: $combustibleActual, Combustible seleccionado: $_combustibleSeleccionado');
     
     _marcaController = TextEditingController(text: widget.vehiculo['marca'] ?? '');
     _modeloController = TextEditingController(text: widget.vehiculo['modelo'] ?? '');
@@ -127,6 +158,7 @@ class _EditarVehiculoPageState extends State<EditarVehiculoPage> {
         'año': int.tryParse(_anoController.text.trim()) ?? 0,
         'color': _colorController.text.trim(),
         'nro_asientos': int.tryParse(_nroAsientosController.text.trim()) ?? 0,
+        'tipoCombustible': _combustibleSeleccionado ?? 'bencina',
         'documentacion': _documentacionController.text.trim(),
       };
 
@@ -302,6 +334,46 @@ class _EditarVehiculoPageState extends State<EditarVehiculoPage> {
                             validator: (value) {
                               if (value == null || value.isEmpty) {
                                 return 'Selecciona un tipo de vehículo';
+                              }
+                              return null;
+                            },
+                          ),
+                          
+                          SizedBox(height: 16),
+                          
+                          // Dropdown para tipo de combustible
+                          DropdownButtonFormField<String>(
+                            value: _tiposCombustible.contains(_combustibleSeleccionado) ? _combustibleSeleccionado : null,
+                            hint: Text('Selecciona el tipo de combustible'),
+                            decoration: InputDecoration(
+                              labelText: 'Tipo de Combustible',
+                              prefixIcon: Icon(Icons.local_gas_station, color: primario),
+                              labelStyle: TextStyle(color: primario),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(color: primario.withOpacity(0.3)),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(color: primario, width: 2),
+                              ),
+                              filled: true,
+                              fillColor: Colors.grey[50],
+                            ),
+                            items: _tiposCombustible.map((String tipo) {
+                              return DropdownMenuItem<String>(
+                                value: tipo,
+                                child: Text(_getNombreCombustible(tipo)),
+                              );
+                            }).toList(),
+                            onChanged: (String? nuevoTipo) {
+                              setState(() {
+                                _combustibleSeleccionado = nuevoTipo;
+                              });
+                            },
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Selecciona un tipo de combustible';
                               }
                               return null;
                             },
