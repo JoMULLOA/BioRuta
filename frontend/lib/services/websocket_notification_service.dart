@@ -12,6 +12,46 @@ class WebSocketNotificationService {
   static bool _isInitialized = false;
   static String? _currentUserRut;
   
+  // Cache para evitar notificaciones duplicadas
+  static final Set<String> _processedNotifications = <String>{};
+  static const int _maxCacheSize = 100; // Límite del cache
+  
+  /// Generar ID único para la notificación basado en contenido
+  static String _generateNotificationId(dynamic data) {
+    try {
+      final notification = data is String ? json.decode(data) : data;
+      
+      // Generar ID basado en el tipo, emisor y timestamp
+      final tipo = notification['tipo'] ?? '';
+      final rutEmisor = notification['rutEmisor'] ?? '';
+      final timestamp = notification['timestamp'] ?? DateTime.now().millisecondsSinceEpoch.toString();
+      
+      return '$tipo-$rutEmisor-$timestamp';
+    } catch (e) {
+      // Si no se puede generar ID específico, usar timestamp + tipo
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      return 'notification-$timestamp';
+    }
+  }
+  
+  /// Verificar si la notificación ya fue procesada
+  static bool _isNotificationProcessed(String notificationId) {
+    // Limpiar cache si está muy grande
+    if (_processedNotifications.length > _maxCacheSize) {
+      _processedNotifications.clear();
+      print('🧹 Cache de notificaciones limpiado');
+    }
+    
+    if (_processedNotifications.contains(notificationId)) {
+      print('🚫 Notificación duplicada detectada y bloqueada: $notificationId');
+      return true;
+    }
+    
+    _processedNotifications.add(notificationId);
+    print('✅ Nueva notificación registrada: $notificationId');
+    return false;
+  }
+  
   /// Inicializar el servicio de notificaciones WebSocket
   static Future<void> initialize() async {
     if (_isInitialized) return;
@@ -168,43 +208,15 @@ class WebSocketNotificationService {
         _handleFriendRejectedNotification(data);
       });
       
-      // Escuchar nueva_notificacion - SOLO para notificaciones genéricas
+      // DESHABILITADO: nueva_notificacion - Solo usamos eventos específicos para evitar duplicados
+      // Los eventos específicos (solicitud_amistad, amistad_aceptada, etc.) manejan todas las notificaciones
+      /*
       _socket!.on('nueva_notificacion', (data) {
-        print('📩 nueva_notificacion recibida: $data');
-        final notification = data is String ? json.decode(data) : data;
-        final tipo = notification['datos']?['tipo'] ?? notification['tipo'];
-        
-        print('🔍 Tipo de notificación detectado: $tipo');
-        
-        // EXCLUIR eventos de amistad para evitar duplicados (ya procesados por eventos específicos)
-        if (tipo == 'amistad_aceptada') {
-          print('🎉 *** SALTANDO amistad_aceptada - ya procesada por evento específico ***');
-          return; // NO procesar aquí
-        } else if (tipo == 'amistad_rechazada') {
-          print('😔 *** SALTANDO amistad_rechazada - ya procesada por evento específico ***');
-          return; // NO procesar aquí
-        } else if (tipo == 'solicitud_amistad') {
-<<<<<<< Updated upstream
-          print('👋 SALTANDO solicitud_amistad - ya procesada por evento específico');
-          return; // NO procesar aquí
-=======
-          print('👋 Saltando solicitud_amistad en nueva_notificacion (ya procesada)');
-          // No procesar para evitar duplicados
-        } else if (tipo == 'solicitud_viaje') {
-          print('🚗 *** PROCESANDO solicitud_viaje desde nueva_notificacion ***');
-          _handleTripRequestNotification(data);
-        } else if (tipo == 'ride_accepted') {
-          print('🎉 *** PROCESANDO ride_accepted desde nueva_notificacion ***');
-          _handleTripAcceptedNotification(data);
-        } else if (tipo == 'ride_rejected') {
-          print('😔 *** PROCESANDO ride_rejected desde nueva_notificacion ***');
-          _handleTripRejectedNotification(data);
->>>>>>> Stashed changes
-        } else {
-          print('📝 Procesando notificación genérica');
-          _handleIncomingNotification(data);
-        }
+        print('� nueva_notificacion recibida (IGNORADA): $data');
+        // Este evento está deshabilitado para evitar notificaciones duplicadas
+        // Todos los tipos de notificación se procesan mediante eventos específicos
       });
+      */
       
       // Escuchar confirmación de conexión
       _socket!.on('notification_connection_confirmed', (data) {
@@ -224,24 +236,12 @@ class WebSocketNotificationService {
       _socket!.disconnect();
       _socket = null;
       _currentUserRut = null;
+      
+      // Limpiar cache de notificaciones al desconectar
+      _processedNotifications.clear();
+      print('🧹 Cache de notificaciones limpiado al desconectar');
+      
       print('📴 WebSocket desconectado manualmente');
-    }
-  }
-  
-  /// Manejar notificación entrante general
-  static void _handleIncomingNotification(dynamic data) {
-    try {
-      final notification = data is String ? json.decode(data) : data;
-      
-      _showLocalNotification(
-        title: notification['titulo'] ?? 'Nueva notificación',
-        body: notification['mensaje'] ?? '',
-        payload: json.encode(notification),
-      );
-      
-      print('🔔 Notificación recibida: ${notification['titulo']}');
-    } catch (e) {
-      print('❌ Error procesando notificación: $e');
     }
   }
   
@@ -249,6 +249,12 @@ class WebSocketNotificationService {
   static void _handleTripRequestNotification(dynamic data) {
     try {
       print('🚗 *** PROCESANDO SOLICITUD DE VIAJE ***: $data');
+      
+      // Verificar duplicados antes de procesar
+      final notificationId = _generateNotificationId(data);
+      if (_isNotificationProcessed(notificationId)) {
+        return; // Notificación duplicada, no procesar
+      }
       
       final notification = data is String ? json.decode(data) : data;
       print('🚗 *** DATOS PARSEADOS VIAJE ***: $notification');
@@ -276,7 +282,6 @@ class WebSocketNotificationService {
           'precio': precio,
           'viajeId': notification['viajeId'],
         }),
-        isTripRequest: true,
       );
       
       print('✅ Notificación de solicitud de viaje procesada correctamente');
@@ -289,7 +294,6 @@ class WebSocketNotificationService {
         title: '🚗 Nueva solicitud de viaje',
         body: 'Tienes una nueva solicitud para tu viaje',
         payload: json.encode({'tipo': 'solicitud_viaje_fallback'}),
-        isTripRequest: true,
       );
     }
   }
@@ -298,6 +302,12 @@ class WebSocketNotificationService {
   static void _handleFriendRequestNotification(dynamic data) {
     try {
       print('🔧 Procesando solicitud de amistad: $data');
+      
+      // Verificar duplicados antes de procesar
+      final notificationId = _generateNotificationId(data);
+      if (_isNotificationProcessed(notificationId)) {
+        return; // Notificación duplicada, no procesar
+      }
       
       final notification = data is String ? json.decode(data) : data;
       print('🔧 Datos parseados: $notification');
@@ -336,6 +346,12 @@ class WebSocketNotificationService {
     try {
       print('🎉 Procesando amistad aceptada: $data');
       
+      // Verificar duplicados antes de procesar
+      final notificationId = _generateNotificationId(data);
+      if (_isNotificationProcessed(notificationId)) {
+        return; // Notificación duplicada, no procesar
+      }
+      
       final notification = data is String ? json.decode(data) : data;
       
       // El backend envía nombreReceptor (quien aceptó) al emisor original de la solicitud
@@ -368,6 +384,12 @@ class WebSocketNotificationService {
   /// Manejar notificación de amistad rechazada
   static void _handleFriendRejectedNotification(dynamic data) {
     try {
+      // Verificar duplicados antes de procesar
+      final notificationId = _generateNotificationId(data);
+      if (_isNotificationProcessed(notificationId)) {
+        return; // Notificación duplicada, no procesar
+      }
+      
       final notification = data is String ? json.decode(data) : data;
       
       _showLocalNotification(
@@ -390,6 +412,12 @@ class WebSocketNotificationService {
   static void _handleTripAcceptedNotification(dynamic data) {
     try {
       print('🔧 *** PROCESANDO VIAJE ACEPTADO ***: $data');
+      
+      // Verificar duplicados antes de procesar
+      final notificationId = _generateNotificationId(data);
+      if (_isNotificationProcessed(notificationId)) {
+        return; // Notificación duplicada, no procesar
+      }
       
       final notification = data is String ? json.decode(data) : data;
       print('🔧 *** DATOS PARSEADOS VIAJE ACEPTADO ***: $notification');
@@ -433,6 +461,12 @@ class WebSocketNotificationService {
   static void _handleTripRejectedNotification(dynamic data) {
     try {
       print('🔧 *** PROCESANDO VIAJE RECHAZADO ***: $data');
+      
+      // Verificar duplicados antes de procesar
+      final notificationId = _generateNotificationId(data);
+      if (_isNotificationProcessed(notificationId)) {
+        return; // Notificación duplicada, no procesar
+      }
       
       final notification = data is String ? json.decode(data) : data;
       print('🔧 *** DATOS PARSEADOS VIAJE RECHAZADO ***: $notification');
@@ -487,7 +521,6 @@ class WebSocketNotificationService {
     required String title,
     required String body,
     String? payload,
-    bool isTripRequest = false,
   }) async {
     try {
       print('🔔 *** INTENTANDO MOSTRAR NOTIFICACIÓN ***: $title - $body');
@@ -507,21 +540,12 @@ class WebSocketNotificationService {
         print('🔔 *** PERMISOS DE NOTIFICACIONES HABILITADOS ***: $enabled');
       }
       
-      // Determinar si es una solicitud (amistad o viaje) para agregar botones
-      bool esSolicitud = isTripRequest;
-      String tipoSolicitud = 'generico';
-      
+      // Determinar si es una solicitud de amistad para agregar botones
+      bool esSolicitudAmistad = false;
       try {
         if (payload != null) {
           final data = json.decode(payload);
-          final tipo = data['tipo'];
-          if (tipo == 'solicitud_amistad') {
-            esSolicitud = true;
-            tipoSolicitud = 'amistad';
-          } else if (tipo == 'solicitud_viaje') {
-            esSolicitud = true;
-            tipoSolicitud = 'viaje';
-          }
+          esSolicitudAmistad = data['tipo'] == 'solicitud_amistad';
         }
       } catch (e) {
         print('❌ Error parseando payload para determinar tipo: $e');
@@ -529,42 +553,8 @@ class WebSocketNotificationService {
       
       AndroidNotificationDetails androidNotificationDetails;
       
-      if (esSolicitud) {
-        // Notificación con botones de acción según el tipo
-        List<AndroidNotificationAction> actions = [];
-        
-        if (tipoSolicitud == 'amistad') {
-          actions = [
-            AndroidNotificationAction(
-              'view_request',
-              'Ver solicitud',
-              showsUserInterface: true,
-              cancelNotification: true,
-            ),
-          ];
-        } else if (tipoSolicitud == 'viaje') {
-          actions = [
-            AndroidNotificationAction(
-              'accept_trip',
-              'Aceptar',
-              showsUserInterface: true,
-              cancelNotification: true,
-            ),
-            AndroidNotificationAction(
-              'reject_trip',
-              'Rechazar',
-              showsUserInterface: true,
-              cancelNotification: true,
-            ),
-            AndroidNotificationAction(
-              'view_trip_request',
-              'Ver detalles',
-              showsUserInterface: true,
-              cancelNotification: true,
-            ),
-          ];
-        }
-        
+      if (esSolicitudAmistad) {
+        // Notificación con botón "Ver solicitud" únicamente para solicitudes de amistad
         androidNotificationDetails = AndroidNotificationDetails(
           'bioruta_channel',
           'BioRuta Notificaciones',
@@ -572,21 +562,28 @@ class WebSocketNotificationService {
           importance: Importance.max,
           priority: Priority.high,
           icon: '@mipmap/ic_launcher',
-          color: tipoSolicitud == 'viaje' ? Color(0xFF854937) : Color(0xFF2E7D32),
+          color: Color(0xFF2E7D32),
           enableVibration: true,
           playSound: true,
           showWhen: true,
           channelShowBadge: true,
           onlyAlertOnce: false,
-          autoCancel: false, // No auto-cancelar para que el usuario pueda ver los botones
+          autoCancel: false, // No auto-cancelar para que el usuario pueda ver el botón
           ongoing: false,
           silent: false,
           enableLights: true,
-          ledColor: tipoSolicitud == 'viaje' ? Color(0xFF854937) : Color(0xFF2E7D32),
+          ledColor: Color(0xFF2E7D32),
           ledOnMs: 1000,
           ledOffMs: 500,
           ticker: 'BioRuta',
-          actions: actions,
+          actions: [
+            AndroidNotificationAction(
+              'view_request',
+              'Ver solicitud',
+              showsUserInterface: true,
+              cancelNotification: true, // Cancelar la notificación al presionar
+            ),
+          ],
         );
       } else {
         // Notificación normal sin botones
