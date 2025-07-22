@@ -531,6 +531,7 @@ export async function buscarViajesPorProximidad(req, res) {
           precio: 1,
           plazas_disponibles: 1,
           max_pasajeros: 1,
+          pasajeros: 1,
           comentarios: 1,
           flexibilidad_salida: 1,
           solo_mujeres: 1,
@@ -570,8 +571,15 @@ export async function buscarViajesPorProximidad(req, res) {
         const vehiculo = await vehiculoRepository.findOne({
           where: { patente: viaje.vehiculo_patente },
           relations: ["propietario"]
-        });        return {
+        });
+
+        // Calcular plazas disponibles dinámicamente
+        const pasajerosConfirmados = viaje.pasajeros?.filter(p => p.estado === 'confirmado') || [];
+        const plazasDisponiblesActuales = viaje.max_pasajeros - pasajerosConfirmados.length;
+
+        return {
           ...viaje,
+          plazas_disponibles: plazasDisponiblesActuales, // Sobrescribir con cálculo dinámico
           conductor: conductor ? {
             rut: conductor.rut,
             nombre: conductor.nombreCompleto,
@@ -668,10 +676,14 @@ export async function obtenerViajesParaMapa(req, res) {
         destino: 1,
         fecha_ida: 1,
         precio: 1,
+        max_pasajeros: 1,
+        pasajeros: 1,
         plazas_disponibles: 1,
         solo_mujeres: 1  // Incluir campo solo_mujeres para mostrar en el mapa
       })
       .sort({ fecha_ida: 1 });
+
+    console.log(`📊 Encontrados ${viajes.length} viajes para el mapa`);
 
     // Enriquecer con datos de PostgreSQL para el mapa
     const marcadores = await Promise.all(
@@ -683,6 +695,12 @@ export async function obtenerViajesParaMapa(req, res) {
         const vehiculo = await vehiculoRepository.findOne({
           where: { patente: viaje.vehiculo_patente }
         });
+
+        // Calcular plazas disponibles dinámicamente
+        const pasajerosConfirmados = viaje.pasajeros?.filter(p => p.estado === 'confirmado') || [];
+        const plazasDisponiblesActuales = viaje.max_pasajeros - pasajerosConfirmados.length;
+
+        console.log(`🔢 Viaje ${viaje._id}: max_pasajeros=${viaje.max_pasajeros}, pasajeros_confirmados=${pasajerosConfirmados.length}, plazas_disponibles=${plazasDisponiblesActuales}`);
 
         return {
           id: viaje._id,
@@ -698,7 +716,7 @@ export async function obtenerViajesParaMapa(req, res) {
             fecha: viaje.fecha_ida,
             hora: viaje.fecha_ida.toTimeString().substring(0, 5), // Extraer hora de fecha_ida
             precio: viaje.precio,
-            plazas_disponibles: viaje.plazas_disponibles,
+            plazas_disponibles: plazasDisponiblesActuales, // Usar cálculo dinámico
             solo_mujeres: viaje.solo_mujeres, // Incluir información de solo mujeres
             vehiculo: vehiculo ? {
               patente: vehiculo.patente,
@@ -842,8 +860,13 @@ async function obtenerViajeConDatos(viajeId) {
     })
   );
 
+  // Calcular plazas disponibles dinámicamente
+  const pasajerosConfirmados = viaje.pasajeros.filter(p => p.estado === 'confirmado');
+  const plazasDisponiblesActuales = viaje.max_pasajeros - pasajerosConfirmados.length;
+
   return {
     ...viaje.toObject(),
+    plazasDisponibles: plazasDisponiblesActuales, // Agregar cálculo dinámico
     conductor: conductor ? {
       rut: conductor.rut,
       nombre: conductor.nombreCompleto,

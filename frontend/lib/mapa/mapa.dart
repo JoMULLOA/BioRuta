@@ -722,9 +722,15 @@ class _MapPageState extends State<MapPage> {
         _cargandoViajes = true;
       });
 
+      // Agregar timestamp para evitar caché
       final marcadoresObtenidos = await ViajeService.obtenerMarcadoresViajes();
       
       if (!mounted) return; // Verificar nuevamente después de la operación async
+      
+      print('🔢 Marcadores obtenidos: ${marcadoresObtenidos.length}');
+      for (final marcador in marcadoresObtenidos) {
+        print('🔢 Viaje ${marcador.id}: ${marcador.detallesViaje.plazasDisponibles} plazas disponibles');
+      }
       
       setState(() {
         _marcadoresViajes = marcadoresObtenidos;
