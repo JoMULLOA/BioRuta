@@ -174,83 +174,57 @@ Este proyecto representa el esfuerzo colaborativo de un equipo multidisciplinari
 
 ---
 
-## 👨‍💻 EQUIPO
-
-<table>
-  <tr>
-    <td align="center">
-      <a href="https://github.com/JoMULLOA">
-        <img src="https://avatars.githubusercontent.com/JoMULLOA" width="100px;" alt="JoMULLOA"/>
-        <br />
-        <sub><b>José Manríquez</b></sub>
-      </a>
-    </td>
-    <td align="center">
-      <a href="https://github.com/Joaqomv">
-        <img src="https://avatars.githubusercontent.com/Joaqomv" width="100px;" alt="Joaqomv"/>
-        <br />
-        <sub><b>Joaquin Maureira</b></sub>
-      </a>
-    </td>
-    <td align="center">
-      <a href="https://github.com/KrozJGG">
-        <img src="https://avatars.githubusercontent.com/KrozJGG" width="100px;" alt="KrozJGG"/>
-        <br />
-        <sub><b>Christian Jamett</b></sub>
-      </a>
-    </td>
-    <td align="center">
-      <a href="https://github.com/lu1spereir4">
-        <img src="https://avatars.githubusercontent.com/lu1spereir4" width="100px;" alt="lu1spereir4"/>
-        <br />
-        <sub><b>Luis Pereira</b></sub>
-      </a>
-    </td>
-    <td align="center">
-      <a href="https://github.com/Sternen-prince">
-        <img src="https://avatars.githubusercontent.com/Sternen-prince" width="100px;" alt="Sternen-prince"/>
-        <br />
-        <sub><b>Francisco Cisterna</b></sub>
-      </a>
-    </td>
-  </tr>
-</table>
-
 ## 🏅 Roles y Responsabilidades
 
 <table>
   <tr>
+    <th>Foto</th>
     <th>Integrante</th>
     <th>Rol Principal</th>
     <th>Especialización</th>
     <th>Contribuciones Clave</th>
   </tr>
   <tr>
-    <td><strong>José Manríquez</strong></td>
+    <td align="center">
+      <img src="https://avatars.githubusercontent.com/JoMULLOA" width="60px;" alt="JoMULLOA"/>
+    </td>
+    <td><a href="https://github.com/JoMULLOA"><strong>José Manríquez</strong></a></td>
     <td>Project Manager & Full-Stack Developer</td>
     <td>Arquitectura y Liderazgo</td>
     <td>Diseño de arquitectura, gestión de proyecto, integración de módulos</td>
   </tr>
   <tr>
-    <td><strong>Joaquín Maureira</strong></td>
+    <td align="center">
+      <img src="https://avatars.githubusercontent.com/Joaqomv" width="60px;" alt="Joaqomv"/>
+    </td>
+    <td><a href="https://github.com/Joaqomv"><strong>Joaquín Maureira</strong></a></td>
     <td>Backend Developer</td>
     <td>APIs y Base de Datos</td>
     <td>Desarrollo de APIs REST, gestión de BD, sistema de autenticación</td>
   </tr>
   <tr>
-    <td><strong>Christian Jamett</strong></td>
+    <td align="center">
+      <img src="https://avatars.githubusercontent.com/KrozJGG" width="60px;" alt="KrozJGG"/>
+    </td>
+    <td><a href="https://github.com/KrozJGG"><strong>Christian Jamett</strong></a></td>
     <td>Frontend Developer</td>
     <td>UI/UX y Flutter</td>
     <td>Interfaces de usuario, componentes Flutter, experiencia móvil</td>
   </tr>
   <tr>
-    <td><strong>Luis Pereira</strong></td>
+    <td align="center">
+      <img src="https://avatars.githubusercontent.com/lu1spereir4" width="60px;" alt="lu1spereir4"/>
+    </td>
+    <td><a href="https://github.com/lu1spereir4"><strong>Luis Pereira</strong></a></td>
     <td>Backend Developer</td>
     <td>WebSockets y Real-time</td>
     <td>Sistema de mensajería, notificaciones en tiempo real, chat</td>
   </tr>
   <tr>
-    <td><strong>Francisco Cisterna</strong></td>
+    <td align="center">
+      <img src="https://avatars.githubusercontent.com/Sternen-prince" width="60px;" alt="Sternen-prince"/>
+    </td>
+    <td><a href="https://github.com/Sternen-prince"><strong>Francisco Cisterna</strong></a></td>
     <td>QA Engineer & Documentation</td>
     <td>Testing y Documentación</td>
     <td>Pruebas de calidad, documentación técnica, casos de uso</td>
@@ -277,7 +251,5 @@ Este proyecto representa el esfuerzo colaborativo de un equipo multidisciplinari
   <p><em>"Innovando en movilidad estudiantil para una universidad más conectada"</em></p>
   
   [![GitHub Stars](https://img.shields.io/github/stars/JoMULLOA/BioRuta?style=social)](https://github.com/JoMULLOA/BioRuta)
-  [![GitHub Forks](https://img.shields.io/github/forks/JoMULLOA/BioRuta?style=social)](https://github.com/JoMULLOA/BioRuta)
-  [![GitHub Issues](https://img.shields.io/github/issues/JoMULLOA/BioRuta)](https://github.com/JoMULLOA/BioRuta/issues)
   [![GitHub License](https://img.shields.io/github/license/JoMULLOA/BioRuta)](https://github.com/JoMULLOA/BioRuta/blob/main/LICENSE)
 </div>
