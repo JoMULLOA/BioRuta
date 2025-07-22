@@ -30,15 +30,26 @@ class WebSocketNotificationService {
 
       console.log(`📤 Enviando notificación a user_${rutUsuario}:`, baseData);
 
-      // Enviar evento genérico nueva_notificacion
-      io.to(`user_${rutUsuario}`).emit('nueva_notificacion', baseData);
-      io.to(`usuario_${rutUsuario}`).emit('nueva_notificacion', baseData);
+      // Para eventos específicos de amistad, enviar SOLO el evento específico para evitar duplicados
+      const eventosEspecificos = ['solicitud_amistad', 'amistad_aceptada', 'amistad_rechazada'];
+      const esEventoAmistad = datos.tipo && eventosEspecificos.includes(datos.tipo);
 
-      // También emitir evento específico según el tipo
-      if (datos.tipo) {
-        console.log(`📤 Enviando evento específico '${datos.tipo}' a user_${rutUsuario}:`, baseData);
+      if (esEventoAmistad) {
+        // Para eventos de amistad: SOLO enviar evento específico
+        console.log(`📤 Enviando SOLO evento específico '${datos.tipo}' a user_${rutUsuario}:`, baseData);
         io.to(`user_${rutUsuario}`).emit(datos.tipo, baseData);
         io.to(`usuario_${rutUsuario}`).emit(datos.tipo, baseData);
+      } else {
+        // Para otros eventos: enviar evento genérico
+        io.to(`user_${rutUsuario}`).emit('nueva_notificacion', baseData);
+        io.to(`usuario_${rutUsuario}`).emit('nueva_notificacion', baseData);
+
+        // También emitir evento específico si existe
+        if (datos.tipo) {
+          console.log(`📤 Enviando evento específico '${datos.tipo}' a user_${rutUsuario}:`, baseData);
+          io.to(`user_${rutUsuario}`).emit(datos.tipo, baseData);
+          io.to(`usuario_${rutUsuario}`).emit(datos.tipo, baseData);
+        }
       }
 
       // Verificar cuántos clientes están conectados

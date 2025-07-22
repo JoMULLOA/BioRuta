@@ -137,24 +137,7 @@ class WebSocketNotificationService {
         print('❌ Error en WebSocket: $error');
       });
       
-      // Escuchar TODOS los eventos para debugging
-      _socket!.onAny((event, data) {
-        print('🎧 Evento WebSocket recibido: $event con data: $data');
-        
-        // Debugging específico para eventos de amistad
-        if (event == 'solicitud_amistad') {
-          print('👋 *** EVENTO solicitud_amistad DETECTADO ***');
-        } else if (event == 'amistad_aceptada') {
-          print('🎉 *** EVENTO amistad_aceptada DETECTADO ***');
-        } else if (event == 'nueva_notificacion') {
-          print('📩 *** EVENTO nueva_notificacion DETECTADO ***');
-          final notification = data is String ? json.decode(data) : data;
-          final tipo = notification['datos']?['tipo'] ?? notification['tipo'];
-          print('📩 *** TIPO EN nueva_notificacion: $tipo ***');
-        }
-      });
-      
-      // Escuchar notificaciones específicas
+      // Escuchar notificaciones específicas de amistad
       _socket!.on('solicitud_amistad', (data) {
         print('👋 solicitud_amistad recibida: $data');
         _handleFriendRequestNotification(data);
@@ -175,7 +158,7 @@ class WebSocketNotificationService {
         _handleFriendRejectedNotification(data);
       });
       
-      // Escuchar nueva_notificacion y procesar TODO para debugging
+      // Escuchar nueva_notificacion - SOLO para notificaciones genéricas
       _socket!.on('nueva_notificacion', (data) {
         print('📩 nueva_notificacion recibida: $data');
         final notification = data is String ? json.decode(data) : data;
@@ -183,19 +166,16 @@ class WebSocketNotificationService {
         
         print('🔍 Tipo de notificación detectado: $tipo');
         
-        // PROCESAR TODAS para debugging - encontrar por qué aceptación no funciona
+        // EXCLUIR eventos de amistad para evitar duplicados (ya procesados por eventos específicos)
         if (tipo == 'amistad_aceptada') {
-          print('🎉 *** PROCESANDO amistad_aceptada desde nueva_notificacion ***');
-          _handleFriendAcceptedNotification(data);
+          print('🎉 *** SALTANDO amistad_aceptada - ya procesada por evento específico ***');
+          return; // NO procesar aquí
         } else if (tipo == 'amistad_rechazada') {
-          print('😔 *** PROCESANDO amistad_rechazada desde nueva_notificacion ***');
-          _handleFriendRejectedNotification(data);
+          print('😔 *** SALTANDO amistad_rechazada - ya procesada por evento específico ***');
+          return; // NO procesar aquí
         } else if (tipo == 'solicitud_amistad') {
-          print('👋 Saltando solicitud_amistad en nueva_notificacion (ya procesada)');
-          // No procesar para evitar duplicados
-        } else if (tipo == 'solicitud_viaje') {
-          print('🚗 *** PROCESANDO solicitud_viaje desde nueva_notificacion ***');
-          _handleTripRequestNotification(data);
+          print('👋 SALTANDO solicitud_amistad - ya procesada por evento específico');
+          return; // NO procesar aquí
         } else {
           print('📝 Procesando notificación genérica');
           _handleIncomingNotification(data);
@@ -330,16 +310,13 @@ class WebSocketNotificationService {
   /// Manejar notificación de amistad aceptada
   static void _handleFriendAcceptedNotification(dynamic data) {
     try {
-      print('🔧 *** PROCESANDO AMISTAD ACEPTADA ***: $data');
+      print('🎉 Procesando amistad aceptada: $data');
       
       final notification = data is String ? json.decode(data) : data;
-      print('🔧 *** DATOS PARSEADOS ACEPTADA ***: $notification');
       
       // El backend envía nombreReceptor (quien aceptó) al emisor original de la solicitud
       final nombreReceptor = notification['nombreReceptor'] ?? 'Usuario desconocido';
       final rutReceptor = notification['rutReceptor'] ?? '';
-      
-      print('🔧 *** MOSTRANDO NOTIFICACIÓN DE AMISTAD ACEPTADA para: $nombreReceptor (RUT: $rutReceptor) ***');
       
       _showLocalNotification(
         title: '🎉 ¡Nueva amistad!',
@@ -351,10 +328,9 @@ class WebSocketNotificationService {
         }),
       );
       
-      print('✅ *** NOTIFICACIÓN DE AMISTAD ACEPTADA PROCESADA CORRECTAMENTE ***');
+      print('✅ Notificación de amistad aceptada procesada correctamente');
     } catch (e) {
-      print('❌ *** ERROR PROCESANDO AMISTAD ACEPTADA ***: $e');
-      print('❌ *** DATA RECIBIDA ***: $data');
+      print('❌ Error procesando amistad aceptada: $e');
       
       // Notificación de respaldo
       _showLocalNotification(
