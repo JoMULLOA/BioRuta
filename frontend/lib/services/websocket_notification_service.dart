@@ -148,6 +148,16 @@ class WebSocketNotificationService {
         _handleTripRequestNotification(data);
       });
       
+      _socket!.on('ride_accepted', (data) {
+        print('🎉 ride_accepted recibida: $data');
+        _handleTripAcceptedNotification(data);
+      });
+      
+      _socket!.on('ride_rejected', (data) {
+        print('😔 ride_rejected recibida: $data');
+        _handleTripRejectedNotification(data);
+      });
+      
       _socket!.on('amistad_aceptada', (data) {
         print('🎉 amistad_aceptada recibida: $data');
         _handleFriendAcceptedNotification(data);
@@ -174,8 +184,22 @@ class WebSocketNotificationService {
           print('😔 *** SALTANDO amistad_rechazada - ya procesada por evento específico ***');
           return; // NO procesar aquí
         } else if (tipo == 'solicitud_amistad') {
+<<<<<<< Updated upstream
           print('👋 SALTANDO solicitud_amistad - ya procesada por evento específico');
           return; // NO procesar aquí
+=======
+          print('👋 Saltando solicitud_amistad en nueva_notificacion (ya procesada)');
+          // No procesar para evitar duplicados
+        } else if (tipo == 'solicitud_viaje') {
+          print('🚗 *** PROCESANDO solicitud_viaje desde nueva_notificacion ***');
+          _handleTripRequestNotification(data);
+        } else if (tipo == 'ride_accepted') {
+          print('🎉 *** PROCESANDO ride_accepted desde nueva_notificacion ***');
+          _handleTripAcceptedNotification(data);
+        } else if (tipo == 'ride_rejected') {
+          print('😔 *** PROCESANDO ride_rejected desde nueva_notificacion ***');
+          _handleTripRejectedNotification(data);
+>>>>>>> Stashed changes
         } else {
           print('📝 Procesando notificación genérica');
           _handleIncomingNotification(data);
@@ -359,6 +383,89 @@ class WebSocketNotificationService {
       print('😔 Amistad rechazada por: ${notification['nombreReceptor']}');
     } catch (e) {
       print('❌ Error procesando amistad rechazada: $e');
+    }
+  }
+  
+  /// Manejar notificación de viaje aceptado
+  static void _handleTripAcceptedNotification(dynamic data) {
+    try {
+      print('🔧 *** PROCESANDO VIAJE ACEPTADO ***: $data');
+      
+      final notification = data is String ? json.decode(data) : data;
+      print('🔧 *** DATOS PARSEADOS VIAJE ACEPTADO ***: $notification');
+      
+      final nombreEmisor = notification['nombreEmisor'] ?? 'Conductor';
+      final origen = notification['origen'] ?? '';
+      final destino = notification['destino'] ?? '';
+      final viajeId = notification['viajeId'] ?? '';
+      
+      print('🔧 *** MOSTRANDO NOTIFICACIÓN DE VIAJE ACEPTADO por: $nombreEmisor ***');
+      
+      _showLocalNotification(
+        title: '🎉 ¡Viaje aceptado!',
+        body: '$nombreEmisor aceptó tu solicitud para el viaje de $origen a $destino',
+        payload: json.encode({
+          'tipo': 'ride_accepted',
+          'rutEmisor': notification['rutEmisor'],
+          'nombreEmisor': nombreEmisor,
+          'viajeId': viajeId,
+          'origen': origen,
+          'destino': destino,
+          'mostrarAnimacion': true,
+        }),
+      );
+      
+      print('✅ *** NOTIFICACIÓN DE VIAJE ACEPTADO PROCESADA CORRECTAMENTE ***');
+    } catch (e) {
+      print('❌ *** ERROR PROCESANDO VIAJE ACEPTADO ***: $e');
+      print('❌ *** DATA RECIBIDA ***: $data');
+      
+      // Notificación de respaldo
+      _showLocalNotification(
+        title: '🎉 ¡Viaje aceptado!',
+        body: 'Tu solicitud de viaje fue aceptada',
+        payload: json.encode({'tipo': 'ride_accepted_fallback'}),
+      );
+    }
+  }
+  
+  /// Manejar notificación de viaje rechazado
+  static void _handleTripRejectedNotification(dynamic data) {
+    try {
+      print('🔧 *** PROCESANDO VIAJE RECHAZADO ***: $data');
+      
+      final notification = data is String ? json.decode(data) : data;
+      print('🔧 *** DATOS PARSEADOS VIAJE RECHAZADO ***: $notification');
+      
+      final nombreEmisor = notification['nombreEmisor'] ?? 'Conductor';
+      final origen = notification['origen'] ?? '';
+      final destino = notification['destino'] ?? '';
+      
+      print('🔧 *** MOSTRANDO NOTIFICACIÓN DE VIAJE RECHAZADO por: $nombreEmisor ***');
+      
+      _showLocalNotification(
+        title: '😔 Solicitud rechazada',
+        body: '$nombreEmisor rechazó tu solicitud para el viaje de $origen a $destino',
+        payload: json.encode({
+          'tipo': 'ride_rejected',
+          'rutEmisor': notification['rutEmisor'],
+          'nombreEmisor': nombreEmisor,
+          'origen': origen,
+          'destino': destino,
+        }),
+      );
+      
+      print('✅ *** NOTIFICACIÓN DE VIAJE RECHAZADO PROCESADA CORRECTAMENTE ***');
+    } catch (e) {
+      print('❌ *** ERROR PROCESANDO VIAJE RECHAZADO ***: $e');
+      print('❌ *** DATA RECIBIDA ***: $data');
+      
+      // Notificación de respaldo
+      _showLocalNotification(
+        title: '😔 Solicitud rechazada',
+        body: 'Tu solicitud de viaje fue rechazada',
+        payload: json.encode({'tipo': 'ride_rejected_fallback'}),
+      );
     }
   }
   

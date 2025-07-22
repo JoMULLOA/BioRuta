@@ -119,6 +119,51 @@ class WebSocketNotificationService {
   }
 
   /**
+   * Enviar notificación de solicitud de viaje aceptada
+   */
+  static async enviarViajeAceptado(io, rutPasajero, nombreConductor, rutConductor, datosViaje) {
+    return await this.enviarNotificacionAUsuario(
+      io,
+      rutPasajero,
+      '🎉 ¡Viaje aceptado!',
+      `${nombreConductor} aceptó tu solicitud para el viaje de ${datosViaje.origen} a ${datosViaje.destino}`,
+      {
+        tipo: 'ride_accepted',
+        rutEmisor: rutConductor,
+        nombreEmisor: nombreConductor,
+        viajeId: datosViaje.viajeId,
+        origen: datosViaje.origen,
+        destino: datosViaje.destino,
+        fechaViaje: datosViaje.fechaViaje,
+        horaViaje: datosViaje.horaViaje,
+        mostrarAnimacion: true,
+        accion: 'abrir_viaje'
+      }
+    );
+  }
+
+  /**
+   * Enviar notificación de solicitud de viaje rechazada
+   */
+  static async enviarViajeRechazado(io, rutPasajero, nombreConductor, rutConductor, datosViaje) {
+    return await this.enviarNotificacionAUsuario(
+      io,
+      rutPasajero,
+      '😔 Solicitud rechazada',
+      `${nombreConductor} rechazó tu solicitud para el viaje de ${datosViaje.origen} a ${datosViaje.destino}`,
+      {
+        tipo: 'ride_rejected',
+        rutEmisor: rutConductor,
+        nombreEmisor: nombreConductor,
+        viajeId: datosViaje.viajeId,
+        origen: datosViaje.origen,
+        destino: datosViaje.destino,
+        accion: 'buscar_viajes'
+      }
+    );
+  }
+
+  /**
    * Enviar notificación de solicitud de viaje
    */
   static async enviarSolicitudViaje(io, rutConductor, nombrePasajero, rutPasajero, datosViaje) {

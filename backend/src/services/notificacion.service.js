@@ -272,6 +272,41 @@ export async function responderSolicitudViajeService(notificacionId, aceptar, ru
           }
         });
         
+        // Enviar notificación WebSocket push inmediatamente
+        try {
+          const { getSocketInstance } = await import('../socket.js');
+          const WebSocketNotificationService = (await import('./push_notification.service.js')).default;
+          const { getUserService } = await import('./user.service.js');
+          
+          const io = getSocketInstance();
+          if (io) {
+            // Obtener información del conductor
+            const [conductor, errorConductor] = await getUserService({ rut: rutUsuario });
+            
+            const datosParaWebSocket = {
+              viajeId: notificacion.viajeId,
+              origen: viaje.origen.nombre,
+              destino: viaje.destino.nombre,
+              fechaViaje: viaje.fecha_ida,
+              horaViaje: viaje.hora_ida
+            };
+
+            await WebSocketNotificationService.enviarViajeAceptado(
+              io,
+              notificacion.rutEmisor,
+              conductor ? conductor.nombreCompleto : 'Conductor',
+              rutUsuario,
+              datosParaWebSocket
+            );
+            
+            console.log(`🔔 Notificación WebSocket de aceptación enviada a pasajero ${notificacion.rutEmisor}`);
+          } else {
+            console.warn('⚠️ Socket.io no disponible para enviar notificación de aceptación');
+          }
+        } catch (wsError) {
+          console.error('❌ Error enviando notificación WebSocket de aceptación:', wsError);
+        }
+        
         console.log(`✅ Notificación de viaje aceptado enviada al pasajero ${notificacion.rutEmisor}`);
       } catch (notifError) {
         console.error(`❌ Error enviando notificación de aceptación:`, notifError);
@@ -323,6 +358,46 @@ export async function responderSolicitudViajeService(notificacionId, aceptar, ru
       return [response, null];
     } else {
       console.log(`❌ Solicitud de viaje rechazada para ${notificacion.rutEmisor} en viaje ${notificacion.viajeId}`);
+      
+      // Enviar notificación WebSocket de rechazo
+      try {
+        const { getSocketInstance } = await import('../socket.js');
+        const WebSocketNotificationService = (await import('./push_notification.service.js')).default;
+        const { getUserService } = await import('./user.service.js');
+        const { default: Viaje } = await import('../entity/viaje.entity.js');
+        
+        const io = getSocketInstance();
+        if (io) {
+          // Obtener información del conductor y viaje
+          const [conductor, errorConductor] = await getUserService({ rut: rutUsuario });
+          const viaje = await Viaje.findById(notificacion.viajeId);
+          
+          if (viaje) {
+            const datosParaWebSocket = {
+              viajeId: notificacion.viajeId,
+              origen: viaje.origen.nombre,
+              destino: viaje.destino.nombre,
+              fechaViaje: viaje.fecha_ida,
+              horaViaje: viaje.hora_ida
+            };
+
+            await WebSocketNotificationService.enviarViajeRechazado(
+              io,
+              notificacion.rutEmisor,
+              conductor ? conductor.nombreCompleto : 'Conductor',
+              rutUsuario,
+              datosParaWebSocket
+            );
+            
+            console.log(`🔔 Notificación WebSocket de rechazo enviada a pasajero ${notificacion.rutEmisor}`);
+          }
+        } else {
+          console.warn('⚠️ Socket.io no disponible para enviar notificación de rechazo');
+        }
+      } catch (wsError) {
+        console.error('❌ Error enviando notificación WebSocket de rechazo:', wsError);
+      }
+      
       return [{ mensaje: "Solicitud de viaje rechazada", aceptado: false }, null];
     }
   } catch (error) {
