@@ -1,227 +1,232 @@
 "use strict";
+
 import {
-  crearPreferenciaPago,
+  crearPago,
   verificarEstadoPago,
-  obtenerPagosUsuario,
-  procesarWebhook,
-  cancelarPago,
-  verificarConfiguracionMercadoPago,
+  actualizarEstadoPago,
+  obtenerHistorialPagos,
+  obtenerPagosPorViaje,
+  procesarPagoBasico
 } from "../services/pago.service.js";
-import {
-  handleErrorClient,
-  handleErrorServer,
-  handleSuccess,
-} from "../handlers/responseHandlers.js";
-import { AppDataSource } from "../config/configDb.js";
+// import PagoSandboxService from "../services/pago.sandbox.service.js";
+import { handleErrorClient, handleErrorServer, handleSuccess } from "../handlers/responseHandlers.js";
 
 /**
- * Crear una nueva preferencia de pago
+ * Crear un nuevo pago
  */
-export async function crearPago(req, res) {
+export async function crearPagoController(req, res) {
   try {
-    const { viajeId, montoTotal, descripcion, items } = req.body;
-    const usuarioId = req.user.rut; // Cambiar de req.user.id a req.user.rut
+    const { viajeId, montoTotal, descripcion } = req.body;
+    const usuarioId = req.user.id;
 
-    console.log("🔍 Usuario autenticado:", req.user.email, "RUT:", req.user.rut);
-
+    // Validaciones básicas
     if (!viajeId || !montoTotal) {
-      return handleErrorClient(
-        res,
-        400,
-        "viajeId y montoTotal son requeridos"
-      );
+      return handleErrorClient(res, 400, "viajeId y montoTotal son requeridos");
     }
 
-    const datosPago = {
+    const result = await crearPago({
       viajeId,
       usuarioId,
-      montoTotal,
-      descripcion: descripcion || `Pago de viaje #${viajeId}`,
-      items,
-    };
+      montoTotal: parseFloat(montoTotal),
+      descripcion: descripcion || `Pago por viaje ${viajeId}`
+    });
 
-    const resultado = await crearPreferenciaPago(datosPago);
-
-    if (!resultado.success) {
-      return handleErrorServer(res, 500, resultado.message);
+    if (result.success) {
+      return handleSuccess(res, 201, "Pago creado exitosamente", result.data);
+    } else {
+      return handleErrorServer(res, 400, result.message);
     }
 
-    handleSuccess(res, 201, "Preferencia de pago creada", resultado.data);
   } catch (error) {
-    console.error("Error en crearPago:", error);
-    handleErrorServer(res, 500, "Error interno del servidor");
+    console.error("Error en crearPagoController:", error);
+    return handleErrorServer(res, 500, "Error interno del servidor");
+  }
+}
+
+/**
+ * Procesar un pago básico
+ */
+export async function procesarPagoBasicoController(req, res) {
+  try {
+    const { viajeId, montoTotal, descripcion } = req.body;
+    const usuarioId = req.user.id;
+
+    // Validaciones básicas
+    if (!viajeId || !montoTotal) {
+      return handleErrorClient(res, 400, "viajeId y montoTotal son requeridos");
+    }
+
+    const result = await procesarPagoBasico({
+      viajeId,
+      usuarioId,
+      montoTotal: parseFloat(montoTotal),
+      descripcion: descripcion || `Pago por viaje ${viajeId}`
+    });
+
+    if (result.success) {
+      return handleSuccess(res, 200, "Pago procesado exitosamente", result.data);
+    } else {
+      return handleErrorServer(res, 400, result.message);
+    }
+
+  } catch (error) {
+    console.error("Error en procesarPagoBasicoController:", error);
+    return handleErrorServer(res, 500, "Error interno del servidor");
   }
 }
 
 /**
  * Verificar el estado de un pago
  */
-export async function verificarPago(req, res) {
+export async function verificarPagoController(req, res) {
   try {
-    const { paymentId } = req.params;
+    const { pagoId } = req.params;
 
-    if (!paymentId) {
-      return handleErrorClient(res, 400, "paymentId es requerido");
+    if (!pagoId) {
+      return handleErrorClient(res, 400, "pagoId es requerido");
     }
 
-    const resultado = await verificarEstadoPago(paymentId);
+    const result = await verificarEstadoPago(pagoId);
 
-    if (!resultado.success) {
-      return handleErrorServer(res, 500, resultado.message);
+    if (result.success) {
+      return handleSuccess(res, 200, "Estado obtenido exitosamente", result.data);
+    } else {
+      return handleErrorServer(res, 404, result.message);
     }
 
-    handleSuccess(res, 200, "Estado del pago verificado", resultado.data);
   } catch (error) {
-    console.error("Error en verificarPago:", error);
-    handleErrorServer(res, 500, "Error interno del servidor");
+    console.error("Error en verificarPagoController:", error);
+    return handleErrorServer(res, 500, "Error interno del servidor");
   }
 }
 
 /**
- * Obtener todos los pagos del usuario autenticado
+ * Actualizar el estado de un pago
  */
-export async function obtenerMisPagos(req, res) {
+export async function actualizarEstadoPagoController(req, res) {
+  try {
+    const { pagoId } = req.params;
+    const { estado } = req.body;
+
+    if (!pagoId || !estado) {
+      return handleErrorClient(res, 400, "pagoId y estado son requeridos");
+    }
+
+    const result = await actualizarEstadoPago(pagoId, estado);
+
+    if (result.success) {
+      return handleSuccess(res, 200, "Estado actualizado exitosamente", result.data);
+    } else {
+      return handleErrorServer(res, 400, result.message);
+    }
+
+  } catch (error) {
+    console.error("Error en actualizarEstadoPagoController:", error);
+    return handleErrorServer(res, 500, "Error interno del servidor");
+  }
+}
+
+/**
+ * Obtener historial de pagos del usuario autenticado
+ */
+export async function obtenerMisPagosController(req, res) {
   try {
     const usuarioId = req.user.id;
 
-    const resultado = await obtenerPagosUsuario(usuarioId);
+    const result = await obtenerHistorialPagos(usuarioId);
 
-    if (!resultado.success) {
-      return handleErrorServer(res, 500, resultado.message);
+    if (result.success) {
+      return handleSuccess(res, 200, "Historial obtenido exitosamente", result.data);
+    } else {
+      return handleErrorServer(res, 400, result.message);
     }
 
-    handleSuccess(res, 200, "Pagos obtenidos correctamente", resultado.data);
   } catch (error) {
-    console.error("Error en obtenerMisPagos:", error);
-    handleErrorServer(res, 500, "Error interno del servidor");
+    console.error("Error en obtenerMisPagosController:", error);
+    return handleErrorServer(res, 500, "Error interno del servidor");
   }
 }
 
 /**
- * Webhook para recibir notificaciones de MercadoPago
+ * Obtener pagos por viaje (solo para el creador del viaje)
  */
-export async function webhookMercadoPago(req, res) {
+export async function obtenerPagosPorViajeController(req, res) {
   try {
-    const webhookData = req.body;
+    const { viajeId } = req.params;
 
-    const resultado = await procesarWebhook(webhookData);
-
-    if (!resultado.success) {
-      return handleErrorServer(res, 500, resultado.message);
+    if (!viajeId) {
+      return handleErrorClient(res, 400, "viajeId es requerido");
     }
 
-    res.status(200).json({ message: "OK" });
+    const result = await obtenerPagosPorViaje(viajeId);
+
+    if (result.success) {
+      return handleSuccess(res, 200, "Pagos obtenidos exitosamente", result.data);
+    } else {
+      return handleErrorServer(res, 400, result.message);
+    }
+
   } catch (error) {
-    console.error("Error en webhookMercadoPago:", error);
-    res.status(500).json({ error: "Error interno del servidor" });
+    console.error("Error en obtenerPagosPorViajeController:", error);
+    return handleErrorServer(res, 500, "Error interno del servidor");
   }
 }
 
 /**
- * Cancelar un pago pendiente
+ * Cancelar un pago
  */
 export async function cancelarPagoController(req, res) {
   try {
     const { pagoId } = req.params;
-    const usuarioId = req.user.id;
 
     if (!pagoId) {
       return handleErrorClient(res, 400, "pagoId es requerido");
     }
 
-    const resultado = await cancelarPago(parseInt(pagoId), usuarioId);
+    const result = await actualizarEstadoPago(pagoId, "cancelado");
 
-    if (!resultado.success) {
-      return handleErrorClient(res, 400, resultado.message);
+    if (result.success) {
+      return handleSuccess(res, 200, "Pago cancelado exitosamente", result.data);
+    } else {
+      return handleErrorServer(res, 400, result.message);
     }
 
-    handleSuccess(res, 200, resultado.message);
   } catch (error) {
     console.error("Error en cancelarPagoController:", error);
-    handleErrorServer(res, 500, "Error interno del servidor");
+    return handleErrorServer(res, 500, "Error interno del servidor");
   }
 }
 
 /**
- * Obtener el estado de un pago específico del usuario
+ * Verificar pagos pendientes (para el historial)
  */
-export async function obtenerEstadoPago(req, res) {
+export async function verificarPagosPendientesController(req, res) {
   try {
-    const { pagoId } = req.params;
     const usuarioId = req.user.id;
 
-    if (!pagoId) {
-      return handleErrorClient(res, 400, "pagoId es requerido");
-    }
-
-    const pagoRepository = AppDataSource.getRepository("Pago");
-    const pago = await pagoRepository.findOne({
-      where: { id: parseInt(pagoId), usuarioId },
+    // Por ahora solo devolvemos éxito ya que no tenemos procesador externo
+    return handleSuccess(res, 200, "Verificación completada", {
+      pagosActualizados: 0,
+      mensaje: "Sistema básico - no hay pagos externos que verificar"
     });
 
-    if (!pago) {
-      return handleErrorClient(res, 404, "Pago no encontrado");
-    }
-
-    handleSuccess(res, 200, "Pago encontrado", pago);
   } catch (error) {
-    console.error("Error en obtenerEstadoPago:", error);
-    handleErrorServer(res, 500, "Error interno del servidor");
+    console.error("Error en verificarPagosPendientesController:", error);
+    return handleErrorServer(res, 500, "Error interno del servidor");
   }
 }
 
-/**
- * Verificar configuración de MercadoPago
- */
-export async function verificarConfiguracion(req, res) {
-  try {
-    const resultado = await verificarConfiguracionMercadoPago();
+// ==================== SANDBOX CONTROLLERS COMENTADOS TEMPORALMENTE ====================
+/*
+// Todas las funciones del sandbox están comentadas temporalmente
+// hasta resolver problemas de imports de entidades
 
-    if (!resultado.success) {
-      return handleErrorServer(res, 500, resultado.message);
-    }
-
-    handleSuccess(res, 200, resultado.message, resultado.data);
-  } catch (error) {
-    console.error("Error en verificarConfiguracion:", error);
-    handleErrorServer(res, 500, "Error interno del servidor");
-  }
-}
-
-/**
- * Probar la conexión con MercadoPago con una preferencia simple
- */
-export async function probarConexion(req, res) {
-  try {
-    console.log("🧪 Probando conexión con MercadoPago...");
-
-    // Crear una preferencia de prueba muy simple
-    const datosPrueba = {
-      viajeId: "test",
-      usuarioId: "test",
-      montoTotal: 1000,
-      descripcion: "Prueba de conexión MercadoPago",
-    };
-
-    const resultado = await crearPreferenciaPago(datosPrueba);
-
-    if (resultado.success) {
-      return handleSuccess(
-        res,
-        200,
-        "Conexión con MercadoPago exitosa",
-        resultado.data
-      );
-    } else {
-      return handleErrorServer(
-        res,
-        500,
-        "Error en la conexión con MercadoPago",
-        resultado.error
-      );
-    }
-  } catch (error) {
-    console.error("Error en probarConexion:", error);
-    return handleErrorServer(res, 500, "Error al probar la conexión", error);
-  }
-}
+export async function obtenerSaldoController(req, res) { ... }
+export async function agregarSaldoController(req, res) { ... }
+export async function obtenerTarjetasDisponiblesController(req, res) { ... }
+export async function asignarTarjetaController(req, res) { ... }
+export async function obtenerTarjetasUsuarioController(req, res) { ... }
+export async function procesarPagoSaldoController(req, res) { ... }
+export async function procesarPagoTarjetaController(req, res) { ... }
+export async function removerTarjetaController(req, res) { ... }
+*/

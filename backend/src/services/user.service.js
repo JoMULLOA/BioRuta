@@ -112,6 +112,51 @@ export async function updateUserService(query, body) {
 
     if (!userFound) return [null, "Usuario no encontrado"];
 
+    // Si solo se está actualizando el saldo, hacer actualización directa
+    if (body.saldo !== undefined && Object.keys(body).length === 1) {
+      await userRepository.update(
+        { rut: userFound.rut }, 
+        { 
+          saldo: body.saldo,
+          updatedAt: new Date() 
+        }
+      );
+
+      const userData = await userRepository.findOne({
+        where: { rut: userFound.rut },
+      });
+
+      if (!userData) {
+        return [null, "Usuario no encontrado después de actualizar"];
+      }
+
+      const { password, ...userUpdated } = userData;
+      return [userUpdated, null];
+    }
+
+    // Si se están actualizando tarjetas, hacer actualización directa
+    if (body.tarjetas !== undefined && Object.keys(body).length === 1) {
+      await userRepository.update(
+        { rut: userFound.rut }, 
+        { 
+          tarjetas: body.tarjetas,
+          updatedAt: new Date() 
+        }
+      );
+
+      const userData = await userRepository.findOne({
+        where: { rut: userFound.rut },
+      });
+
+      if (!userData) {
+        return [null, "Usuario no encontrado después de actualizar"];
+      }
+
+      const { password, ...userUpdated } = userData;
+      return [userUpdated, null];
+    }
+
+    // Validación para actualizaciones completas del perfil
     const existingUser = await userRepository.findOne({
       where: [{ rut: body.rut }, { email: body.email }],
     });

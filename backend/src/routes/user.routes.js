@@ -2,7 +2,7 @@
 import express from "express";
 import { isAdmin } from "../middlewares/authorization.middleware.js";
 import { authenticateJwt } from "../middlewares/authentication.middleware.js";
-import { deleteUser, getUser, getUsers, updateUser, searchUser, buscarRut, getMisVehiculos, calcularCalificacion, obtenerPromedioGlobal, actualizarTokenFCM } from "../controllers/user.controller.js";
+import { deleteUser, getUser, getUsers, updateUser, searchUser, buscarRut, getMisVehiculos, calcularCalificacion, obtenerPromedioGlobal, actualizarTokenFCM, getHistorialTransacciones } from "../controllers/user.controller.js";
 import { AppDataSource } from "../config/configDb.js";
 import User from "../entity/user.entity.js";
 
@@ -26,6 +26,7 @@ router.get("/promedioGlobal", obtenerPromedioGlobal);
 router.get("/", getUsers);
 router.get("/detail/", getUser);
 router.get("/mis-vehiculos", getMisVehiculos); // Nueva ruta para obtener vehículos del usuario
+router.get("/historial-transacciones", getHistorialTransacciones); // Nueva ruta para historial
 router.patch("/actualizar", updateUser);
 router.patch("/fcm-token", actualizarTokenFCM); // Nueva ruta para actualizar token FCM
 router.delete("/detail/", isAdmin, deleteUser); // Solo administradores pueden eliminar usuarios

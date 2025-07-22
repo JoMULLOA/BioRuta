@@ -200,6 +200,49 @@ class ViajeService {
     }
   }
 
+  /// Unirse a un viaje con información de pago
+  static Future<Map<String, dynamic>> unirseAViajeConPago(
+    String viajeId,
+    String metodoPago,
+    Map<String, dynamic>? datosAdicionales, {
+    int pasajeros = 1,
+    String? mensaje,
+  }) async {
+    try {
+      final body = {
+        'pasajeros_solicitados': pasajeros,
+        'metodo_pago': metodoPago,
+        if (datosAdicionales != null) 'datos_pago': datosAdicionales,
+        if (mensaje != null && mensaje.isNotEmpty) 'mensaje': mensaje,
+      };
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/viajes/$viajeId/unirse-con-pago'),
+        headers: await _getHeaders(),
+        body: json.encode(body),
+      );
+
+      final data = json.decode(response.body);
+
+      if (response.statusCode == 200) {
+        return {
+          'success': true,
+          'message': data['message'] ?? 'Solicitud con pago enviada exitosamente'
+        };
+      } else {
+        return {
+          'success': false,
+          'message': data['message'] ?? 'Error al unirse al viaje con pago'
+        };
+      }
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Error de conexión: $e'
+      };
+    }
+  }
+
   /// Obtener viajes del usuario actual
   static Future<List<Viaje>> obtenerMisViajes() async {
     try {

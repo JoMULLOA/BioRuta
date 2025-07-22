@@ -77,6 +77,19 @@ const UserSchema = new EntitySchema({
       nullable: true,
       comment: "Token FCM para notificaciones push",
     },
+    saldo: {
+      type: "decimal",
+      precision: 10,
+      scale: 2,
+      nullable: false,
+      default: 0,
+      comment: "Saldo disponible del usuario para pagos",
+    },
+    tarjetas: {
+      type: "jsonb",
+      nullable: true,
+      comment: "Lista de tarjetas agregadas por el usuario",
+    },
     createdAt: {
       type: "timestamp with time zone",
       default: () => "CURRENT_TIMESTAMP",

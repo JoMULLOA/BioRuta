@@ -6,6 +6,7 @@ import 'package:flutter_osm_plugin/flutter_osm_plugin.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../widgets/navbar_con_sos_dinamico.dart';
 import '../widgets/radar_animation_widget.dart';
+import '../widgets/metodo_pago_modal.dart';
 import '../models/direccion_sugerida.dart';
 import '../models/marcador_viaje_model.dart';
 import '../services/ubicacion_service.dart';
@@ -698,122 +699,348 @@ class _MapPageState extends State<MapPage> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.85,
         decoration: const BoxDecoration(
-          color: Color(0xFFF2EEED),
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(20),
-            topRight: Radius.circular(20),
-          ),
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Indicador de arrastre
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(2),
+        child: Column(
+          children: [
+            // Header con degradado
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    const Color(0xFF854937),
+                    const Color(0xFF6B3B2D),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+              ),
+              child: Column(
+                children: [
+                  // Indicador para arrastrar
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.5),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
+                  const SizedBox(height: 16),
+                  
+                  // Título y precio
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'Viaje Disponible',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          '\$${marcador.detallesViaje.precio.toStringAsFixed(0)}',
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  
+                  const SizedBox(height: 12),
+                  
+                  // Ruta principal
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        // Origen
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Origen',
+                                style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                marcador.origen.nombre,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                        // Flecha
+                        Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 12),
+                          child: const Icon(
+                            Icons.arrow_forward,
+                            color: Colors.white,
+                            size: 24,
+                          ),
+                        ),
+                        // Destino
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              const Text(
+                                'Destino',
+                                style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                marcador.destino.nombre,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                textAlign: TextAlign.right,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            
+            // Contenido principal
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Información del conductor
+                    if (marcador.detallesViaje.conductor != null) ...[
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF2EEED),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 50,
+                              height: 50,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF854937),
+                                borderRadius: BorderRadius.circular(25),
+                              ),
+                              child: const Icon(
+                                Icons.person,
+                                color: Colors.white,
+                                size: 28,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Conductor',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    marcador.detallesViaje.conductor!.nombre,
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFF6B3B2D),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                    
+                    // Información del viaje en tarjetas
+                    const Text(
+                      'Detalles del Viaje',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF6B3B2D),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    
+                    _buildDetailCard(
+                      icon: Icons.calendar_today,
+                      title: 'Fecha',
+                      value: '${marcador.detallesViaje.fecha.day}/${marcador.detallesViaje.fecha.month}/${marcador.detallesViaje.fecha.year}',
+                      color: Colors.blue,
+                    ),
+                    
+                    _buildDetailCard(
+                      icon: Icons.access_time,
+                      title: 'Hora',
+                      value: marcador.detallesViaje.hora,
+                      color: Colors.orange,
+                    ),
+                    
+                    _buildDetailCard(
+                      icon: Icons.airline_seat_recline_normal,
+                      title: 'Plazas disponibles',
+                      value: '${marcador.detallesViaje.plazasDisponibles} asientos',
+                      color: Colors.green,
+                    ),
+                    
+                    if (marcador.detallesViaje.vehiculo != null)
+                      _buildDetailCard(
+                        icon: Icons.directions_car,
+                        title: 'Vehículo',
+                        value: '${marcador.detallesViaje.vehiculo!.modelo} (${marcador.detallesViaje.vehiculo!.color})',
+                        color: const Color(0xFF854937),
+                      ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 20),
-              
-              // Título del viaje
-              Text(
-                'Viaje Disponible',
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF854937),
-                ),
+            ),
+            
+            // Botón de acción
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
               ),
-              const SizedBox(height: 16),
-              
-              // Información del conductor
-              if (marcador.detallesViaje.conductor != null)
-                _buildInfoRow(Icons.person, 'Conductor', marcador.detallesViaje.conductor!.nombre),
-              
-              // Origen y destino
-              _buildInfoRow(Icons.location_on, 'Origen', marcador.origen.nombre),
-              _buildInfoRow(Icons.flag, 'Destino', marcador.destino.nombre),
-              
-              // Fecha y hora
-              _buildInfoRow(Icons.calendar_today, 'Fecha', 
-                '${marcador.detallesViaje.fecha.day}/${marcador.detallesViaje.fecha.month}/${marcador.detallesViaje.fecha.year}'),
-              _buildInfoRow(Icons.access_time, 'Hora', marcador.detallesViaje.hora),
-              
-              // Plazas disponibles
-              _buildInfoRow(Icons.airline_seat_recline_normal, 'Plazas disponibles', 
-                '${marcador.detallesViaje.plazasDisponibles}'),
-              
-              // Precio
-              _buildInfoRow(Icons.attach_money, 'Precio', '\$${marcador.detallesViaje.precio.toStringAsFixed(0)}'),
-              
-              // Vehículo
-              if (marcador.detallesViaje.vehiculo != null)
-                _buildInfoRow(Icons.directions_car, 'Vehículo', 
-                  '${marcador.detallesViaje.vehiculo!.modelo} (${marcador.detallesViaje.vehiculo!.color})'),
-              
-              const SizedBox(height: 20),
-              
-              // Botón para unirse al viaje
-              SizedBox(
+              child: SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () => _unirseAlViaje(marcador),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF854937),
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(12),
                     ),
+                    elevation: 2,
                   ),
                   child: const Text(
                     'Unirse al Viaje',
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: 18,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
               ),
-              
-              const SizedBox(height: 20),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildInfoRow(IconData icon, String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+  Widget _buildDetailCard({
+    required IconData icon,
+    required String title,
+    required String value,
+    required Color color,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       child: Row(
         children: [
-          Icon(icon, size: 20, color: const Color(0xFF854937)),
-          const SizedBox(width: 12),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              icon,
+              color: color,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 16),
           Expanded(
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '$label: ',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF854937),
+                  title,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
-                Expanded(
-                  child: Text(
-                    value,
-                    style: const TextStyle(color: Color(0xFF070505)),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF6B3B2D),
                   ),
                 ),
               ],
@@ -829,23 +1056,51 @@ class _MapPageState extends State<MapPage> {
       // Cerrar el modal
       Navigator.pop(context);
       
+      // Mostrar modal de selección de método de pago
+      final metodoPagoResult = await showModalBottomSheet<Map<String, dynamic>>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (context) => MetodoPagoModal(
+          precio: marcador.detallesViaje.precio,
+          viajeOrigen: marcador.origen.nombre,
+          viajeDestino: marcador.destino.nombre,
+          onPagoSeleccionado: (metodoPago, datosAdicionales) {
+            Navigator.pop(context, {
+              'metodoPago': metodoPago,
+              'datosAdicionales': datosAdicionales,
+            });
+          },
+        ),
+      );
+
+      if (metodoPagoResult == null) {
+        // Usuario canceló la selección de pago
+        return;
+      }
+
       // Mostrar indicador de carga
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Enviando solicitud...'),
+            content: Text('Enviando solicitud con información de pago...'),
             backgroundColor: Color(0xFF854937),
           ),
         );
       }
 
-      final resultado = await ViajeService.unirseAViaje(marcador.id);
+      // Enviar solicitud con información de pago
+      final resultado = await ViajeService.unirseAViajeConPago(
+        marcador.id,
+        metodoPagoResult['metodoPago'],
+        metodoPagoResult['datosAdicionales'],
+      );
 
       if (mounted) {
-        // Mensaje específico para el nuevo flujo de notificaciones
+        // Mensaje específico para el nuevo flujo de notificaciones con pago
         String mensaje = resultado['message'] ?? 'Solicitud enviada';
         if (resultado['success'] == true) {
-          mensaje = 'Solicitud enviada al conductor. Espera su respuesta en tus notificaciones.';
+          mensaje = 'Solicitud enviada al conductor con información de pago. Espera su respuesta en tus notificaciones.';
         }
         
         ScaffoldMessenger.of(context).showSnackBar(
@@ -854,7 +1109,7 @@ class _MapPageState extends State<MapPage> {
             backgroundColor: resultado['success'] == true 
                 ? const Color(0xFF854937) 
                 : Colors.red,
-            duration: const Duration(seconds: 4), // Más tiempo para leer el mensaje
+            duration: const Duration(seconds: 4),
           ),
         );
       }

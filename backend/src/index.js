@@ -84,6 +84,7 @@ async function setupServer() {
       console.log(`✅ Servidor corriendo en ${HOST}:${PORT}/api`);
       console.log(`🌐 Accesible desde emulador Android en 10.0.2.2:${PORT}/api`);
       console.log(`🔌 Socket.IO disponible en ${HOST}:${PORT}/socket.io/`);
+      
     });
   } catch (error) {
     console.error("Error en index.js -> setupServer():", error);

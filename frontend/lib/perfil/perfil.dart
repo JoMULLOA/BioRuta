@@ -8,6 +8,7 @@ import './amistad_menu.dart';
 import '../config/confGlobal.dart';
 import 'editar_perfil.dart';
 import 'mis_vehiculos.dart';
+import 'saldo_tarjetas_screen.dart';
 import '../utils/token_manager.dart';
 import '../auth/login.dart';
 import '../services/socket_service.dart';
@@ -258,6 +259,14 @@ class Perfil_ extends State<Perfil> {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const MisVehiculosPage()),
+    );
+  }
+
+  // Función para navegar a saldo y tarjetas
+  void _navigateToSaldoTarjetas(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const SaldoTarjetasScreen()),
     );
   }
 
@@ -802,6 +811,88 @@ class Perfil_ extends State<Perfil> {
                           ),
                         ),
                       ],
+                    ),
+                  ),
+
+                  // Sección Saldo y Tarjetas (Sandbox)
+                  Container(
+                    margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(15),
+                      gradient: LinearGradient(
+                        colors: [Color(0xFF4CAF50), Color(0xFF2E7D32)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.grey.withOpacity(0.3),
+                          spreadRadius: 2,
+                          blurRadius: 5,
+                          offset: Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: Padding(
+                      padding: EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Saldo y Tarjetas',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              Icon(Icons.account_balance_wallet, color: Colors.white),
+                            ],
+                          ),
+                          SizedBox(height: 8),
+                          Text(
+                            'Gestiona tu saldo virtual y tarjetas de prueba',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 14,
+                            ),
+                          ),
+                          SizedBox(height: 4),
+                          Container(
+                            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.orange,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              'SANDBOX',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          SizedBox(height: 12),
+                          ElevatedButton.icon(
+                            onPressed: () => _navigateToSaldoTarjetas(context),
+                            icon: Icon(Icons.credit_card, size: 20),
+                            label: Text('Gestionar Pagos'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              foregroundColor: Color(0xFF2E7D32),
+                              padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              elevation: 2,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],

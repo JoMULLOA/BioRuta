@@ -1,239 +1,302 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../config/confGlobal.dart';
+import '../utils/token_manager.dart';
 
 class PagoService {
-  static String get baseUrl => confGlobal.baseUrl;
-  static const FlutterSecureStorage _storage = FlutterSecureStorage();
+  static const String baseUrl = confGlobal.baseUrl;
 
-  /// Crear una preferencia de pago
+  /// Crear un nuevo pago básico
   static Future<Map<String, dynamic>> crearPago({
     required String viajeId,
     required double montoTotal,
-    String? descripcion,
+    required String descripcion,
   }) async {
     try {
-      final token = await _storage.read(key: 'jwt_token');
-      
-      if (token == null) {
+      final headers = await TokenManager.getAuthHeaders();
+      if (headers == null) {
         return {
           'success': false,
-          'message': 'No se encontró token de autenticación'
+          'message': 'No hay token de autenticación válido'
         };
       }
 
       final response = await http.post(
-        Uri.parse('$baseUrl/pagos/crear'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode({
+        Uri.parse('$baseUrl/pago/crear'),
+        headers: headers,
+        body: json.encode({
           'viajeId': viajeId,
           'montoTotal': montoTotal,
-          'descripcion': descripcion ?? 'Pago de viaje #$viajeId',
+          'descripcion': descripcion,
         }),
       );
 
-      final data = jsonDecode(response.body);
+      final responseData = json.decode(response.body);
 
-      if (response.statusCode == 201) {
+      if (response.statusCode == 200 || response.statusCode == 201) {
         return {
           'success': true,
-          'data': data['data'],
+          'data': responseData['data'] ?? responseData,
+          'message': responseData['message'] ?? 'Pago creado exitosamente'
         };
       } else {
         return {
           'success': false,
-          'message': data['message'] ?? 'Error al crear el pago',
+          'message': responseData['message'] ?? 'Error al crear pago'
         };
       }
     } catch (e) {
+      print('Error en crearPago: $e');
       return {
         'success': false,
-        'message': 'Error de conexión: $e',
+        'message': 'Error de conexión: $e'
       };
     }
   }
 
-  /// Abrir MercadoPago para realizar el pago
-  static Future<bool> abrirMercadoPago(String initPoint) async {
+  /// Procesar un pago básico
+  static Future<Map<String, dynamic>> procesarPagoBasico({
+    required String viajeId,
+    required double montoTotal,
+    required String descripcion,
+  }) async {
     try {
-      final Uri url = Uri.parse(initPoint);
-      
-      if (await canLaunchUrl(url)) {
-        await launchUrl(
-          url,
-          mode: LaunchMode.externalApplication,
-        );
-        return true;
+      final headers = await TokenManager.getAuthHeaders();
+      if (headers == null) {
+        return {
+          'success': false,
+          'message': 'No hay token de autenticación válido'
+        };
+      }
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/pago/procesar-basico'),
+        headers: headers,
+        body: json.encode({
+          'viajeId': viajeId,
+          'montoTotal': montoTotal,
+          'descripcion': descripcion,
+        }),
+      );
+
+      final responseData = json.decode(response.body);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return {
+          'success': true,
+          'data': responseData['data'] ?? responseData,
+          'message': responseData['message'] ?? 'Pago procesado exitosamente'
+        };
       } else {
-        return false;
+        return {
+          'success': false,
+          'message': responseData['message'] ?? 'Error al procesar pago'
+        };
       }
     } catch (e) {
-      print('Error al abrir MercadoPago: $e');
-      return false;
+      print('Error en procesarPagoBasico: $e');
+      return {
+        'success': false,
+        'message': 'Error de conexión: $e'
+      };
     }
   }
 
   /// Verificar el estado de un pago
-  static Future<Map<String, dynamic>> verificarPago(String paymentId) async {
+  static Future<Map<String, dynamic>> verificarPago(String pagoId) async {
     try {
-      final token = await _storage.read(key: 'jwt_token');
-      
-      if (token == null) {
+      final headers = await TokenManager.getAuthHeaders();
+      if (headers == null) {
         return {
           'success': false,
-          'message': 'No se encontró token de autenticación'
+          'message': 'No hay token de autenticación válido'
         };
       }
 
       final response = await http.get(
-        Uri.parse('$baseUrl/pagos/verificar/$paymentId'),
-        headers: {
-          'Authorization': 'Bearer $token',
-        },
+        Uri.parse('$baseUrl/pago/verificar/$pagoId'),
+        headers: headers,
       );
 
-      final data = jsonDecode(response.body);
+      final responseData = json.decode(response.body);
 
       if (response.statusCode == 200) {
         return {
           'success': true,
-          'data': data['data'],
+          'data': responseData['data'] ?? responseData,
         };
       } else {
         return {
           'success': false,
-          'message': data['message'] ?? 'Error al verificar el pago',
+          'message': responseData['message'] ?? 'Error al verificar pago'
         };
       }
     } catch (e) {
+      print('Error en verificarPago: $e');
       return {
         'success': false,
-        'message': 'Error de conexión: $e',
+        'message': 'Error de conexión: $e'
       };
     }
   }
 
-  /// Obtener todos los pagos del usuario
+  /// Actualizar estado de un pago
+  static Future<Map<String, dynamic>> actualizarEstadoPago(
+    String pagoId,
+    String nuevoEstado,
+  ) async {
+    try {
+      final headers = await TokenManager.getAuthHeaders();
+      if (headers == null) {
+        return {
+          'success': false,
+          'message': 'No hay token de autenticación válido'
+        };
+      }
+
+      final response = await http.put(
+        Uri.parse('$baseUrl/pago/actualizar/$pagoId'),
+        headers: headers,
+        body: json.encode({
+          'estado': nuevoEstado,
+        }),
+      );
+
+      final responseData = json.decode(response.body);
+
+      if (response.statusCode == 200) {
+        return {
+          'success': true,
+          'data': responseData['data'] ?? responseData,
+          'message': responseData['message'] ?? 'Estado actualizado exitosamente'
+        };
+      } else {
+        return {
+          'success': false,
+          'message': responseData['message'] ?? 'Error al actualizar estado'
+        };
+      }
+    } catch (e) {
+      print('Error en actualizarEstadoPago: $e');
+      return {
+        'success': false,
+        'message': 'Error de conexión: $e'
+      };
+    }
+  }
+
+  /// Obtener historial de pagos del usuario
   static Future<Map<String, dynamic>> obtenerMisPagos() async {
     try {
-      final token = await _storage.read(key: 'jwt_token');
-      
-      if (token == null) {
+      final headers = await TokenManager.getAuthHeaders();
+      if (headers == null) {
         return {
           'success': false,
-          'message': 'No se encontró token de autenticación'
+          'message': 'No hay token de autenticación válido'
         };
       }
 
       final response = await http.get(
-        Uri.parse('$baseUrl/pagos/mis-pagos'),
-        headers: {
-          'Authorization': 'Bearer $token',
-        },
+        Uri.parse('$baseUrl/pago/mis-pagos'),
+        headers: headers,
       );
 
-      final data = jsonDecode(response.body);
+      final responseData = json.decode(response.body);
 
       if (response.statusCode == 200) {
         return {
           'success': true,
-          'data': data['data'],
+          'data': responseData['data'] ?? []
         };
       } else {
         return {
           'success': false,
-          'message': data['message'] ?? 'Error al obtener los pagos',
+          'message': responseData['message'] ?? 'Error al obtener pagos'
         };
       }
     } catch (e) {
+      print('Error en obtenerMisPagos: $e');
       return {
         'success': false,
-        'message': 'Error de conexión: $e',
+        'message': 'Error de conexión: $e'
       };
     }
   }
 
-  /// Cancelar un pago pendiente
+  /// Cancelar un pago
   static Future<Map<String, dynamic>> cancelarPago(int pagoId) async {
     try {
-      final token = await _storage.read(key: 'jwt_token');
-      
-      if (token == null) {
+      final headers = await TokenManager.getAuthHeaders();
+      if (headers == null) {
         return {
           'success': false,
-          'message': 'No se encontró token de autenticación'
+          'message': 'No hay token de autenticación válido'
         };
       }
 
-      final response = await http.patch(
-        Uri.parse('$baseUrl/pagos/cancelar/$pagoId'),
-        headers: {
-          'Authorization': 'Bearer $token',
-        },
+      final response = await http.put(
+        Uri.parse('$baseUrl/pago/cancelar/$pagoId'),
+        headers: headers,
       );
 
-      final data = jsonDecode(response.body);
+      final responseData = json.decode(response.body);
 
       if (response.statusCode == 200) {
         return {
           'success': true,
-          'message': data['message'],
+          'data': responseData['data'] ?? responseData,
+          'message': responseData['message'] ?? 'Pago cancelado exitosamente'
         };
       } else {
         return {
           'success': false,
-          'message': data['message'] ?? 'Error al cancelar el pago',
+          'message': responseData['message'] ?? 'Error al cancelar pago'
         };
       }
     } catch (e) {
+      print('Error en cancelarPago: $e');
       return {
         'success': false,
-        'message': 'Error de conexión: $e',
+        'message': 'Error de conexión: $e'
       };
     }
   }
 
-  /// Obtener el estado de un pago específico
-  static Future<Map<String, dynamic>> obtenerEstadoPago(int pagoId) async {
+  /// Verificar pagos pendientes (para el historial)
+  static Future<Map<String, dynamic>> verificarPagosPendientes() async {
     try {
-      final token = await _storage.read(key: 'jwt_token');
-      
-      if (token == null) {
+      final headers = await TokenManager.getAuthHeaders();
+      if (headers == null) {
         return {
           'success': false,
-          'message': 'No se encontró token de autenticación'
+          'message': 'No hay token de autenticación válido'
         };
       }
 
-      final response = await http.get(
-        Uri.parse('$baseUrl/pagos/estado/$pagoId'),
-        headers: {
-          'Authorization': 'Bearer $token',
-        },
+      final response = await http.post(
+        Uri.parse('$baseUrl/pago/verificar-pendientes'),
+        headers: headers,
       );
 
-      final data = jsonDecode(response.body);
+      final responseData = json.decode(response.body);
 
       if (response.statusCode == 200) {
         return {
           'success': true,
-          'data': data['data'],
+          'data': responseData['data'] ?? responseData,
+          'message': responseData['message'] ?? 'Verificación completada'
         };
       } else {
         return {
           'success': false,
-          'message': data['message'] ?? 'Error al obtener el estado del pago',
+          'message': responseData['message'] ?? 'Error al verificar pagos pendientes'
         };
       }
     } catch (e) {
+      print('Error en verificarPagosPendientes: $e');
       return {
         'success': false,
-        'message': 'Error de conexión: $e',
+        'message': 'Error de conexión: $e'
       };
     }
   }

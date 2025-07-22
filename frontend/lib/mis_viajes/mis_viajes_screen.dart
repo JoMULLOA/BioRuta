@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../services/viaje_service.dart';
-import '../services/pago_service.dart';
 import '../services/notificacion_service.dart';
 import '../models/viaje_model.dart';
 import '../widgets/navbar_con_sos_dinamico.dart';
@@ -21,13 +19,19 @@ class _MisViajesScreenState extends State<MisViajesScreen>
     with SingleTickerProviderStateMixin {
   List<Viaje> viajesCreados = [];
   List<Viaje> viajesUnidos = [];
+  List<Viaje> viajesCreadosOriginales = [];
+  List<Viaje> viajesUnidosOriginales = [];
   bool cargando = true;
+  bool _isBuilding = false;  // Flag para prevenir builds múltiples
   int _selectedIndex = 0; // Mis viajes ahora está en índice 0
   int numeroSolicitudesPendientes = 0;
   late TabController _tabController;
   
   // Variable para rastrear el listener
   late VoidCallback _tabListener;
+  
+  // Variable para el filtro de período
+  String _periodoSeleccionado = 'Todos';
 
   @override
   void initState() {
@@ -36,8 +40,14 @@ class _MisViajesScreenState extends State<MisViajesScreen>
     
     // Crear y asignar el listener
     _tabListener = () {
-      if (mounted) {
-        setState(() {}); // Actualizar el FAB cuando cambie de pestaña
+      if (mounted && !_tabController.indexIsChanging && !_isBuilding) {
+        _isBuilding = true;
+        setState(() {}); // Actualizar el FAB y el contador cuando cambie de pestaña
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            _isBuilding = false;
+          }
+        });
       }
     };
     _tabController.addListener(_tabListener);
@@ -74,8 +84,12 @@ Future<void> _cargarViajes() async {
     if (mounted) {
       setState(() {
         // Separar viajes creados de viajes a los que se unió usando las nuevas propiedades
-        viajesCreados = viajes.where((v) => v.esCreador == true).toList();
-        viajesUnidos = viajes.where((v) => v.esUnido == true).toList();
+        viajesCreadosOriginales = viajes.where((v) => v.esCreador == true).toList();
+        viajesUnidosOriginales = viajes.where((v) => v.esUnido == true).toList();
+        
+        // Aplicar filtros
+        _aplicarFiltrosPeriodo();
+        
         cargando = false;
       });
     }
@@ -94,6 +108,49 @@ Future<void> _cargarViajes() async {
       );
     }
   }
+}
+
+// Método para aplicar filtros por período
+void _aplicarFiltrosPeriodo() {
+  final ahora = DateTime.now();
+  DateTime fechaInicio;
+  
+  switch (_periodoSeleccionado) {
+    case 'Hoy':
+      fechaInicio = DateTime(ahora.year, ahora.month, ahora.day);
+      break;
+    case 'Esta semana':
+      final diasHastaLunes = (ahora.weekday - 1) % 7;
+      fechaInicio = DateTime(ahora.year, ahora.month, ahora.day - diasHastaLunes);
+      break;
+    case 'Este mes':
+      fechaInicio = DateTime(ahora.year, ahora.month, 1);
+      break;
+    default: // 'Todos'
+      viajesCreados = List.from(viajesCreadosOriginales);
+      viajesUnidos = List.from(viajesUnidosOriginales);
+      return;
+  }
+  
+  // Filtrar viajes creados
+  viajesCreados = viajesCreadosOriginales.where((viaje) {
+    return viaje.fechaIda.isAfter(fechaInicio.subtract(const Duration(days: 1)));
+  }).toList();
+  
+  // Filtrar viajes unidos
+  viajesUnidos = viajesUnidosOriginales.where((viaje) {
+    return viaje.fechaIda.isAfter(fechaInicio.subtract(const Duration(days: 1)));
+  }).toList();
+}
+
+// Método para cambiar el período seleccionado
+void _cambiarPeriodo(String nuevoPeriodo) {
+  if (_periodoSeleccionado == nuevoPeriodo || _isBuilding) return;
+  
+  setState(() {
+    _periodoSeleccionado = nuevoPeriodo;
+    _aplicarFiltrosPeriodo();
+  });
 }
 
 Future<void> _cargarSolicitudesPendientes() async {
@@ -178,6 +235,41 @@ void _mostrarSolicitudesPasajeros() {
         elevation: 0,
         centerTitle: true,
         automaticallyImplyLeading: false, // Quitar el botón de volver atrás
+        actions: [
+          // Selector de período
+          Container(
+            margin: const EdgeInsets.only(right: 16),
+            child: DropdownButton<String>(
+              value: _periodoSeleccionado,
+              dropdownColor: const Color(0xFF8D4F3A),
+              underline: Container(),
+              icon: const Icon(Icons.filter_list, color: Colors.white),
+              items: const [
+                DropdownMenuItem(
+                  value: 'Todos',
+                  child: Text('Todos', style: TextStyle(color: Colors.white)),
+                ),
+                DropdownMenuItem(
+                  value: 'Hoy',
+                  child: Text('Hoy', style: TextStyle(color: Colors.white)),
+                ),
+                DropdownMenuItem(
+                  value: 'Esta semana',
+                  child: Text('Esta semana', style: TextStyle(color: Colors.white)),
+                ),
+                DropdownMenuItem(
+                  value: 'Este mes',
+                  child: Text('Este mes', style: TextStyle(color: Colors.white)),
+                ),
+              ],
+              onChanged: (String? newValue) {
+                if (newValue != null) {
+                  _cambiarPeriodo(newValue);
+                }
+              },
+            ),
+          ),
+        ],
         bottom: cargando
             ? null
             : TabBar(
@@ -197,11 +289,59 @@ void _mostrarSolicitudesPasajeros() {
                 valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF854937)),
               ),
             )
-          : TabBarView(
-              controller: _tabController,
+          : Column(
               children: [
-                _buildViajesCreados(),
-                _buildViajesUnidos(),
+                // Indicador del filtro activo (solo si no es "Todos")
+                if (_periodoSeleccionado != 'Todos')
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    color: const Color(0xFFEDCAB6),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.filter_list, size: 16, color: Color(0xFF854937)),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Builder(
+                            builder: (context) {
+                              final count = _tabController.index == 0 ? viajesCreados.length : viajesUnidos.length;
+                              final tabName = _tabController.index == 0 ? 'publicaciones' : 'unidos';
+                              return Text(
+                                'Mostrando $_periodoSeleccionado: $count $tabName',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFF854937),
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: () => _cambiarPeriodo('Todos'),
+                          child: const Text(
+                            'Ver todos',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF854937),
+                              fontWeight: FontWeight.w600,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                // TabBarView
+                Expanded(
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildViajesCreados(),
+                      _buildViajesUnidos(),
+                    ],
+                  ),
+                ),
               ],
             ),
       floatingActionButton: _buildFloatingActionButton(),
@@ -258,6 +398,14 @@ void _mostrarSolicitudesPasajeros() {
 
   Widget _buildViajesCreados() {
     if (viajesCreados.isEmpty) {
+      final String mensaje = _periodoSeleccionado == 'Todos' 
+          ? 'No has publicado ningún viaje'
+          : 'No tienes viajes publicados $_periodoSeleccionado'.toLowerCase();
+          
+      final String submensaje = _periodoSeleccionado == 'Todos'
+          ? 'Publica tu primer viaje para empezar a compartir'
+          : 'Cambia el filtro de período o publica un nuevo viaje';
+          
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -269,16 +417,17 @@ void _mostrarSolicitudesPasajeros() {
             ),
             const SizedBox(height: 16),
             Text(
-              'No has publicado ningún viaje',
+              mensaje,
               style: TextStyle(
                 fontSize: 18,
                 color: Colors.grey[600],
                 fontWeight: FontWeight.w500,
               ),
+              textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
             Text(
-              'Publica tu primer viaje para empezar a compartir',
+              submensaje,
               style: TextStyle(
                 fontSize: 14,
                 color: Colors.grey[500],
@@ -286,6 +435,21 @@ void _mostrarSolicitudesPasajeros() {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
+            if (_periodoSeleccionado != 'Todos') ...[
+              ElevatedButton(
+                onPressed: () => _cambiarPeriodo('Todos'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.grey[600],
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: const Text('Ver Todos los Viajes'),
+              ),
+              const SizedBox(height: 12),
+            ],
             ElevatedButton(
               onPressed: () {
                 Navigator.pushNamed(context, '/publicar');
@@ -320,6 +484,14 @@ void _mostrarSolicitudesPasajeros() {
 
   Widget _buildViajesUnidos() {
     if (viajesUnidos.isEmpty) {
+      final String mensaje = _periodoSeleccionado == 'Todos' 
+          ? 'No te has unido a ningún viaje'
+          : 'No tienes viajes unidos $_periodoSeleccionado'.toLowerCase();
+          
+      final String submensaje = _periodoSeleccionado == 'Todos'
+          ? 'Busca viajes disponibles en el mapa para unirte'
+          : 'Cambia el filtro de período o busca nuevos viajes';
+          
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -331,16 +503,17 @@ void _mostrarSolicitudesPasajeros() {
             ),
             const SizedBox(height: 16),
             Text(
-              'No te has unido a ningún viaje',
+              mensaje,
               style: TextStyle(
                 fontSize: 18,
                 color: Colors.grey[600],
                 fontWeight: FontWeight.w500,
               ),
+              textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
             Text(
-              'Busca viajes disponibles en el mapa para unirte',
+              submensaje,
               style: TextStyle(
                 fontSize: 14,
                 color: Colors.grey[500],
@@ -348,6 +521,21 @@ void _mostrarSolicitudesPasajeros() {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
+            if (_periodoSeleccionado != 'Todos') ...[
+              ElevatedButton(
+                onPressed: () => _cambiarPeriodo('Todos'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.grey[600],
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: const Text('Ver Todos los Viajes'),
+              ),
+              const SizedBox(height: 12),
+            ],
             ElevatedButton(
               onPressed: () {
                 Navigator.pushNamed(context, '/mapa');
@@ -580,16 +768,6 @@ void _mostrarSolicitudesPasajeros() {
                 ),
                 Row(
                   children: [
-                    // Botón de pago solo cuando el viaje está completado
-                    if (viaje.estado.toLowerCase() == 'completado') ...[
-                      IconButton(
-                        icon: const Icon(Icons.payment, size: 20, color: Colors.green),
-                        tooltip: 'Pagar viaje',
-                        onPressed: () {
-                          _procesarPago(viaje);
-                        },
-                      ),
-                    ],
                     // Botones de editar y borrar solo para el creador
                     if (esCreadorReal) ...[
                       IconButton(
@@ -725,238 +903,6 @@ Future<void> _mostrarDialogoCancelar(Viaje viaje) async {
     }
   }
 }
-
-// Función para procesar el pago de un viaje
-  Future<void> _procesarPago(Viaje viaje) async {
-    try {
-      // Mostrar diálogo de confirmación
-      final confirmado = await showDialog<bool>(
-        context: context,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            title: const Text('Procesar Pago'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Viaje: ${viaje.origen.nombre} → ${viaje.destino.nombre}'),
-                const SizedBox(height: 8),
-                Text('Precio: \$${viaje.precio.toInt()}'),
-                const SizedBox(height: 8),
-                Text('Fecha: ${viaje.fechaIda.day}/${viaje.fechaIda.month}/${viaje.fechaIda.year}'),
-                const SizedBox(height: 16),
-                const Text('¿Confirmas el pago de este viaje?'),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('Cancelar'),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF854937),
-                  foregroundColor: Colors.white,
-                ),
-                child: const Text('Pagar'),
-              ),
-            ],
-          );
-        },
-      );
-
-      if (confirmado == true) {
-        // Mostrar indicador de carga
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Row(
-                children: [
-                  SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                    ),
-                  ),
-                  SizedBox(width: 16),
-                  Text('Procesando pago...'),
-                ],
-              ),
-              backgroundColor: Color(0xFF854937),
-            ),
-          );
-        }
-
-        // Llamar al servicio de pago
-        final respuesta = await PagoService.crearPago(
-          viajeId: viaje.id,
-          montoTotal: viaje.precio,
-          descripcion: 'Pago viaje: ${viaje.origen.nombre} → ${viaje.destino.nombre} del ${viaje.fechaIda.day}/${viaje.fechaIda.month}/${viaje.fechaIda.year}',
-        );
-
-        if (mounted) {
-          // Ocultar el snackbar de carga
-          ScaffoldMessenger.of(context).hideCurrentSnackBar();
-
-          if (respuesta['success'] == true) {
-            final urlPago = respuesta['data']?['init_point'];
-            
-            if (urlPago != null) {
-              // Mostrar diálogo con opciones de pago
-              final opcion = await showDialog<String>(
-                context: context,
-                builder: (BuildContext context) {
-                  return AlertDialog(
-                    title: const Text('Pago Creado'),
-                    content: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Text('Se ha creado el pago exitosamente.'),
-                        const SizedBox(height: 8),
-                        const Text('¿Qué deseas hacer?'),
-                      ],
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.of(context).pop('later'),
-                        child: const Text('Más tarde'),
-                      ),
-                      TextButton(
-                        onPressed: () => Navigator.of(context).pop('copy'),
-                        child: const Text('Copiar URL'),
-                      ),
-                      ElevatedButton(
-                        onPressed: () => Navigator.of(context).pop('open'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue,
-                          foregroundColor: Colors.white,
-                        ),
-                        child: const Text('Abrir MercadoPago'),
-                      ),
-                    ],
-                  );
-                },
-              );
-
-              if (opcion == 'copy') {
-                // Copiar URL al portapapeles
-                await Clipboard.setData(ClipboardData(text: urlPago));
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('URL copiada al portapapeles'),
-                        const SizedBox(height: 4),
-                        Text(urlPago, style: const TextStyle(fontSize: 12)),
-                      ],
-                    ),
-                    backgroundColor: Colors.green,
-                    duration: const Duration(seconds: 5),
-                  ),
-                );
-              } else if (opcion == 'open') {
-                // Abrir la URL de pago en el navegador
-                final Uri url = Uri.parse(urlPago);
-                
-                print('🔗 Intentando abrir URL: $urlPago');
-                print('🔗 URI parseada: $url');
-                
-                try {
-                  // Verificar si se puede abrir la URL
-                  final canLaunch = await canLaunchUrl(url);
-                  print('🔗 ¿Se puede abrir la URL?: $canLaunch');
-                  
-                  if (canLaunch) {
-                    final launched = await launchUrl(
-                      url, 
-                      mode: LaunchMode.externalApplication,
-                      webOnlyWindowName: '_blank',
-                    );
-                    print('🔗 ¿Se lanzó exitosamente?: $launched');
-                    
-                    if (!launched) {
-                      throw Exception('launchUrl retornó false');
-                    }
-                  } else {
-                    // Intentar con modo interno si el externo falla
-                    print('🔗 Intentando con modo interno...');
-                    final launched = await launchUrl(url, mode: LaunchMode.inAppWebView);
-                    
-                    if (!launched) {
-                      throw Exception('No se pudo abrir en ningún modo');
-                    }
-                  }
-                } catch (e) {
-                  print('❌ Error al abrir URL: $e');
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('No se pudo abrir el enlace de pago automáticamente'),
-                          const SizedBox(height: 8),
-                          Text('URL: $urlPago', style: const TextStyle(fontSize: 12)),
-                          const SizedBox(height: 8),
-                          const Text('Copia esta URL en tu navegador para completar el pago', 
-                                   style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic)),
-                        ],
-                      ),
-                      backgroundColor: Colors.orange,
-                      duration: const Duration(seconds: 10),
-                      action: SnackBarAction(
-                        label: 'Copiar URL',
-                        textColor: Colors.white,
-                        onPressed: () async {
-                          await Clipboard.setData(ClipboardData(text: urlPago));
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('URL copiada al portapapeles'),
-                              backgroundColor: Colors.green,
-                              duration: Duration(seconds: 2),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  );
-                }
-              }
-            } else {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Error: No se recibió URL de pago'),
-                  backgroundColor: Colors.red,
-                ),
-              );
-            }
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Error al crear el pago: ${respuesta['message'] ?? 'Error desconocido'}'),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al procesar el pago: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
 
   // Función para mostrar diálogo de abandonar viaje (para pasajeros)
   Future<void> _mostrarDialogoAbandonar(Viaje viaje) async {

@@ -34,11 +34,17 @@ const PagoSchema = new EntitySchema({
       default: "pendiente",
       comment: "Estados: pendiente, aprobado, rechazado, cancelado",
     },
-    mercadoPagoId: {
+    externalReference: {
       type: "varchar",
       length: 100,
       nullable: true,
-      comment: "ID de la preferencia o pago en MercadoPago",
+      comment: "Referencia externa del pago",
+    },
+    paymentId: {
+      type: "varchar",
+      length: 100,
+      nullable: true,
+      comment: "ID del pago específico para tracking",
     },
     metodoPago: {
       type: "varchar",
@@ -62,7 +68,7 @@ const PagoSchema = new EntitySchema({
     datosRespuesta: {
       type: "text",
       nullable: true,
-      comment: "JSON con la respuesta completa de MercadoPago",
+      comment: "JSON con la respuesta completa del procesador de pagos",
     },
   },
   relations: {
@@ -84,8 +90,12 @@ const PagoSchema = new EntitySchema({
       columns: ["usuarioId"],
     },
     {
-      name: "IDX_PAGO_MERCADOPAGO",
-      columns: ["mercadoPagoId"],
+      name: "IDX_PAGO_EXTERNAL_REF",
+      columns: ["externalReference"],
+    },
+    {
+      name: "IDX_PAGO_PAYMENT_ID",
+      columns: ["paymentId"],
     },
   ],
 });

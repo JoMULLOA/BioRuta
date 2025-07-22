@@ -960,38 +960,90 @@ export async function confirmarPasajero(req, res) {
     const { viajeId, usuarioRut } = req.params;
     const conductorRut = req.user.rut;
 
+    console.log(`🎯 Confirmando pasajero ${usuarioRut} en viaje ${viajeId} por conductor ${conductorRut}`);
+
     // Buscar el viaje
     const viaje = await Viaje.findById(viajeId);
 
     if (!viaje) {
-      return handleErrorServer(res, "Viaje no encontrado");
+      return handleErrorServer(res, 404, "Viaje no encontrado");
     }
 
     // Verificar que el usuario autenticado es el conductor del viaje
     if (viaje.usuario_rut !== conductorRut) {
-      return handleErrorServer(res, "Solo el conductor puede confirmar pasajeros");
+      return handleErrorServer(res, 403, "Solo el conductor puede confirmar pasajeros");
     }
 
     // Buscar el pasajero en la lista
     const pasajeroIndex = viaje.pasajeros.findIndex(p => p.usuario_rut === usuarioRut);
 
     if (pasajeroIndex === -1) {
-      return handleErrorServer(res, "Pasajero no encontrado en este viaje");
+      return handleErrorServer(res, 404, "Pasajero no encontrado en este viaje");
     }
 
     const pasajero = viaje.pasajeros[pasajeroIndex];
 
     if (pasajero.estado === 'confirmado') {
-      return handleErrorServer(res, "El pasajero ya está confirmado");
+      return handleErrorServer(res, 400, "El pasajero ya está confirmado");
     }
 
     if (pasajero.estado === 'rechazado') {
-      return handleErrorServer(res, "No se puede confirmar un pasajero rechazado");
+      return handleErrorServer(res, 400, "No se puede confirmar un pasajero rechazado");
     }
 
-    // Confirmar el pasajero
+    // Buscar la notificación de solicitud para obtener información de pago
+    const { AppDataSource } = await import('../config/configDb.js');
+    const { default: Notificacion } = await import('../entity/notificacion.entity.js');
+    
+    const notificacionRepository = AppDataSource.getRepository(Notificacion);
+    
+    console.log(`🔍 Buscando notificación de solicitud para pasajero: ${usuarioRut}, conductor: ${conductorRut}, viaje: ${viajeId}`);
+    
+    const solicitud = await notificacionRepository.findOne({
+      where: {
+        rutEmisor: usuarioRut,
+        rutReceptor: conductorRut,
+        tipo: 'solicitud_viaje',
+        viajeId: viajeId
+      }
+    });
+
+    console.log(`📄 Notificación encontrada:`, solicitud ? 'SÍ' : 'NO');
+    if (solicitud && solicitud.datos) {
+      console.log(`💰 Datos de la solicitud:`, JSON.stringify(solicitud.datos, null, 2));
+    }
+
+    // Procesar pago si hay información de pago en la solicitud
+    let resultadoPago = null;
+    if (solicitud && solicitud.datos && solicitud.datos.pago) {
+      console.log(`💳 ¡INFORMACIÓN DE PAGO ENCONTRADA! Procesando pago para pasajero ${usuarioRut}: ${JSON.stringify(solicitud.datos.pago)}`);
+      
+      try {
+        resultadoPago = await procesarPagoViaje({
+          pasajeroRut: usuarioRut,
+          conductorRut: conductorRut,
+          viajeId: viajeId,
+          informacionPago: solicitud.datos.pago
+        });
+        
+        console.log(`✅ ¡PAGO PROCESADO EXITOSAMENTE!: ${JSON.stringify(resultadoPago)}`);
+      } catch (pagoError) {
+        console.error(`❌ ERROR AL PROCESAR PAGO:`, pagoError);
+        return handleErrorServer(res, 400, `Error al procesar el pago: ${pagoError.message}`);
+      }
+    } else {
+      console.log(`⚠️ NO SE ENCONTRÓ INFORMACIÓN DE PAGO en la solicitud`);
+    }
+
+    // Confirmar el pasajero solo si el pago fue exitoso (o no hay pago)
     viaje.pasajeros[pasajeroIndex].estado = 'confirmado';
     await viaje.save();
+
+    // Marcar la notificación como leída
+    if (solicitud) {
+      solicitud.leida = true;
+      await notificacionRepository.save(solicitud);
+    }
 
     // Agregar pasajero al chat grupal
     try {
@@ -1005,14 +1057,263 @@ export async function confirmarPasajero(req, res) {
       // No fallar la confirmación si falla el chat
     }
 
-    handleSuccess(res, 200, "Pasajero confirmado exitosamente", {
+    const response = {
       usuarioRut: usuarioRut,
       estado: 'confirmado'
-    });
+    };
+
+    if (resultadoPago) {
+      response.pago = resultadoPago;
+    }
+
+    handleSuccess(res, 200, "Pasajero confirmado exitosamente", response);
 
   } catch (error) {
     console.error("Error al confirmar pasajero:", error);
-    handleErrorServer(res, "Error interno del servidor");
+    handleErrorServer(res, 500, "Error interno del servidor");
+  }
+}
+
+/**
+ * Procesar pago de un viaje cuando se confirma un pasajero
+ */
+async function procesarPagoViaje({ pasajeroRut, conductorRut, viajeId, informacionPago }) {
+  try {
+    const { getUserService, updateUserService } = await import('../services/user.service.js');
+    const { crearTransaccionService } = await import('../services/transaccion.service.js');
+    
+    console.log(`💰 Iniciando procesamiento de pago: ${informacionPago.metodo} por $${informacionPago.monto}`);
+    console.log(`👥 Pasajero: ${pasajeroRut}, Conductor: ${conductorRut}, Viaje: ${viajeId}`);
+
+    if (informacionPago.metodo === 'saldo') {
+      // Obtener datos del pasajero y conductor
+      console.log(`📋 Obteniendo datos de usuarios...`);
+      const [pasajeroData, pasajeroError] = await getUserService({ rut: pasajeroRut });
+      const [conductorData, conductorError] = await getUserService({ rut: conductorRut });
+
+      console.log(`👤 Datos pasajero:`, pasajeroData ? `Saldo: ${pasajeroData.saldo}` : `Error: ${pasajeroError}`);
+      console.log(`👨‍💼 Datos conductor:`, conductorData ? `Saldo: ${conductorData.saldo}` : `Error: ${conductorError}`);
+
+      if (pasajeroError || conductorError) {
+        throw new Error(`Error al obtener datos de usuarios: ${pasajeroError || conductorError}`);
+      }
+
+      const saldoPasajero = parseFloat(pasajeroData.saldo || 0);
+      const saldoConductor = parseFloat(conductorData.saldo || 0);
+      const monto = parseFloat(informacionPago.monto);
+
+      console.log(`💳 Saldos actuales - Pasajero: $${saldoPasajero}, Conductor: $${saldoConductor}, Monto: $${monto}`);
+
+      // Verificar saldo suficiente
+      if (saldoPasajero < monto) {
+        throw new Error(`Saldo insuficiente. Disponible: $${saldoPasajero}, Requerido: $${monto}`);
+      }
+
+      // Realizar transferencia
+      const nuevoSaldoPasajero = saldoPasajero - monto;
+      const nuevoSaldoConductor = saldoConductor + monto;
+
+      console.log(`🔄 Iniciando transferencia de saldos...`);
+      console.log(`📉 Pasajero: $${saldoPasajero} → $${nuevoSaldoPasajero}`);
+      console.log(`📈 Conductor: $${saldoConductor} → $${nuevoSaldoConductor}`);
+
+      // Actualizar saldos
+      console.log(`💾 Actualizando saldo del pasajero...`);
+      const [resultPasajero, errorPasajero] = await updateUserService(
+        { rut: pasajeroRut }, 
+        { saldo: nuevoSaldoPasajero.toString() }
+      );
+      
+      console.log(`💾 Actualizando saldo del conductor...`);
+      const [resultConductor, errorConductor] = await updateUserService(
+        { rut: conductorRut }, 
+        { saldo: nuevoSaldoConductor.toString() }
+      );
+
+      console.log(`📊 Resultado actualización pasajero:`, errorPasajero ? `Error: ${errorPasajero}` : 'Exitoso');
+      console.log(`📊 Resultado actualización conductor:`, errorConductor ? `Error: ${errorConductor}` : 'Exitoso');
+
+      if (errorPasajero || errorConductor) {
+        throw new Error(`Error al actualizar saldos: ${errorPasajero || errorConductor}`);
+      }
+
+      // Crear registros de transacciones en el historial
+      const transaccionId = `${viajeId}_${Date.now()}`;
+      
+      console.log(`📄 Creando transacciones en el historial...`);
+      
+      // Transacción de pago para el pasajero (monto negativo)
+      await crearTransaccionService({
+        usuario_rut: pasajeroRut,
+        tipo: 'pago',
+        concepto: `Pago de viaje ${viajeId}`,
+        monto: -monto,
+        metodo_pago: 'saldo',
+        estado: 'completado',
+        viaje_id: viajeId,
+        transaccion_id: transaccionId,
+        datos_adicionales: {
+          conductor_rut: conductorRut,
+          saldo_anterior: saldoPasajero,
+          saldo_nuevo: nuevoSaldoPasajero
+        }
+      });
+
+      // Transacción de cobro para el conductor (monto positivo)
+      await crearTransaccionService({
+        usuario_rut: conductorRut,
+        tipo: 'cobro',
+        concepto: `Cobro de viaje ${viajeId}`,
+        monto: monto,
+        metodo_pago: 'saldo',
+        estado: 'completado',
+        viaje_id: viajeId,
+        transaccion_id: transaccionId,
+        datos_adicionales: {
+          pasajero_rut: pasajeroRut,
+          saldo_anterior: saldoConductor,
+          saldo_nuevo: nuevoSaldoConductor
+        }
+      });
+
+      console.log(`✅ Transferencia completada - Nuevos saldos: Pasajero: $${nuevoSaldoPasajero}, Conductor: $${nuevoSaldoConductor}`);
+
+      return {
+        metodo: 'saldo',
+        monto: monto,
+        estado: 'completado',
+        transaccion_id: transaccionId,
+        saldo_anterior_pasajero: saldoPasajero,
+        saldo_nuevo_pasajero: nuevoSaldoPasajero,
+        saldo_anterior_conductor: saldoConductor,
+        saldo_nuevo_conductor: nuevoSaldoConductor
+      };
+
+    } else if (informacionPago.metodo === 'tarjeta') {
+      // Para las tarjetas del sandbox, simular proceso exitoso
+      console.log(`💳 Procesando pago con tarjeta: ${informacionPago.tarjeta?.numero || 'N/A'}`);
+      
+      // Actualizar saldo del conductor (el pasajero paga con tarjeta, conductor recibe en saldo)
+      const [conductorData, conductorError] = await getUserService({ rut: conductorRut });
+      if (conductorError) {
+        throw new Error(`Error al obtener datos del conductor: ${conductorError}`);
+      }
+
+      const saldoConductorActual = parseFloat(conductorData.saldo || 0);
+      const monto = parseFloat(informacionPago.monto);
+      const nuevoSaldoConductor = saldoConductorActual + monto;
+
+      const [, errorUpdate] = await updateUserService(
+        { rut: conductorRut }, 
+        { saldo: nuevoSaldoConductor.toString() }
+      );
+
+      if (errorUpdate) {
+        throw new Error(`Error al actualizar saldo del conductor: ${errorUpdate}`);
+      }
+
+      // Crear registros de transacciones en el historial
+      const transaccionId = `${viajeId}_${Date.now()}`;
+      
+      // Transacción de pago con tarjeta para el pasajero
+      await crearTransaccionService({
+        usuario_rut: pasajeroRut,
+        tipo: 'pago',
+        concepto: `Pago de viaje ${viajeId} con tarjeta`,
+        monto: -monto,
+        metodo_pago: 'tarjeta',
+        estado: 'completado',
+        viaje_id: viajeId,
+        transaccion_id: transaccionId,
+        datos_adicionales: {
+          conductor_rut: conductorRut,
+          tarjeta: informacionPago.tarjeta
+        }
+      });
+
+      // Transacción de cobro para el conductor
+      await crearTransaccionService({
+        usuario_rut: conductorRut,
+        tipo: 'cobro',
+        concepto: `Cobro de viaje ${viajeId} (pago con tarjeta)`,
+        monto: monto,
+        metodo_pago: 'tarjeta',
+        estado: 'completado',
+        viaje_id: viajeId,
+        transaccion_id: transaccionId,
+        datos_adicionales: {
+          pasajero_rut: pasajeroRut,
+          saldo_anterior: saldoConductorActual,
+          saldo_nuevo: nuevoSaldoConductor
+        }
+      });
+
+      console.log(`✅ Pago con tarjeta procesado - Conductor recibe: $${monto} (Saldo: $${saldoConductorActual} → $${nuevoSaldoConductor})`);
+
+      return {
+        metodo: 'tarjeta',
+        monto: monto,
+        estado: 'completado',
+        transaccion_id: transaccionId,
+        tarjeta: informacionPago.tarjeta,
+        saldo_anterior_conductor: saldoConductorActual,
+        saldo_nuevo_conductor: nuevoSaldoConductor
+      };
+
+    } else if (informacionPago.metodo === 'efectivo') {
+      // Para efectivo, solo registrar la transacción pendiente
+      console.log(`💵 Pago en efectivo registrado por $${informacionPago.monto}`);
+      
+      const transaccionId = `${viajeId}_${Date.now()}`;
+      const monto = parseFloat(informacionPago.monto);
+
+      // Crear transacción pendiente para el pasajero
+      await crearTransaccionService({
+        usuario_rut: pasajeroRut,
+        tipo: 'pago',
+        concepto: `Pago de viaje ${viajeId} en efectivo`,
+        monto: -monto,
+        metodo_pago: 'efectivo',
+        estado: 'pendiente',
+        viaje_id: viajeId,
+        transaccion_id: transaccionId,
+        datos_adicionales: {
+          conductor_rut: conductorRut,
+          nota: 'Pago a realizar en efectivo al conductor'
+        }
+      });
+
+      // Crear transacción pendiente para el conductor
+      await crearTransaccionService({
+        usuario_rut: conductorRut,
+        tipo: 'cobro',
+        concepto: `Cobro de viaje ${viajeId} en efectivo`,
+        monto: monto,
+        metodo_pago: 'efectivo',
+        estado: 'pendiente',
+        viaje_id: viajeId,
+        transaccion_id: transaccionId,
+        datos_adicionales: {
+          pasajero_rut: pasajeroRut,
+          nota: 'Cobro a recibir en efectivo del pasajero'
+        }
+      });
+      
+      return {
+        metodo: 'efectivo',
+        monto: monto,
+        estado: 'pendiente_efectivo',
+        transaccion_id: transaccionId,
+        nota: 'Pago a realizar en efectivo al conductor'
+      };
+    }
+
+    throw new Error(`Método de pago no soportado: ${informacionPago.metodo}`);
+
+  } catch (error) {
+    console.error('❌ Error en procesarPagoViaje:', error.message);
+    console.error('📋 Stack trace:', error.stack);
+    throw error;
   }
 }
 
@@ -1174,6 +1475,124 @@ export async function unirseAViaje(req, res) {
 
   } catch (error) {
     console.error("Error al solicitar unirse al viaje:", error);
+    handleErrorServer(res, 500, "Error interno del servidor");
+  }
+}
+
+/**
+ * Unirse a viaje con información de pago - crea una solicitud con método de pago
+ */
+export async function unirseAViajeConPago(req, res) {
+  try {
+    const { viajeId } = req.params;
+    const { metodo_pago, datos_pago, pasajeros_solicitados = 1, mensaje } = req.body;
+    const userRut = req.user.rut;
+
+    console.log(`💰 Solicitando unirse al viaje ${viajeId} con pago: ${metodo_pago} por usuario ${userRut}`);
+
+    // Validar método de pago
+    if (!['saldo', 'tarjeta', 'efectivo'].includes(metodo_pago)) {
+      console.log(`❌ Método de pago inválido: ${metodo_pago}`);
+      return handleErrorServer(res, 400, "Método de pago no válido");
+    }
+
+    // Buscar el viaje en MongoDB
+    const viaje = await Viaje.findById(viajeId);
+    if (!viaje) {
+      console.log(`❌ Viaje ${viajeId} no encontrado`);
+      return handleErrorServer(res, 404, "Viaje no encontrado");
+    }
+
+    console.log(`📋 Viaje encontrado. Conductor: ${viaje.usuario_rut}, Precio: ${viaje.precio}`);
+
+    // Verificar que el usuario no es el conductor
+    if (viaje.usuario_rut === userRut) {
+      console.log(`❌ Usuario ${userRut} es el conductor, no puede unirse a su propio viaje`);
+      return handleErrorServer(res, 400, "No puedes unirte a tu propio viaje");
+    }
+
+    // Verificar que el usuario no está ya en el viaje
+    const yaEsPasajero = viaje.pasajeros.some(p => p.usuario_rut === userRut);
+    if (yaEsPasajero) {
+      console.log(`❌ Usuario ${userRut} ya está en este viaje`);
+      return handleErrorServer(res, 400, "Ya estás registrado en este viaje");
+    }
+
+    // Verificar que hay espacio disponible
+    if (viaje.pasajeros.length >= viaje.maxPasajeros) {
+      console.log(`❌ Viaje ${viajeId} está lleno`);
+      return handleErrorServer(res, 400, "El viaje está completo");
+    }
+
+    // Verificar que el viaje esté en estado apropiado
+    if (!['activo', 'confirmado'].includes(viaje.estado)) {
+      console.log(`❌ Viaje ${viajeId} no está disponible para unirse (estado: ${viaje.estado})`);
+      return handleErrorServer(res, 400, "Este viaje no está disponible para nuevos pasajeros");
+    }
+
+    // Validaciones específicas por método de pago
+    let informacionPago = {
+      metodo: metodo_pago,
+      monto: viaje.precio,
+      estado: 'pendiente'
+    };
+
+    if (metodo_pago === 'saldo') {
+      // Importar el servicio de usuario para verificar saldo
+      const { getUserService } = await import('../services/user.service.js');
+      const usuarioResult = await getUserService({ rut: userRut });
+      
+      if (usuarioResult[0] === null) {
+        console.log(`❌ Usuario ${userRut} no encontrado:`, usuarioResult[1]);
+        return handleErrorServer(res, 404, "Usuario no encontrado");
+      }
+
+      const usuario = usuarioResult[0];
+      const saldoUsuario = parseFloat(usuario.saldo || 0);
+      console.log(`💰 Saldo del usuario: ${saldoUsuario}, Precio del viaje: ${viaje.precio}`);
+      
+      if (saldoUsuario < viaje.precio) {
+        console.log(`❌ Saldo insuficiente: ${saldoUsuario} < ${viaje.precio}`);
+        return handleErrorServer(res, 400, "Saldo insuficiente para este viaje");
+      }
+
+      informacionPago.saldo_disponible = saldoUsuario;
+    } else if (metodo_pago === 'tarjeta') {
+      if (!datos_pago || !datos_pago.tarjeta) {
+        return handleErrorServer(res, 400, "Información de tarjeta requerida");
+      }
+
+      informacionPago.tarjeta = {
+        numero: `**** ${datos_pago.tarjeta.numero.slice(-4)}`,
+        tipo: datos_pago.tarjeta.tipo,
+        titular: datos_pago.tarjeta.nombreTitular
+      };
+    }
+
+    // Crear la solicitud de notificación con información de pago
+    const { crearSolicitudViaje } = await import('../services/notificacion.service.js');
+    
+    await crearSolicitudViaje({
+      conductorRut: viaje.usuario_rut,
+      pasajeroRut: userRut,
+      viajeId: viajeId,
+      mensaje: mensaje || `Solicitud para unirse al viaje de ${viaje.origen} a ${viaje.destino}`,
+      informacionPago: informacionPago
+    });
+
+    console.log(`✅ Solicitud de viaje con pago creada exitosamente para ${userRut} → ${viaje.usuario_rut}`);
+    console.log(`💳 Método de pago: ${metodo_pago}, Monto: ${viaje.precio}`);
+
+    handleSuccess(res, 200, "Solicitud con información de pago enviada al conductor. Espera su respuesta.", {
+      viajeId: viaje._id,
+      estado: 'pendiente',
+      metodo_pago: metodo_pago,
+      monto: viaje.precio,
+      mensaje: 'Tu solicitud con información de pago ha sido enviada al conductor'
+    });
+
+  } catch (error) {
+    console.error("Error al solicitar unirse al viaje con pago:", error);
     handleErrorServer(res, 500, "Error interno del servidor");
   }
 }

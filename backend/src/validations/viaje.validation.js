@@ -89,6 +89,17 @@ export const unirseViajeValidation = Joi.object({
   mensaje: Joi.string().max(500).allow('')
 });
 
+// Validación para unirse a viaje con pago
+export const unirseViajeConPagoValidation = Joi.object({
+  pasajeros_solicitados: Joi.number().integer().min(1).max(8).default(1),
+  mensaje: Joi.string().max(500).allow(''),
+  metodo_pago: Joi.string().valid('saldo', 'tarjeta', 'efectivo').required().messages({
+    'any.required': 'El método de pago es requerido',
+    'any.only': 'El método de pago debe ser: saldo, tarjeta o efectivo'
+  }),
+  datos_pago: Joi.object().allow(null)
+});
+
 // Validación para obtener viajes del mapa
 export const viajesMapaValidation = Joi.object({
   fecha_desde: Joi.date().allow(''),

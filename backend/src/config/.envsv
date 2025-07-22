@@ -11,6 +11,3 @@ cookieKey= 0603c005c10a0e813ac00c56e85b714ca3e1a45adff9f729505b9cc6844ebc524bbda
 GMAIL_USER= biorutaoficial@gmail.com
 GMAIL_APP_PASS= bvoc lidy sdua wgqe
 
-MONGO_URI=mongodb+srv://admin:root@biorutamongo.tphgmlc.mongodb.net/bioruta?retryWrites=true&w=majority
-MERCADO_PAGO_ACCESS_TOKEN = TEST-5373276182271282-062000-37c5afda07e978bac40128ad19b5d93a-203834388  
-MERCADO_PAGO_PUBLIC_KEY = TEST-c2c368c7-0074-47ba-9c4e-ab45a8060118

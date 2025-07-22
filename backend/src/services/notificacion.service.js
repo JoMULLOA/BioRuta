@@ -174,6 +174,15 @@ export async function responderSolicitudViajeService(notificacionId, aceptar, ru
       return [null, "Solicitud de viaje no encontrada"];
     }
 
+    console.log(`🔍 Procesando respuesta a solicitud de viaje. Aceptar: ${aceptar}`);
+    console.log(`📄 Datos de la notificación:`, JSON.stringify({
+      id: notificacion.id,
+      rutEmisor: notificacion.rutEmisor,
+      rutReceptor: notificacion.rutReceptor,
+      viajeId: notificacion.viajeId,
+      datos: notificacion.datos
+    }, null, 2));
+
     // Marcar la notificación como leída
     notificacion.leida = true;
     await notificacionRepository.save(notificacion);
@@ -199,6 +208,32 @@ export async function responderSolicitudViajeService(notificacionId, aceptar, ru
         return [null, "El pasajero ya está registrado en este viaje"];
       }
 
+      // **PROCESAR PAGO SI HAY INFORMACIÓN DE PAGO**
+      let resultadoPago = null;
+      if (notificacion.datos && notificacion.datos.pago) {
+        console.log(`💳 ¡INFORMACIÓN DE PAGO ENCONTRADA EN NOTIFICACIÓN! Procesando pago para pasajero ${notificacion.rutEmisor}: ${JSON.stringify(notificacion.datos.pago)}`);
+        
+        try {
+          // Importar la función de procesamiento de pago
+          const { procesarPagoViajeService } = await import('./pago.service.js');
+          
+          resultadoPago = await procesarPagoViajeService({
+            pasajeroRut: notificacion.rutEmisor,
+            conductorRut: rutUsuario,
+            viajeId: notificacion.viajeId,
+            monto: notificacion.datos.pago.monto,
+            descripcion: "Pago por viaje compartido"
+          });
+          
+          console.log(`✅ ¡PAGO PROCESADO EXITOSAMENTE EN NOTIFICACIÓN!: ${JSON.stringify(resultadoPago)}`);
+        } catch (pagoError) {
+          console.error(`❌ ERROR AL PROCESAR PAGO EN NOTIFICACIÓN:`, pagoError);
+          return [null, `Error al procesar el pago: ${pagoError.message}`];
+        }
+      } else {
+        console.log(`⚠️ NO SE ENCONTRÓ INFORMACIÓN DE PAGO en la notificación`);
+      }
+
       // Agregar al pasajero al viaje
       viaje.pasajeros.push({
         usuario_rut: notificacion.rutEmisor,
@@ -219,14 +254,41 @@ export async function responderSolicitudViajeService(notificacionId, aceptar, ru
         console.log(`✅ Pasajero ${notificacion.rutEmisor} agregado EXITOSAMENTE al chat grupal del viaje ${notificacion.viajeId}`);
       } catch (chatError) {
         console.error(`❌ ERROR al agregar pasajero ${notificacion.rutEmisor} al chat grupal del viaje ${notificacion.viajeId}:`, chatError.message);
+        
+        // Si el chat grupal no existe, intentamos crearlo
+        if (chatError.message.includes("Chat grupal no encontrado")) {
+          console.log(`� Intentando crear chat grupal para el viaje ${notificacion.viajeId}`);
+          try {
+            const { crearChatGrupal } = await import('../services/chatGrupal.service.js');
+            await crearChatGrupal(notificacion.viajeId, rutUsuario);
+            console.log(`✅ Chat grupal creado para viaje ${notificacion.viajeId}`);
+            
+            // Intentar agregar al participante nuevamente
+            const { agregarParticipante } = await import('../services/chatGrupal.service.js');
+            await agregarParticipante(notificacion.viajeId, notificacion.rutEmisor);
+            console.log(`✅ Pasajero ${notificacion.rutEmisor} agregado al chat grupal después de crearlo`);
+          } catch (crearError) {
+            console.error(`❌ ERROR CRÍTICO: No se pudo crear ni agregar al chat grupal:`, crearError.message);
+            throw new Error(`Error crítico en chat grupal: ${crearError.message}`);
+          }
+        } else {
+          throw chatError;
+        }
       }
       
-      return [{ 
+      const response = { 
         mensaje: "Solicitud de viaje aceptada y pasajero agregado", 
         aceptado: true,
         viajeId: notificacion.viajeId,
-        pasajeroRut: notificacion.rutEmisor 
-      }, null];
+        pasajeroRut: notificacion.rutEmisor
+      };
+
+      // Agregar información de pago si se procesó
+      if (resultadoPago) {
+        response.pago = resultadoPago;
+      }
+      
+      return [response, null];
     } else {
       console.log(`❌ Solicitud de viaje rechazada para ${notificacion.rutEmisor} en viaje ${notificacion.viajeId}`);
       return [{ mensaje: "Solicitud de viaje rechazada", aceptado: false }, null];
@@ -240,7 +302,7 @@ export async function responderSolicitudViajeService(notificacionId, aceptar, ru
 /**
  * Crear una solicitud de viaje (notificación)
  */
-export async function crearSolicitudViaje({ conductorRut, pasajeroRut, viajeId, mensaje }) {
+export async function crearSolicitudViaje({ conductorRut, pasajeroRut, viajeId, mensaje, informacionPago }) {
   try {
     const notificacionRepository = AppDataSource.getRepository(Notificacion);
     
@@ -267,20 +329,29 @@ export async function crearSolicitudViaje({ conductorRut, pasajeroRut, viajeId, 
       throw new Error("Viaje no encontrado");
     }
 
+    // Preparar datos de la notificación
+    const datosNotificacion = {
+      origen: viaje.origen.nombre,
+      destino: viaje.destino.nombre,
+      fecha: viaje.fecha_ida,
+      hora: viaje.hora_ida
+    };
+
+    // Agregar información de pago si está presente
+    if (informacionPago) {
+      datosNotificacion.pago = informacionPago;
+      console.log(`💳 Solicitud incluye información de pago: ${informacionPago.metodo} por $${informacionPago.monto}`);
+    }
+
     // Crear nueva notificación
     const nuevaNotificacion = notificacionRepository.create({
       rutEmisor: pasajeroRut,
       rutReceptor: conductorRut,
       tipo: 'solicitud_viaje',
-      titulo: 'Nueva solicitud de viaje',
+      titulo: informacionPago ? 'Nueva solicitud de viaje con pago' : 'Nueva solicitud de viaje',
       mensaje: mensaje || `Solicitud para unirse al viaje de ${viaje.origen.nombre} a ${viaje.destino.nombre}`,
       viajeId: viajeId,
-      datos: {
-        origen: viaje.origen.nombre,
-        destino: viaje.destino.nombre,
-        fecha: viaje.fecha_ida,
-        hora: viaje.hora_ida
-      },
+      datos: datosNotificacion,
       fechaCreacion: new Date(),
       leida: false
     });
@@ -288,6 +359,9 @@ export async function crearSolicitudViaje({ conductorRut, pasajeroRut, viajeId, 
     await notificacionRepository.save(nuevaNotificacion);
     
     console.log(`✅ Solicitud de viaje creada: ${pasajeroRut} → ${conductorRut} para viaje ${viajeId}`);
+    if (informacionPago) {
+      console.log(`💰 Con información de pago: ${informacionPago.metodo} - $${informacionPago.monto}`);
+    }
     
     return nuevaNotificacion;
   } catch (error) {

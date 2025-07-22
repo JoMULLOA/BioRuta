@@ -1,62 +1,49 @@
 "use strict";
 import express from "express";
 import {
-  crearPago,
-  verificarPago,
-  obtenerMisPagos,
-  webhookMercadoPago,
-  cancelarPagoController,
-  obtenerEstadoPago,
-  verificarConfiguracion,
-  probarConexion,
+  crearPagoController,
+  verificarPagoController,
+  obtenerMisPagosController,
+  actualizarEstadoPagoController,
+  obtenerPagosPorViajeController,
 } from "../controllers/pago.controller.js";
 import { authenticateJwt } from "../middlewares/authentication.middleware.js";
-import { validationMiddleware } from "../middlewares/validation.middleware.js";
-import {
-  crearPagoValidation,
-  paymentIdValidation,
-  pagoIdValidation,
-} from "../validations/pago.validation.js";
 
 const router = express.Router();
 
-// Webhook de MercadoPago (no requiere autenticación)
-router.post("/webhook", webhookMercadoPago);
-
-// Endpoint de verificación (no requiere autenticación para testing)
-router.get("/verificar-config", verificarConfiguracion);
-
-// Endpoint de prueba de conexión (no requiere autenticación para testing)
-router.post("/probar-conexion", probarConexion);
-
-// Middleware de autenticación para todas las demás rutas
-router.use(authenticateJwt);
-
-// Rutas protegidas
+// Crear un nuevo pago
 router.post(
   "/crear",
-  validationMiddleware(crearPagoValidation),
-  crearPago
+  authenticateJwt,
+  crearPagoController
 );
 
+// Verificar estado de un pago específico
 router.get(
-  "/verificar/:paymentId",
-  validationMiddleware(paymentIdValidation, "params"),
-  verificarPago
+  "/:paymentId",
+  authenticateJwt,
+  verificarPagoController
 );
 
-router.get("/mis-pagos", obtenerMisPagos);
+// Actualizar estado de un pago manualmente
+router.put(
+  "/:paymentId/estado",
+  authenticateJwt,
+  actualizarEstadoPagoController
+);
 
+// Obtener mis pagos del usuario autenticado
 router.get(
-  "/estado/:pagoId",
-  validationMiddleware(pagoIdValidation, "params"),
-  obtenerEstadoPago
+  "/",
+  authenticateJwt,
+  obtenerMisPagosController
 );
 
-router.patch(
-  "/cancelar/:pagoId",
-  validationMiddleware(pagoIdValidation, "params"),
-  cancelarPagoController
+// Obtener todos los pagos de un viaje (para el conductor)
+router.get(
+  "/viaje/:viajeId",
+  authenticateJwt,
+  obtenerPagosPorViajeController
 );
 
 export default router;

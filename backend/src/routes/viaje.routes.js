@@ -5,6 +5,7 @@ import {
   buscarViajesPorProximidad, 
   obtenerViajesParaMapa,
   unirseAViaje,
+  unirseAViajeConPago,
   obtenerViajesUsuario,
   cancelarViaje,
   eliminarViaje,
@@ -17,6 +18,7 @@ import {
   viajeBodyValidation,
   busquedaProximidadValidation,
   unirseViajeValidation,
+  unirseViajeConPagoValidation,
   viajesMapaValidation,
   viajesRadarValidation
 } from "../validations/viaje.validation.js";
@@ -55,6 +57,14 @@ router.post(
   authenticateJwt,
   validateBody(unirseViajeValidation),
   unirseAViaje
+);
+
+// Unirse a un viaje con pago - POST /api/viajes/:viajeId/unirse-con-pago
+router.post(
+  "/:viajeId/unirse-con-pago", 
+  authenticateJwt,
+  validateBody(unirseViajeConPagoValidation),
+  unirseAViajeConPago
 );
 
 // Obtener viajes del usuario - GET /api/viajes/mis-viajes

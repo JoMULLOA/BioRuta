@@ -272,3 +272,47 @@ export async function actualizarTokenFCM(req, res) {
     handleErrorServer(res, 500, error.message);
   }
 }
+
+export async function getHistorialTransacciones(req, res) {
+  try {
+    const { email } = req.query;
+
+    if (!email) {
+      return handleErrorClient(res, 400, "Email requerido");
+    }
+
+    // Obtener el RUT del usuario por email
+    const [userData, userError] = await getUserService({ email });
+    if (userError) {
+      return handleErrorClient(res, 404, "Usuario no encontrado");
+    }
+
+    // Obtener el historial de transacciones
+    const { obtenerHistorialTransaccionesService } = await import('../services/transaccion.service.js');
+    const [historial, historialError] = await obtenerHistorialTransaccionesService(userData.rut);
+
+    if (historialError) {
+      console.error("Error al obtener historial:", historialError);
+      // Si hay error, devolver historial vacío
+      return handleSuccess(res, 200, "Historial de transacciones obtenido", []);
+    }
+
+    // Formatear las transacciones para el frontend
+    const historialFormateado = historial.map(transaccion => ({
+      id: transaccion.id,
+      tipo: transaccion.tipo,
+      concepto: transaccion.concepto,
+      monto: parseFloat(transaccion.monto),
+      fecha: transaccion.fecha,
+      estado: transaccion.estado,
+      metodo_pago: transaccion.metodo_pago,
+      viaje_id: transaccion.viaje_id,
+      transaccion_id: transaccion.transaccion_id
+    }));
+
+    handleSuccess(res, 200, "Historial de transacciones obtenido", historialFormateado);
+  } catch (error) {
+    console.error("Error en getHistorialTransacciones:", error);
+    handleErrorServer(res, 500, error.message);
+  }
+}
