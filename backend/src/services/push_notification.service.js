@@ -108,6 +108,31 @@ class WebSocketNotificationService {
   }
 
   /**
+   * Enviar notificación de solicitud de viaje
+   */
+  static async enviarSolicitudViaje(io, rutConductor, nombrePasajero, rutPasajero, datosViaje) {
+    return await this.enviarNotificacionAUsuario(
+      io,
+      rutConductor,
+      '🚗 Nueva solicitud de viaje',
+      `${nombrePasajero} quiere unirse a tu viaje de ${datosViaje.origen} a ${datosViaje.destino}`,
+      {
+        tipo: 'solicitud_viaje',
+        rutEmisor: rutPasajero,
+        nombreEmisor: nombrePasajero,
+        viajeId: datosViaje.viajeId,
+        origen: datosViaje.origen,
+        destino: datosViaje.destino,
+        precio: datosViaje.precio,
+        fechaViaje: datosViaje.fechaViaje,
+        horaViaje: datosViaje.horaViaje,
+        pago: datosViaje.pago || null,
+        accion: 'abrir_solicitudes_pasajeros'
+      }
+    );
+  }
+
+  /**
    * Enviar notificación de nuevo viaje
    */
   static async enviarNuevoViaje(io, rutUsuario, nombreConductor, origen, destino, viajeId) {

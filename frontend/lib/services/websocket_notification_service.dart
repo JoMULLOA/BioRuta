@@ -160,6 +160,11 @@ class WebSocketNotificationService {
         _handleFriendRequestNotification(data);
       });
       
+      _socket!.on('solicitud_viaje', (data) {
+        print('🚗 solicitud_viaje recibida: $data');
+        _handleTripRequestNotification(data);
+      });
+      
       _socket!.on('amistad_aceptada', (data) {
         print('🎉 amistad_aceptada recibida: $data');
         _handleFriendAcceptedNotification(data);
@@ -188,6 +193,9 @@ class WebSocketNotificationService {
         } else if (tipo == 'solicitud_amistad') {
           print('👋 Saltando solicitud_amistad en nueva_notificacion (ya procesada)');
           // No procesar para evitar duplicados
+        } else if (tipo == 'solicitud_viaje') {
+          print('🚗 *** PROCESANDO solicitud_viaje desde nueva_notificacion ***');
+          _handleTripRequestNotification(data);
         } else {
           print('📝 Procesando notificación genérica');
           _handleIncomingNotification(data);
@@ -233,6 +241,55 @@ class WebSocketNotificationService {
     }
   }
   
+  /// Manejar notificación de solicitud de viaje
+  static void _handleTripRequestNotification(dynamic data) {
+    try {
+      print('🚗 *** PROCESANDO SOLICITUD DE VIAJE ***: $data');
+      
+      final notification = data is String ? json.decode(data) : data;
+      print('🚗 *** DATOS PARSEADOS VIAJE ***: $notification');
+      
+      // Extraer información de la solicitud de viaje
+      final rutEmisor = notification['rutEmisor'] ?? '';
+      final nombreEmisor = notification['nombreEmisor'] ?? 'Usuario desconocido';
+      final origen = notification['datos']?['origen'] ?? 'Origen desconocido';
+      final destino = notification['datos']?['destino'] ?? 'Destino desconocido';
+      final precio = notification['datos']?['precio'] ?? 0;
+      
+      print('🚗 *** MOSTRANDO NOTIFICACIÓN DE SOLICITUD DE VIAJE ***');
+      print('🚗 Emisor: $nombreEmisor (RUT: $rutEmisor)');
+      print('🚗 Viaje: $origen → $destino (\$$precio)');
+      
+      _showLocalNotification(
+        title: '🚗 Nueva solicitud de viaje',
+        body: '$nombreEmisor quiere unirse a tu viaje $origen → $destino (\$$precio)',
+        payload: json.encode({
+          'tipo': 'solicitud_viaje',
+          'rutEmisor': rutEmisor,
+          'nombreEmisor': nombreEmisor,
+          'origen': origen,
+          'destino': destino,
+          'precio': precio,
+          'viajeId': notification['viajeId'],
+        }),
+        isTripRequest: true,
+      );
+      
+      print('✅ Notificación de solicitud de viaje procesada correctamente');
+    } catch (e) {
+      print('❌ Error procesando solicitud de viaje: $e');
+      print('❌ Data recibida: $data');
+      
+      // Fallback: mostrar notificación genérica
+      _showLocalNotification(
+        title: '🚗 Nueva solicitud de viaje',
+        body: 'Tienes una nueva solicitud para tu viaje',
+        payload: json.encode({'tipo': 'solicitud_viaje_fallback'}),
+        isTripRequest: true,
+      );
+    }
+  }
+
   /// Manejar notificación de solicitud de amistad
   static void _handleFriendRequestNotification(dynamic data) {
     try {
@@ -347,6 +404,7 @@ class WebSocketNotificationService {
     required String title,
     required String body,
     String? payload,
+    bool isTripRequest = false,
   }) async {
     try {
       print('🔔 *** INTENTANDO MOSTRAR NOTIFICACIÓN ***: $title - $body');
@@ -366,12 +424,21 @@ class WebSocketNotificationService {
         print('🔔 *** PERMISOS DE NOTIFICACIONES HABILITADOS ***: $enabled');
       }
       
-      // Determinar si es una solicitud de amistad para agregar botones
-      bool esSolicitudAmistad = false;
+      // Determinar si es una solicitud (amistad o viaje) para agregar botones
+      bool esSolicitud = isTripRequest;
+      String tipoSolicitud = 'generico';
+      
       try {
         if (payload != null) {
           final data = json.decode(payload);
-          esSolicitudAmistad = data['tipo'] == 'solicitud_amistad';
+          final tipo = data['tipo'];
+          if (tipo == 'solicitud_amistad') {
+            esSolicitud = true;
+            tipoSolicitud = 'amistad';
+          } else if (tipo == 'solicitud_viaje') {
+            esSolicitud = true;
+            tipoSolicitud = 'viaje';
+          }
         }
       } catch (e) {
         print('❌ Error parseando payload para determinar tipo: $e');
@@ -379,8 +446,42 @@ class WebSocketNotificationService {
       
       AndroidNotificationDetails androidNotificationDetails;
       
-      if (esSolicitudAmistad) {
-        // Notificación con botón "Ver solicitud" únicamente
+      if (esSolicitud) {
+        // Notificación con botones de acción según el tipo
+        List<AndroidNotificationAction> actions = [];
+        
+        if (tipoSolicitud == 'amistad') {
+          actions = [
+            AndroidNotificationAction(
+              'view_request',
+              'Ver solicitud',
+              showsUserInterface: true,
+              cancelNotification: true,
+            ),
+          ];
+        } else if (tipoSolicitud == 'viaje') {
+          actions = [
+            AndroidNotificationAction(
+              'accept_trip',
+              'Aceptar',
+              showsUserInterface: true,
+              cancelNotification: true,
+            ),
+            AndroidNotificationAction(
+              'reject_trip',
+              'Rechazar',
+              showsUserInterface: true,
+              cancelNotification: true,
+            ),
+            AndroidNotificationAction(
+              'view_trip_request',
+              'Ver detalles',
+              showsUserInterface: true,
+              cancelNotification: true,
+            ),
+          ];
+        }
+        
         androidNotificationDetails = AndroidNotificationDetails(
           'bioruta_channel',
           'BioRuta Notificaciones',
@@ -388,28 +489,21 @@ class WebSocketNotificationService {
           importance: Importance.max,
           priority: Priority.high,
           icon: '@mipmap/ic_launcher',
-          color: Color(0xFF2E7D32),
+          color: tipoSolicitud == 'viaje' ? Color(0xFF854937) : Color(0xFF2E7D32),
           enableVibration: true,
           playSound: true,
           showWhen: true,
           channelShowBadge: true,
           onlyAlertOnce: false,
-          autoCancel: false, // No auto-cancelar para que el usuario pueda ver el botón
+          autoCancel: false, // No auto-cancelar para que el usuario pueda ver los botones
           ongoing: false,
           silent: false,
           enableLights: true,
-          ledColor: Color(0xFF2E7D32),
+          ledColor: tipoSolicitud == 'viaje' ? Color(0xFF854937) : Color(0xFF2E7D32),
           ledOnMs: 1000,
           ledOffMs: 500,
           ticker: 'BioRuta',
-          actions: [
-            AndroidNotificationAction(
-              'view_request',
-              'Ver solicitud',
-              showsUserInterface: true,
-              cancelNotification: true, // Cancelar la notificación al presionar
-            ),
-          ],
+          actions: actions,
         );
       } else {
         // Notificación normal sin botones

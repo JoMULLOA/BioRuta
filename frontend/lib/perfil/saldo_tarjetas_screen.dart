@@ -57,6 +57,11 @@ class _SaldoTarjetasScreenState extends State<SaldoTarjetasScreen>
     }
   }
 
+  // Método público para recargar datos desde otras pantallas
+  Future<void> recargarDatos() async {
+    await _cargarDatos();
+  }
+
   Future<void> _cargarSaldo() async {
     try {
       final token = await TokenManager.getValidToken();
@@ -802,31 +807,56 @@ class _SaldoTarjetasScreenState extends State<SaldoTarjetasScreen>
       ),
       child: Column(
         children: [
-          // Botón para agregar tarjeta
+          // Botones de acción
           Padding(
             padding: const EdgeInsets.all(16),
-            child: SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: _mostrarDialogoAgregarTarjeta,
-                icon: const Icon(Icons.add),
-                label: const Text(
-                  'Agregar Tarjeta',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
+            child: Row(
+              children: [
+                // Botón para agregar tarjeta
+                Expanded(
+                  flex: 3,
+                  child: ElevatedButton.icon(
+                    onPressed: _mostrarDialogoAgregarTarjeta,
+                    icon: const Icon(Icons.add),
+                    label: const Text(
+                      'Agregar Tarjeta',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      backgroundColor: const Color(0xFF8D4F3A),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 2,
+                    ),
                   ),
                 ),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  backgroundColor: const Color(0xFF8D4F3A),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                const SizedBox(width: 12),
+                // Botón para recargar
+                Container(
+                  height: 48,
+                  child: IconButton(
+                    onPressed: () async {
+                      await _cargarDatos();
+                      _mostrarMensaje('Datos actualizados');
+                    },
+                    icon: const Icon(Icons.refresh),
+                    style: IconButton.styleFrom(
+                      backgroundColor: const Color(0xFF8D4F3A).withOpacity(0.1),
+                      foregroundColor: const Color(0xFF8D4F3A),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    tooltip: 'Actualizar límites',
                   ),
-                  elevation: 2,
                 ),
-              ),
+              ],
             ),
           ),
           

@@ -246,9 +246,9 @@ export async function procesarPagoBasico(datosPago) {
  */
 export async function procesarPagoViajeService(datosPago) {
   try {
-    const { viajeId, pasajeroRut, conductorRut, monto, descripcion = "Pago por viaje" } = datosPago;
+    const { viajeId, pasajeroRut, conductorRut, monto, descripcion = "Pago por viaje", metodoPago = 'saldo', tarjetaInfo = null } = datosPago;
 
-    console.log("🔄 Iniciando procesamiento de pago del viaje:", { viajeId, pasajeroRut, conductorRut, monto });
+    console.log("🔄 Iniciando procesamiento de pago del viaje:", { viajeId, pasajeroRut, conductorRut, monto, metodoPago });
 
     // Obtener repositorios
     const userRepository = AppDataSource.getRepository("User");
@@ -270,32 +270,106 @@ export async function procesarPagoViajeService(datosPago) {
       conductor: { rut: conductor.rut, saldo: conductor.saldo }
     });
 
-    // Validar saldo
     const montoNumerico = parseFloat(monto);
     const saldoPasajero = parseFloat(pasajero.saldo);
     const saldoConductor = parseFloat(conductor.saldo);
-    
-    if (saldoPasajero < montoNumerico) {
-      console.error("❌ Saldo insuficiente:", { saldoActual: saldoPasajero, montoRequerido: montoNumerico });
-      return { success: false, message: "Saldo insuficiente" };
+
+    // Validar método de pago
+    if (metodoPago === 'saldo') {
+      if (saldoPasajero < montoNumerico) {
+        console.error("❌ Saldo insuficiente:", { saldoActual: saldoPasajero, montoRequerido: montoNumerico });
+        return { success: false, message: "Saldo insuficiente" };
+      }
+    } else if (metodoPago === 'tarjeta') {
+      // Para pagos con tarjeta, validar que hay límite de crédito disponible
+      if (!tarjetaInfo) {
+        console.error("❌ Información de tarjeta requerida para pago con tarjeta");
+        return { success: false, message: "Información de tarjeta requerida" };
+      }
+      
+      const limiteCredito = parseFloat(tarjetaInfo.limiteCredito || 0);
+      if (limiteCredito < montoNumerico) {
+        console.error("❌ Límite de crédito insuficiente:", { limiteDisponible: limiteCredito, montoRequerido: montoNumerico });
+        return { success: false, message: "Límite de crédito insuficiente en la tarjeta" };
+      }
+      
+      console.log("💳 Pago con tarjeta validado:", { 
+        tarjeta: tarjetaInfo.numero.slice(-4), 
+        limite: limiteCredito, 
+        monto: montoNumerico 
+      });
     }
 
     // Realizar la transacción
     await AppDataSource.transaction(async manager => {
-      // Actualizar saldos (convertir a números y asegurar la operación correcta)
-      const nuevoSaldoPasajero = saldoPasajero - montoNumerico;
-      const nuevoSaldoConductor = saldoConductor + montoNumerico;
+      let nuevoSaldoPasajero = saldoPasajero;
+      let nuevoSaldoConductor = saldoConductor;
+      let descripcionPago = "";
       
-      pasajero.saldo = nuevoSaldoPasajero;
-      conductor.saldo = nuevoSaldoConductor;
-
-      await manager.save("User", pasajero);
-      await manager.save("User", conductor);
-
-      console.log("💰 Saldos actualizados:", {
-        pasajero: { rut: pasajero.rut, nuevoSaldo: nuevoSaldoPasajero },
-        conductor: { rut: conductor.rut, nuevoSaldo: nuevoSaldoConductor }
-      });
+      if (metodoPago === 'saldo') {
+        // Pago con saldo: descontar del pasajero y agregar al conductor
+        nuevoSaldoPasajero = saldoPasajero - montoNumerico;
+        nuevoSaldoConductor = saldoConductor + montoNumerico;
+        descripcionPago = "Pago desde saldo";
+        
+        pasajero.saldo = nuevoSaldoPasajero;
+        conductor.saldo = nuevoSaldoConductor;
+        
+        await manager.save("User", pasajero);
+        await manager.save("User", conductor);
+        
+        console.log("💰 Saldos actualizados (pago con saldo):", {
+          pasajero: { rut: pasajero.rut, nuevoSaldo: nuevoSaldoPasajero },
+          conductor: { rut: conductor.rut, nuevoSaldo: nuevoSaldoConductor }
+        });
+      } else if (metodoPago === 'tarjeta') {
+        // Pago con tarjeta: solo agregar al conductor (no descontar del pasajero)
+        nuevoSaldoConductor = saldoConductor + montoNumerico;
+        descripcionPago = `Pago con tarjeta ${tarjetaInfo.tipo} terminada en ${tarjetaInfo.numero.slice(-4)}`;
+        
+        conductor.saldo = nuevoSaldoConductor;
+        
+        // Actualizar límite de crédito usado en la tarjeta
+        const tarjetasUsuario = pasajero.tarjetas || [];
+        const tarjetaIndex = tarjetasUsuario.findIndex(t => t.numero === tarjetaInfo.numero);
+        
+        if (tarjetaIndex !== -1) {
+          const tarjetaActual = tarjetasUsuario[tarjetaIndex];
+          const limiteActual = parseFloat(tarjetaActual.limiteCredito || 0);
+          const nuevoLimite = limiteActual - montoNumerico;
+          
+          // Actualizar el límite de crédito de la tarjeta
+          tarjetasUsuario[tarjetaIndex].limiteCredito = Math.max(0, nuevoLimite);
+          pasajero.tarjetas = tarjetasUsuario;
+          
+          console.log(`💳 Límite de crédito actualizado: ${tarjetaInfo.numero.slice(-4)}`);
+          console.log(`   Límite anterior: $${limiteActual}`);
+          console.log(`   Monto descontado: $${montoNumerico}`);
+          console.log(`   Nuevo límite: $${Math.max(0, nuevoLimite)}`);
+          
+          // Guardar el pasajero con las tarjetas actualizadas
+          await manager.save("User", pasajero);
+        } else {
+          console.warn(`⚠️ Tarjeta ${tarjetaInfo.numero.slice(-4)} no encontrada en el perfil del usuario`);
+        }
+        
+        await manager.save("User", conductor);
+        
+        console.log("💳 Saldos actualizados (pago con tarjeta):", {
+          pasajero: { rut: pasajero.rut, saldo: "sin cambios" },
+          conductor: { rut: conductor.rut, nuevoSaldo: nuevoSaldoConductor },
+          tarjeta: tarjetaInfo.numero.slice(-4)
+        });
+      } else if (metodoPago === 'efectivo') {
+        // Pago en efectivo: no hay cambios de saldo, solo registro
+        descripcionPago = "Pago en efectivo (no afecta saldos digitales)";
+        
+        console.log("💵 Pago en efectivo registrado:", {
+          pasajero: { rut: pasajero.rut, saldo: "sin cambios" },
+          conductor: { rut: conductor.rut, saldo: "sin cambios" },
+          nota: "Pago se realizará físicamente"
+        });
+      }
 
       // Crear transacciones para el historial
       const transacciones = [
@@ -304,26 +378,48 @@ export async function procesarPagoViajeService(datosPago) {
           viaje_id: viajeId,
           usuario_rut: pasajeroRut,
           tipo: 'pago',
-          concepto: `${descripcion} - Viaje ID: ${viajeId}`,
+          concepto: `${descripcion} - ${descripcionPago} - Viaje ID: ${viajeId}`,
           monto: montoNumerico,
-          metodo_pago: 'saldo',
+          metodo_pago: metodoPago,
           estado: 'completado',
           fecha: new Date(),
           transaccion_id: null,
-          datos_adicionales: { usuarioDestino: conductorRut }
+          datos_adicionales: { 
+            usuarioDestino: conductorRut,
+            ...(metodoPago === 'tarjeta' && tarjetaInfo ? { 
+              tarjeta: {
+                tipo: tarjetaInfo.tipo,
+                terminacion: tarjetaInfo.numero.slice(-4),
+                banco: tarjetaInfo.banco,
+                limiteAnterior: parseFloat(tarjetaInfo.limiteCredito || 0),
+                limiteNuevo: Math.max(0, parseFloat(tarjetaInfo.limiteCredito || 0) - montoNumerico)
+              }
+            } : {})
+          }
         },
         // Transacción para el conductor (cobro)
         {
           viaje_id: viajeId,
           usuario_rut: conductorRut,
           tipo: 'cobro',
-          concepto: `${descripcion} - Viaje ID: ${viajeId}`,
+          concepto: `${descripcion} - ${descripcionPago} - Viaje ID: ${viajeId}`,
           monto: montoNumerico,
-          metodo_pago: 'saldo',
-          estado: 'completado',
+          metodo_pago: metodoPago,
+          estado: metodoPago === 'efectivo' ? 'pendiente' : 'completado', // Efectivo queda pendiente hasta confirmación física
           fecha: new Date(),
           transaccion_id: null,
-          datos_adicionales: { usuarioOrigen: pasajeroRut }
+          datos_adicionales: { 
+            usuarioOrigen: pasajeroRut,
+            ...(metodoPago === 'tarjeta' && tarjetaInfo ? { 
+              tarjeta: {
+                tipo: tarjetaInfo.tipo,
+                terminacion: tarjetaInfo.numero.slice(-4),
+                banco: tarjetaInfo.banco,
+                limiteAnterior: parseFloat(tarjetaInfo.limiteCredito || 0),
+                limiteNuevo: Math.max(0, parseFloat(tarjetaInfo.limiteCredito || 0) - montoNumerico)
+              }
+            } : {})
+          }
         }
       ];
 
@@ -345,10 +441,11 @@ export async function procesarPagoViajeService(datosPago) {
     console.log("✅ Pago procesado exitosamente");
     return {
       success: true,
-      message: "Pago procesado correctamente",
+      message: `Pago procesado correctamente con ${metodoPago}`,
       data: {
         viajeId,
         monto: montoNumerico,
+        metodoPago,
         pasajero: {
           rut: pasajeroRut,
           nuevoSaldo: pasajero.saldo
@@ -356,7 +453,13 @@ export async function procesarPagoViajeService(datosPago) {
         conductor: {
           rut: conductorRut,
           nuevoSaldo: conductor.saldo
-        }
+        },
+        ...(metodoPago === 'tarjeta' && tarjetaInfo ? {
+          tarjetaUsada: {
+            tipo: tarjetaInfo.tipo,
+            terminacion: tarjetaInfo.numero.slice(-4)
+          }
+        } : {})
       }
     };
 

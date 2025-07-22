@@ -186,6 +186,12 @@ void _mostrarSolicitudesPasajeros() {
           debugPrint('📱 Solicitud procesada - estado de viajes actualizado');
         }
       },
+      onContadorCambiado: () {
+        // Actualizar el contador cuando haya cambios automáticos
+        if (mounted) {
+          _cargarSolicitudesPendientes();
+        }
+      },
     ),
   ).then((_) {
     // Recargar solicitudes al cerrar el modal solo si el widget sigue montado

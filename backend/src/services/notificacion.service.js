@@ -217,12 +217,16 @@ export async function responderSolicitudViajeService(notificacionId, aceptar, ru
           // Importar la función de procesamiento de pago
           const { procesarPagoViajeService } = await import('./pago.service.js');
           
+          const pagoInfo = notificacion.datos.pago;
+          
           resultadoPago = await procesarPagoViajeService({
             pasajeroRut: notificacion.rutEmisor,
             conductorRut: rutUsuario,
             viajeId: notificacion.viajeId,
-            monto: notificacion.datos.pago.monto,
-            descripcion: "Pago por viaje compartido"
+            monto: pagoInfo.monto,
+            descripcion: "Pago por viaje compartido",
+            metodoPago: pagoInfo.metodo || 'saldo',
+            tarjetaInfo: pagoInfo.tarjeta || null
           });
           
           console.log(`✅ ¡PAGO PROCESADO EXITOSAMENTE EN NOTIFICACIÓN!: ${JSON.stringify(resultadoPago)}`);
@@ -245,6 +249,34 @@ export async function responderSolicitudViajeService(notificacionId, aceptar, ru
       await viaje.save();
 
       console.log(`✅ Pasajero ${notificacion.rutEmisor} agregado al viaje ${notificacion.viajeId}`);
+
+      // ENVIAR NOTIFICACIÓN AL PASAJERO DE QUE FUE ACEPTADO
+      try {
+        console.log(`📱 Enviando notificación de viaje aceptado al pasajero ${notificacion.rutEmisor}`);
+        
+        await crearNotificacionService({
+          tipo: 'ride_accepted',
+          titulo: '¡Tu viaje fue aceptado!',
+          mensaje: `El conductor aceptó tu solicitud para el viaje de ${viaje.origen.nombre} a ${viaje.destino.nombre}`,
+          rutReceptor: notificacion.rutEmisor, // El pasajero recibe la notificación
+          rutEmisor: rutUsuario, // El conductor es quien acepta
+          viajeId: notificacion.viajeId,
+          datos: {
+            aceptado: true,
+            origen: viaje.origen.nombre,
+            destino: viaje.destino.nombre,
+            fecha: viaje.fecha_ida,
+            hora: viaje.hora_ida,
+            conductorRut: rutUsuario,
+            mostrarAnimacion: true // Flag para triggear la animación
+          }
+        });
+        
+        console.log(`✅ Notificación de viaje aceptado enviada al pasajero ${notificacion.rutEmisor}`);
+      } catch (notifError) {
+        console.error(`❌ Error enviando notificación de aceptación:`, notifError);
+        // No fallar todo el proceso por error en notificación
+      }
 
       // Intentar agregar al pasajero al chat grupal
       console.log(`🔄 Intentando agregar pasajero ${notificacion.rutEmisor} al chat grupal del viaje ${notificacion.viajeId}`);
@@ -329,12 +361,24 @@ export async function crearSolicitudViaje({ conductorRut, pasajeroRut, viajeId, 
       throw new Error("Viaje no encontrado");
     }
 
+    // Obtener información del pasajero
+    const { getUserService } = await import('./user.service.js');
+    const [pasajero, errorPasajero] = await getUserService({ rut: pasajeroRut });
+    
+    if (errorPasajero || !pasajero) {
+      console.warn(`⚠️ No se pudo obtener información del pasajero ${pasajeroRut}:`, errorPasajero);
+    }
+
     // Preparar datos de la notificación
     const datosNotificacion = {
+      viajeId: viajeId,
+      solicitanteId: pasajeroRut,
+      solicitanteNombre: pasajero ? pasajero.nombreCompleto : 'Usuario',
       origen: viaje.origen.nombre,
       destino: viaje.destino.nombre,
-      fecha: viaje.fecha_ida,
-      hora: viaje.hora_ida
+      precio: viaje.precio,
+      fechaViaje: viaje.fecha_ida,
+      horaViaje: viaje.hora_ida
     };
 
     // Agregar información de pago si está presente
@@ -361,6 +405,39 @@ export async function crearSolicitudViaje({ conductorRut, pasajeroRut, viajeId, 
     console.log(`✅ Solicitud de viaje creada: ${pasajeroRut} → ${conductorRut} para viaje ${viajeId}`);
     if (informacionPago) {
       console.log(`💰 Con información de pago: ${informacionPago.metodo} - $${informacionPago.monto}`);
+    }
+
+    // Enviar notificación WebSocket inmediatamente
+    try {
+      const { getSocketInstance } = await import('../socket.js');
+      const WebSocketNotificationService = (await import('./push_notification.service.js')).default;
+      
+      const io = getSocketInstance();
+      if (io) {
+        const datosParaWebSocket = {
+          viajeId: viajeId,
+          origen: viaje.origen.nombre,
+          destino: viaje.destino.nombre,
+          precio: viaje.precio,
+          fechaViaje: viaje.fecha_ida,
+          horaViaje: viaje.hora_ida,
+          pago: informacionPago || null
+        };
+
+        await WebSocketNotificationService.enviarSolicitudViaje(
+          io,
+          conductorRut,
+          pasajero ? pasajero.nombreCompleto : 'Usuario',
+          pasajeroRut,
+          datosParaWebSocket
+        );
+        
+        console.log(`🔔 Notificación WebSocket enviada a conductor ${conductorRut}`);
+      } else {
+        console.warn('⚠️ Socket.io no disponible para enviar notificación');
+      }
+    } catch (error) {
+      console.error('❌ Error enviando notificación WebSocket:', error);
     }
     
     return nuevaNotificacion;

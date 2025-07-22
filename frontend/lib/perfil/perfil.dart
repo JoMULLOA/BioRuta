@@ -818,18 +818,18 @@ class Perfil_ extends State<Perfil> {
                   Container(
                     margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(15),
+                      borderRadius: BorderRadius.circular(16),
                       gradient: LinearGradient(
-                        colors: [Color(0xFF4CAF50), Color(0xFF2E7D32)],
+                        colors: [secundario, primario],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.grey.withOpacity(0.3),
-                          spreadRadius: 2,
-                          blurRadius: 5,
-                          offset: Offset(0, 3),
+                          color: primario.withOpacity(0.3),
+                          spreadRadius: 1,
+                          blurRadius: 8,
+                          offset: Offset(0, 4),
                         ),
                       ],
                     ),
@@ -841,54 +841,71 @@ class Perfil_ extends State<Perfil> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(
-                                'Saldo y Tarjetas',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Saldo y Tarjetas',
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    SizedBox(height: 4),
+                                    Text(
+                                      'Gestiona tu saldo virtual y tarjetas',
+                                      style: TextStyle(
+                                        color: Colors.white.withOpacity(0.9),
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                              Icon(Icons.account_balance_wallet, color: Colors.white),
+                              Container(
+                                padding: EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Icon(
+                                  Icons.account_balance_wallet,
+                                  color: Colors.white,
+                                  size: 24,
+                                ),
+                              ),
                             ],
                           ),
-                          SizedBox(height: 8),
-                          Text(
-                            'Gestiona tu saldo virtual y tarjetas de prueba',
-                            style: TextStyle(
-                              color: Colors.white70,
-                              fontSize: 14,
-                            ),
-                          ),
-                          SizedBox(height: 4),
-                          Container(
-                            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: Colors.orange,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Text(
-                              'SANDBOX',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
                           SizedBox(height: 12),
-                          ElevatedButton.icon(
-                            onPressed: () => _navigateToSaldoTarjetas(context),
-                            icon: Icon(Icons.credit_card, size: 20),
-                            label: Text('Gestionar Pagos'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.white,
-                              foregroundColor: Color(0xFF2E7D32),
-                              padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
+                          Row(
+                            children: [
+                            ],
+                          ),
+                          SizedBox(height: 16),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: () => _navigateToSaldoTarjetas(context),
+                              icon: Icon(Icons.credit_card, size: 20),
+                              label: Text(
+                                'Gestionar Pagos',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
-                              elevation: 2,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.white,
+                                foregroundColor: primario,
+                                padding: EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                elevation: 3,
+                                shadowColor: Colors.black.withOpacity(0.2),
+                              ),
                             ),
                           ),
                         ],

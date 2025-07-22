@@ -7,6 +7,8 @@ import 'package:permission_handler/permission_handler.dart';
 import '../widgets/navbar_con_sos_dinamico.dart';
 import '../widgets/radar_animation_widget.dart';
 import '../widgets/metodo_pago_modal.dart';
+import '../widgets/animacion_viaje_aceptado.dart';
+import '../services/notificacion_service.dart';
 import '../models/direccion_sugerida.dart';
 import '../models/marcador_viaje_model.dart';
 import '../services/ubicacion_service.dart';
@@ -71,6 +73,10 @@ class _MapPageState extends State<MapPage> {
   List<String> _marcadoresViajesIds = []; // Para trackear marcadores añadidos
   Map<String, String> _marcadorViajeMap = {}; // Mapea ID de marcador con ID de viaje
 
+  // Variables para notificaciones de viaje aceptado
+  Timer? _notificacionTimer;
+  List<String> _notificacionesProcesadas = []; // Para evitar mostrar la misma animación múltiples veces
+
   @override
   void initState() {
     super.initState();
@@ -90,6 +96,9 @@ class _MapPageState extends State<MapPage> {
     // Registrar callback para recibir notificaciones de cambios de ruta
     RutaService.instance.registrarMapaCallback(_onRutaChanged);
     
+    // Configurar listener para notificaciones de viaje aceptado
+    _configurarNotificacionesViajeAceptado();
+    
     _inicializarUbicacion();
     _cargarMarcadoresViajes();
     
@@ -100,6 +109,89 @@ class _MapPageState extends State<MapPage> {
   }
 
   // ===== MÉTODOS PARA FUNCIONALIDAD DE BÚSQUEDA =====
+
+  /// Configurar notificaciones para mostrar animación cuando se acepta un viaje
+  void _configurarNotificacionesViajeAceptado() {
+    try {
+      // Iniciar polling más frecuente para detectar aceptaciones rápidamente (cada 3 segundos)
+      _notificacionTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
+        _verificarNotificacionesViajeAceptado();
+      });
+      
+      print('🎧 Sistema de notificaciones de viaje aceptado activado (polling cada 3s)');
+    } catch (e) {
+      print('Error configurando notificaciones de viaje aceptado: $e');
+    }
+  }
+
+  /// Verificar si hay nuevas notificaciones de viaje aceptado
+  Future<void> _verificarNotificacionesViajeAceptado() async {
+    if (!mounted) return;
+    
+    try {
+      final resultado = await NotificacionService.obtenerNotificacionesPendientes();
+      
+      if (resultado['success'] == true) {
+        final notificaciones = resultado['data'] as List;
+        
+        for (final notificacion in notificaciones) {
+          // Buscar notificaciones específicas de ride_accepted con flag de animación
+          if (notificacion['tipo'] == 'ride_accepted' && 
+              notificacion['datos']?['mostrarAnimacion'] == true) {
+            
+            final notifId = notificacion['_id'].toString();
+            
+            // Verificar que no hayamos procesado esta notificación antes
+            if (!_notificacionesProcesadas.contains(notifId)) {
+              _notificacionesProcesadas.add(notifId);
+              
+              print('🎉 ¡Viaje aceptado detectado! Mostrando animación...');
+              
+              // Mostrar la animación
+              _mostrarAnimacionViajeAceptado();
+              
+              // Marcar como leída para que no se muestre de nuevo
+              await NotificacionService.marcarComoLeida(notifId);
+              
+              print('✅ Animación de viaje aceptado mostrada para notificación: $notifId');
+              
+              // Mostrar también un SnackBar informativo
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('🚗 ${notificacion['mensaje'] ?? 'Tu viaje fue aceptado'}'),
+                    backgroundColor: Colors.green,
+                    duration: const Duration(seconds: 4),
+                    action: SnackBarAction(
+                      label: 'Ver',
+                      textColor: Colors.white,
+                      onPressed: () {
+                        // Aquí se puede navegar a la pantalla de viaje o detalles
+                      },
+                    ),
+                  ),
+                );
+              }
+            }
+          }
+        }
+      }
+    } catch (e) {
+      print('Error verificando notificaciones de viaje aceptado: $e');
+    }
+  }
+
+  /// Mostrar la animación de viaje aceptado
+  void _mostrarAnimacionViajeAceptado() {
+    if (!mounted) return;
+    
+    RideAcceptedHelper.show(
+      context,
+      onComplete: () {
+        print('🎉 Animación de viaje aceptado completada');
+      },
+    );
+  }
 
   /// Inicializar valores por defecto para la barra superior
   void _inicializarValoresPorDefecto() {
@@ -510,6 +602,7 @@ class _MapPageState extends State<MapPage> {
     // Cancelar cualquier operación asíncrona pendiente
     _debounceTimer?.cancel();
     _radarTimer?.cancel();
+    _notificacionTimer?.cancel(); // Cancelar timer de notificaciones
     
     // Limpiar el callback del servicio de ruta
     RutaService.instance.limpiarCallback();
@@ -2300,7 +2393,6 @@ class _MapPageState extends State<MapPage> {
             foregroundColor: Colors.white,
             child: const Icon(Icons.my_location),
           ),
-          const SizedBox(height: 12),
         ],
       ),
       bottomNavigationBar: NavbarConSOSDinamico(

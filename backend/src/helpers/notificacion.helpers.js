@@ -15,7 +15,10 @@ export async function crearNotificacionSolicitudViaje(datosViaje, rutSolicitante
         solicitanteId: rutSolicitante,
         solicitanteNombre: nombreSolicitante,
         origen: datosViaje.origen.nombre,
-        destino: datosViaje.destino.nombre
+        destino: datosViaje.destino.nombre,
+        precio: datosViaje.precio,
+        fechaViaje: datosViaje.fechaIda,
+        horaViaje: datosViaje.horaIda
       }
     };
 

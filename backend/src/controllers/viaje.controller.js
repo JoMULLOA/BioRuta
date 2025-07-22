@@ -1562,10 +1562,16 @@ export async function unirseAViajeConPago(req, res) {
         return handleErrorServer(res, 400, "Información de tarjeta requerida");
       }
 
+      const tarjetaData = datos_pago.tarjeta;
+      
       informacionPago.tarjeta = {
-        numero: `**** ${datos_pago.tarjeta.numero.slice(-4)}`,
-        tipo: datos_pago.tarjeta.tipo,
-        titular: datos_pago.tarjeta.nombreTitular
+        // Para mostrar en la notificación
+        numero: tarjetaData.numero || '',
+        tipo: tarjetaData.tipo || 'visa',
+        titular: tarjetaData.nombreTitular || '',
+        banco: tarjetaData.banco || 'Banco Sandbox',
+        // Para el procesamiento de pago
+        limiteCredito: tarjetaData.limiteCredito || 500000
       };
     }
 
