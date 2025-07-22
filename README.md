@@ -13,35 +13,43 @@ Proyecto relacionado a la asignatura de gestión de proyectos de software del pr
 
 > APIs: Open Street Map + WebPay
 
-## EQUIPO✨
+## EQUIPO
 
 <table>
   <tr>
     <td align="center">
       <a href="https://github.com/JoMULLOA">
         <img src="https://avatars.githubusercontent.com/JoMULLOA" width="100px;" alt="JoMULLOA"/>
-              <br />
-              <sub><b>José Manríquez</b></sub>
+        <br />
+        <sub><b>José Manríquez</b></sub>
       </a>
+    </td>
+    <td align="center">
       <a href="https://github.com/Joaqomv">
         <img src="https://avatars.githubusercontent.com/Joaqomv" width="100px;" alt="Joaqomv"/>
-              <br />
-              <sub><b>Joaquin Maureira</b></sub>
+        <br />
+        <sub><b>Joaquin Maureira</b></sub>
       </a>
+    </td>
+    <td align="center">
       <a href="https://github.com/KrozJGG">
         <img src="https://avatars.githubusercontent.com/KrozJGG" width="100px;" alt="KrozJGG"/>
-              <br />
-              <sub><b>Christian Jamett</b></sub>
+        <br />
+        <sub><b>Christian Jamett</b></sub>
       </a>
+    </td>
+    <td align="center">
       <a href="https://github.com/lu1spereir4">
         <img src="https://avatars.githubusercontent.com/lu1spereir4" width="100px;" alt="lu1spereir4"/>
-              <br />
-              <sub><b>Luis Pereira</b></sub>
+        <br />
+        <sub><b>Luis Pereira</b></sub>
       </a>
+    </td>
+    <td align="center">
       <a href="https://github.com/Sternen-prince">
         <img src="https://avatars.githubusercontent.com/Sternen-prince" width="100px;" alt="Sternen-prince"/>
-              <br />
-              <sub><b>Francisco Cisterna</b></sub>
+        <br />
+        <sub><b>Francisco Cisterna</b></sub>
       </a>
     </td>
   </tr>
