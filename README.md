@@ -22,7 +22,6 @@ Proyecto relacionado a la asignatura de gestión de proyectos de software del pr
         <img src="https://avatars.githubusercontent.com/JoMULLOA" width="100px;" alt="JoMULLOA"/>
               <sub><b>José Manríquez</b></sub>
       </a>
-      <br />
       <a href="https://github.com/Joaqomv">
         <img src="https://avatars.githubusercontent.com/Joaqomv" width="100px;" alt="Joaqomv"/>
               <sub><b>Joaquin Maureira</b></sub>
