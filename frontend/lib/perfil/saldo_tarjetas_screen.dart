@@ -19,6 +19,12 @@ class _SaldoTarjetasScreenState extends State<SaldoTarjetasScreen>
   List<Map<String, dynamic>> historialTransacciones = [];
   bool isLoading = true;
 
+  // Controladores para el formulario de agregar tarjeta
+  final TextEditingController _numeroController = TextEditingController();
+  final TextEditingController _cvvController = TextEditingController();
+  final TextEditingController _vencimientoController = TextEditingController();
+  final TextEditingController _nombreController = TextEditingController();
+
   @override
   void initState() {
     super.initState();
@@ -29,17 +35,26 @@ class _SaldoTarjetasScreenState extends State<SaldoTarjetasScreen>
   @override
   void dispose() {
     _tabController.dispose();
+    // Dispose de los controladores del formulario
+    _numeroController.dispose();
+    _cvvController.dispose();
+    _vencimientoController.dispose();
+    _nombreController.dispose();
     super.dispose();
   }
 
   Future<void> _cargarDatos() async {
-    setState(() => isLoading = true);
+    if (mounted) {
+      setState(() => isLoading = true);
+    }
     await Future.wait([
       _cargarSaldo(),
       _cargarMisTarjetas(),
       _cargarHistorial(),
     ]);
-    setState(() => isLoading = false);
+    if (mounted) {
+      setState(() => isLoading = false);
+    }
   }
 
   Future<void> _cargarSaldo() async {
@@ -59,15 +74,17 @@ class _SaldoTarjetasScreenState extends State<SaldoTarjetasScreen>
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         print('Response data: $data'); // Debug
-        setState(() {
-          // Manejar tanto string como double para el saldo
-          final saldoValue = data['data']['saldo'];
-          if (saldoValue is String) {
-            saldoActual = double.tryParse(saldoValue) ?? 0.0;
-          } else {
-            saldoActual = (saldoValue ?? 0.0).toDouble();
-          }
-        });
+        if (mounted) {
+          setState(() {
+            // Manejar tanto string como double para el saldo
+            final saldoValue = data['data']['saldo'];
+            if (saldoValue is String) {
+              saldoActual = double.tryParse(saldoValue) ?? 0.0;
+            } else {
+              saldoActual = (saldoValue ?? 0.0).toDouble();
+            }
+          });
+        }
       } else {
         print('Error response: ${response.statusCode} - ${response.body}');
       }
@@ -118,9 +135,11 @@ class _SaldoTarjetasScreenState extends State<SaldoTarjetasScreen>
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         print('Tarjetas response: $data'); // Debug
-        setState(() {
-          misTarjetas = List<Map<String, dynamic>>.from(data['data']['tarjetas'] ?? []);
-        });
+        if (mounted) {
+          setState(() {
+            misTarjetas = List<Map<String, dynamic>>.from(data['data']['tarjetas'] ?? []);
+          });
+        }
       } else {
         print('Error tarjetas: ${response.statusCode} - ${response.body}');
       }
@@ -134,9 +153,14 @@ class _SaldoTarjetasScreenState extends State<SaldoTarjetasScreen>
 
 
   Future<void> _agregarTarjeta(String numeroTarjeta, String cvv, String fechaVencimiento, String nombreTitular) async {
+    if (!mounted) return; // Verificar si el widget está montado antes de comenzar
+    
     try {
       final token = await TokenManager.getValidToken();
-      if (token == null) return;
+      if (token == null) {
+        if (mounted) _mostrarMensaje('Error de autenticación', isError: true);
+        return;
+      }
       
       // Crear objeto de tarjeta
       final nuevaTarjeta = {
@@ -153,6 +177,8 @@ class _SaldoTarjetasScreenState extends State<SaldoTarjetasScreen>
       final tarjetasActualizadas = [...misTarjetas, nuevaTarjeta];
       final email = await _getEmailFromToken();
       
+      print('Enviando tarjeta al backend: ${json.encode({'tarjetas': tarjetasActualizadas})}');
+      
       final response = await http.patch(
         Uri.parse('${confGlobal.baseUrl}/user/actualizar?email=$email'),
         headers: {
@@ -162,17 +188,30 @@ class _SaldoTarjetasScreenState extends State<SaldoTarjetasScreen>
         body: json.encode({'tarjetas': tarjetasActualizadas}),
       );
 
+      // Verificar que el widget siga montado antes de actualizar el estado o mostrar mensajes
+      if (!mounted) return;
+
       if (response.statusCode == 200) {
         setState(() {
           misTarjetas = tarjetasActualizadas;
         });
-        _mostrarMensaje('Tarjeta agregada exitosamente');
-        Navigator.of(context).pop();
+        // Usar Future.delayed para asegurar que el contexto esté disponible
+        Future.delayed(const Duration(milliseconds: 100), () {
+          if (mounted) _mostrarMensaje('Tarjeta agregada exitosamente');
+        });
       } else {
-        _mostrarMensaje('Error al agregar tarjeta', isError: true);
+        print('Error response: ${response.statusCode} - ${response.body}');
+        Future.delayed(const Duration(milliseconds: 100), () {
+          if (mounted) _mostrarMensaje('Error al agregar tarjeta', isError: true);
+        });
       }
     } catch (e) {
-      _mostrarMensaje('Error al agregar tarjeta', isError: true);
+      print('Exception al agregar tarjeta: $e');
+      if (mounted) {
+        Future.delayed(const Duration(milliseconds: 100), () {
+          if (mounted) _mostrarMensaje('Error al agregar tarjeta', isError: true);
+        });
+      }
     }
   }
 
@@ -185,10 +224,49 @@ class _SaldoTarjetasScreenState extends State<SaldoTarjetasScreen>
   }
 
   void _mostrarDialogoAgregarTarjeta() {
-    final numeroController = TextEditingController();
-    final cvvController = TextEditingController();
-    final vencimientoController = TextEditingController();
-    final nombreController = TextEditingController();
+    // Limpiar los controladores antes de mostrar el diálogo
+    _numeroController.clear();
+    _cvvController.clear();
+    _vencimientoController.clear();
+    _nombreController.clear();
+
+    // Función para formatear el número de tarjeta
+    void formatearNumeroTarjeta(String value) {
+      String digits = value.replaceAll(RegExp(r'[^0-9]'), '');
+      if (digits.length > 16) digits = digits.substring(0, 16);
+      
+      String formatted = '';
+      for (int i = 0; i < digits.length; i++) {
+        if (i > 0 && i % 4 == 0) formatted += '-';
+        formatted += digits[i];
+      }
+      
+      _numeroController.value = TextEditingValue(
+        text: formatted,
+        selection: TextSelection.collapsed(offset: formatted.length),
+      );
+    }
+
+    // Función para formatear la fecha de vencimiento
+    void formatearFechaVencimiento(String value) {
+      String digits = value.replaceAll(RegExp(r'[^0-9]'), '');
+      if (digits.length > 6) digits = digits.substring(0, 6);
+      
+      String formatted = '';
+      if (digits.length >= 2) {
+        formatted = digits.substring(0, 2);
+        if (digits.length > 2) {
+          formatted += '/${digits.substring(2)}';
+        }
+      } else {
+        formatted = digits;
+      }
+      
+      _vencimientoController.value = TextEditingValue(
+        text: formatted,
+        selection: TextSelection.collapsed(offset: formatted.length),
+      );
+    }
 
     showDialog(
       context: context,
@@ -245,11 +323,13 @@ class _SaldoTarjetasScreenState extends State<SaldoTarjetasScreen>
                 
                 // Número de tarjeta
                 _buildInputField(
-                  controller: numeroController,
+                  controller: _numeroController,
                   label: 'Número de Tarjeta',
                   hint: '4111-1111-1111-1111',
                   icon: Icons.credit_card,
                   keyboardType: TextInputType.number,
+                  onChanged: formatearNumeroTarjeta,
+                  maxLength: 19, // 16 dígitos + 3 guiones
                 ),
                 const SizedBox(height: 16),
                 
@@ -259,21 +339,25 @@ class _SaldoTarjetasScreenState extends State<SaldoTarjetasScreen>
                     Expanded(
                       flex: 1,
                       child: _buildInputField(
-                        controller: cvvController,
+                        controller: _cvvController,
                         label: 'CVV',
                         hint: '123',
                         icon: Icons.security,
                         keyboardType: TextInputType.number,
+                        maxLength: 4,
                       ),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
                       flex: 2,
                       child: _buildInputField(
-                        controller: vencimientoController,
+                        controller: _vencimientoController,
                         label: 'Vencimiento',
                         hint: 'MM/YYYY',
                         icon: Icons.calendar_today,
+                        keyboardType: TextInputType.number,
+                        onChanged: formatearFechaVencimiento,
+                        maxLength: 7, // MM/YYYY = 7 caracteres
                       ),
                     ),
                   ],
@@ -282,7 +366,7 @@ class _SaldoTarjetasScreenState extends State<SaldoTarjetasScreen>
                 
                 // Nombre del titular
                 _buildInputField(
-                  controller: nombreController,
+                  controller: _nombreController,
                   label: 'Nombre del Titular',
                   hint: 'Juan Pérez',
                   icon: Icons.person,
@@ -294,7 +378,11 @@ class _SaldoTarjetasScreenState extends State<SaldoTarjetasScreen>
                   children: [
                     Expanded(
                       child: TextButton(
-                        onPressed: () => Navigator.of(context).pop(),
+                        onPressed: () {
+                          if (Navigator.canPop(context)) {
+                            Navigator.of(context).pop();
+                          }
+                        },
                         style: TextButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
@@ -314,19 +402,64 @@ class _SaldoTarjetasScreenState extends State<SaldoTarjetasScreen>
                     const SizedBox(width: 12),
                     Expanded(
                       child: ElevatedButton(
-                        onPressed: () {
-                          if (numeroController.text.isNotEmpty && 
-                              cvvController.text.isNotEmpty && 
-                              vencimientoController.text.isNotEmpty &&
-                              nombreController.text.isNotEmpty) {
-                            _agregarTarjeta(
-                              numeroController.text,
-                              cvvController.text,
-                              vencimientoController.text,
-                              nombreController.text,
+                        onPressed: () async {
+                          // Validación básica
+                          final numero = _numeroController.text.replaceAll('-', '');
+                          final cvv = _cvvController.text;
+                          final vencimiento = _vencimientoController.text;
+                          final nombre = _nombreController.text;
+                          
+                          if (numero.isEmpty || numero.length < 13 || numero.length > 19) {
+                            _mostrarMensaje('Número de tarjeta inválido (debe tener entre 13-19 dígitos)', isError: true);
+                            return;
+                          }
+                          if (cvv.isEmpty || cvv.length < 3 || cvv.length > 4) {
+                            _mostrarMensaje('CVV inválido (debe tener 3-4 dígitos)', isError: true);
+                            return;
+                          }
+                          if (!RegExp(r'^(0[1-9]|1[0-2])\/\d{4}$').hasMatch(vencimiento)) {
+                            _mostrarMensaje('Fecha de vencimiento inválida (formato MM/YYYY)', isError: true);
+                            return;
+                          }
+                          if (nombre.isEmpty || nombre.length < 2) {
+                            _mostrarMensaje('Nombre del titular inválido', isError: true);
+                            return;
+                          }
+                          
+                          // Validar que la fecha no sea pasada
+                          try {
+                            final fechaPartes = vencimiento.split('/');
+                            final mes = int.parse(fechaPartes[0]);
+                            final anio = int.parse(fechaPartes[1]);
+                            final fechaVencimiento = DateTime(anio, mes);
+                            final ahora = DateTime.now();
+                            final fechaActual = DateTime(ahora.year, ahora.month);
+                            
+                            if (fechaVencimiento.isBefore(fechaActual)) {
+                              _mostrarMensaje('La tarjeta está vencida', isError: true);
+                              return;
+                            }
+                          } catch (e) {
+                            _mostrarMensaje('Error al validar fecha de vencimiento', isError: true);
+                            return;
+                          }
+                          
+                          // Cerrar el diálogo primero para evitar problemas de estado
+                          if (Navigator.canPop(context)) {
+                            Navigator.of(context).pop();
+                          }
+                          
+                          // Esperar un poco antes de ejecutar la agregación para asegurar que el diálogo se haya cerrado completamente
+                          await Future.delayed(const Duration(milliseconds: 200));
+                          
+                          // Ejecutar la agregación de tarjeta solo si el widget aún está montado
+                          if (mounted) {
+                            await _agregarTarjeta(
+                              _numeroController.text, // Mantener con guiones para mostrar
+                              _cvvController.text,
+                              _vencimientoController.text,
+                              _nombreController.text,
                             );
-                          } else {
-                            _mostrarMensaje('Completa todos los campos', isError: true);
                           }
                         },
                         style: ElevatedButton.styleFrom(
@@ -351,12 +484,7 @@ class _SaldoTarjetasScreenState extends State<SaldoTarjetasScreen>
           ),
         ),
       ),
-    ).then((_) {
-      numeroController.dispose();
-      cvvController.dispose();
-      vencimientoController.dispose();
-      nombreController.dispose();
-    });
+    );
   }
 
   Widget _buildInputField({
@@ -365,6 +493,8 @@ class _SaldoTarjetasScreenState extends State<SaldoTarjetasScreen>
     required String hint,
     required IconData icon,
     TextInputType? keyboardType,
+    Function(String)? onChanged,
+    int? maxLength,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -381,9 +511,12 @@ class _SaldoTarjetasScreenState extends State<SaldoTarjetasScreen>
         TextField(
           controller: controller,
           keyboardType: keyboardType,
+          maxLength: maxLength,
+          onChanged: onChanged,
           decoration: InputDecoration(
             hintText: hint,
             prefixIcon: Icon(icon, color: const Color(0xFF8D4F3A)),
+            counterText: maxLength != null ? '' : null, // Ocultar contador cuando hay maxLength
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(color: Color(0xFFEDCAB6)),
@@ -407,9 +540,14 @@ class _SaldoTarjetasScreenState extends State<SaldoTarjetasScreen>
 
 
   Future<void> _removerTarjeta(int index) async {
+    if (!mounted) return; // Verificar si el widget está montado antes de comenzar
+    
     try {
       final token = await TokenManager.getValidToken();
-      if (token == null) return;
+      if (token == null) {
+        if (mounted) _mostrarMensaje('Error de autenticación', isError: true);
+        return;
+      }
       
       // Remover de la lista local
       final tarjetasActualizadas = [...misTarjetas];
@@ -425,27 +563,46 @@ class _SaldoTarjetasScreenState extends State<SaldoTarjetasScreen>
         body: json.encode({'tarjetas': tarjetasActualizadas}),
       );
 
+      // Verificar que el widget siga montado antes de actualizar el estado o mostrar mensajes
+      if (!mounted) return;
+
       if (response.statusCode == 200) {
         setState(() {
           misTarjetas = tarjetasActualizadas;
         });
-        _mostrarMensaje('Tarjeta removida exitosamente');
+        Future.delayed(const Duration(milliseconds: 100), () {
+          if (mounted) _mostrarMensaje('Tarjeta removida exitosamente');
+        });
       } else {
-        _mostrarMensaje('Error al remover tarjeta', isError: true);
+        print('Error response: ${response.statusCode} - ${response.body}');
+        Future.delayed(const Duration(milliseconds: 100), () {
+          if (mounted) _mostrarMensaje('Error al remover tarjeta', isError: true);
+        });
       }
     } catch (e) {
-      _mostrarMensaje('Error al remover tarjeta', isError: true);
+      print('Exception al remover tarjeta: $e');
+      if (mounted) {
+        Future.delayed(const Duration(milliseconds: 100), () {
+          if (mounted) _mostrarMensaje('Error al remover tarjeta', isError: true);
+        });
+      }
     }
   }
 
   void _mostrarMensaje(String mensaje, {bool isError = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(mensaje),
-        backgroundColor: isError ? Colors.red : const Color(0xFF8D4F3A),
-        duration: const Duration(seconds: 2),
-      ),
-    );
+    // Solo mostrar el mensaje si el widget está montado y el context es válido
+    if (mounted && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(mensaje),
+          backgroundColor: isError ? Colors.red : const Color(0xFF8D4F3A),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } else {
+      // Si no podemos mostrar el SnackBar, al menos loggeamos el mensaje
+      print('Mensaje no mostrado (widget desmontado): $mensaje');
+    }
   }
 
 
@@ -845,46 +1002,16 @@ class _SaldoTarjetasScreenState extends State<SaldoTarjetasScreen>
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         print('Historial response: $data'); // Debug
-        setState(() {
-          historialTransacciones = List<Map<String, dynamic>>.from(data['data'] ?? []);
-        });
+        if (mounted) {
+          setState(() {
+            historialTransacciones = List<Map<String, dynamic>>.from(data['data'] ?? []);
+          });
+        }
       } else {
         print('Error historial: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
       print('Error al cargar historial: $e');
-      // Si hay error, crear historial dummy para mostrar funcionalidad
-      setState(() {
-        historialTransacciones = [
-          {
-            'id': '1',
-            'tipo': 'pago',
-            'concepto': 'Pago por viaje compartido - Viaje ID: 123',
-            'monto': 8500.0, // Positivo en BD, se mostrará como negativo
-            'fecha': DateTime.now().subtract(const Duration(days: 1)).toIso8601String(),
-            'estado': 'completado',
-            'metodo_pago': 'saldo'
-          },
-          {
-            'id': '2',
-            'tipo': 'cobro',
-            'concepto': 'Pago por viaje compartido - Viaje ID: 124',
-            'monto': 12000.0, // Positivo en BD, se mostrará como positivo
-            'fecha': DateTime.now().subtract(const Duration(days: 3)).toIso8601String(),
-            'estado': 'completado',
-            'metodo_pago': 'saldo'
-          },
-          {
-            'id': '3',
-            'tipo': 'devolucion',
-            'concepto': 'Devolución por viaje cancelado - Viaje ID: 125',
-            'monto': 7000.0, // Positivo en BD, se mostrará como positivo
-            'fecha': DateTime.now().subtract(const Duration(days: 5)).toIso8601String(),
-            'estado': 'completado',
-            'metodo_pago': 'saldo'
-          }
-        ];
-      });
     }
   }
 
