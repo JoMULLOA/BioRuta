@@ -9,24 +9,6 @@ Proyecto desarrollado para la asignatura de Gestión de Proyectos de Software de
 
 BioRuta es una aplicación móvil innovadora diseñada para optimizar el transporte estudiantil en la Universidad del Bío Bío. La plataforma conecta conductores y pasajeros de manera segura y eficiente, promoviendo la movilidad sostenible y reduciendo costos de transporte para la comunidad universitaria.
 
-### 🎯 Problemática Identificada
-
-- **Costos elevados** del transporte público estudiantil
-- **Falta de coordinación** entre estudiantes para compartir viajes
-- **Inseguridad** en opciones de transporte no reguladas
-- **Impacto ambiental** por uso excesivo de vehículos individuales
-- **Ausencia de plataformas** específicas para la comunidad universitaria
-
-### 💡 Solución Propuesta
-
-BioRuta ofrece una plataforma integral que permite:
-- **Publicación y búsqueda** de viajes entre estudiantes verificados
-- **Sistema de amistades** para generar confianza en la comunidad
-- **Notificaciones en tiempo real** para solicitudes y actualizaciones
-- **Geolocalización precisa** con mapas interactivos
-- **Pagos seguros** integrados con WebPay
-- **Ranking y reputación** de usuarios para mayor seguridad
-
 ## 🚀 Características Principales
 
 ### 👥 Sistema de Usuarios
@@ -55,7 +37,6 @@ BioRuta ofrece una plataforma integral que permite:
 - **Calificaciones y comentarios** post-viaje
 
 ### 💳 Gestión Financiera
-- **Integración con WebPay** para pagos seguros
 - **Cálculo automático** de costos compartidos
 - **Historial de transacciones** detallado
 - **Diferentes métodos de pago** disponibles
@@ -76,19 +57,17 @@ BioRuta ofrece una plataforma integral que permite:
 
 ### Base de Datos
 - **PostgreSQL**: Sistema de gestión de base de datos relacional
+- **MongoDB**: Sistema de gestión NOSQL 
 - **TypeORM**: ORM para manejo de entidades y relaciones
 - **Migraciones**: Control de versiones de esquema de BD
 
 ### APIs y Servicios Externos
 - **OpenStreetMap**: Mapas y geolocalización
-- **WebPay**: Pasarela de pagos de Transbank
-- **Firebase**: Notificaciones push (opcional)
+- **Nominatum¨**: Sugerencias de lugares
 
 ### DevOps y Deployment
 - **Git**: Control de versiones
 - **GitHub**: Repositorio y colaboración
-- **Docker**: Containerización (futuro)
-- **Heroku/Railway**: Deployment cloud (futuro)
 
 ## 📱 Funcionalidades por Módulo
 
@@ -168,7 +147,7 @@ BioRuta/
 - **Node.js** (v16 o superior)
 - **Flutter SDK** (v3.0 o superior)
 - **PostgreSQL** (v12 o superior)
-- **Android Studio** o **VS Code**
+- **Android Studio** y **VS Code**
 - **Git** para control de versiones
 
 ### Instalación Backend
@@ -185,120 +164,12 @@ flutter pub get
 flutter run
 ```
 
-### Variables de Entorno
-```env
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=bioruta_db
-DB_USER=postgres
-DB_PASS=password
-JWT_SECRET=your_jwt_secret
-WEBPAY_KEY=your_webpay_key
-```
-
-## 📊 Métricas del Proyecto
-
-### Líneas de Código
-- **Backend**: ~8,000 líneas (JavaScript/TypeScript)
-- **Frontend**: ~15,000 líneas (Dart/Flutter)
-- **Total**: ~23,000 líneas de código
-
-### Módulos Implementados
-- ✅ **12 módulos principales** completamente funcionales
-- ✅ **85+ endpoints** API REST documentados
-- ✅ **Real-time messaging** con WebSockets
-- ✅ **30+ pantallas** de interfaz de usuario
-
-### Cobertura de Testing
-- 🔄 **Unit Tests**: En desarrollo
-- 🔄 **Integration Tests**: Planificado
-- 🔄 **UI Tests**: Planificado
-
-## 🎨 Diseño y UX/UI
-
-### Principios de Diseño
-- **Material Design 3**: Siguiendo las últimas guías de Google
-- **Responsive Design**: Adaptable a diferentes tamaños de pantalla
-- **Accesibilidad**: Cumpliendo estándares WCAG 2.1
-- **Dark/Light Mode**: Soporte para ambos temas
-
-### Paleta de Colores
-- **Primario**: Verde universitario (#2E7D32)
-- **Secundario**: Azul corporativo (#1976D2)
-- **Acento**: Naranja energético (#FF6F00)
-- **Error**: Rojo material (#D32F2F)
-
-## 🔒 Seguridad Implementada
-
-### Autenticación
-- **JWT Tokens** con expiración configurable
-- **Refresh Tokens** para sesiones extendidas
-- **Encriptación bcrypt** para contraseñas
-- **Validación de correo** universitario obligatoria
-
-### Protección de Datos
-- **HTTPS** en todas las comunicaciones
-- **Sanitización** de inputs del usuario
-- **Rate Limiting** para prevenir ataques
-- **CORS** configurado correctamente
-
-### Privacidad
-- **Datos mínimos** requeridos para funcionamiento
-- **Consentimiento explícito** para ubicación
-- **Anonimización** de datos sensibles
-- **Políticas de retención** definidas
-
-## 🚀 Roadmap Futuro
-
-### Fase 2 (Próximos 3 meses)
-- [ ] **Sistema de pagos** WebPay completamente integrado
-- [ ] **Calificaciones y reseñas** post-viaje
-- [ ] **Notificaciones push** avanzadas
-- [ ] **Optimización de rutas** con IA
-
-### Fase 3 (6 meses)
-- [ ] **Gamificación** del sistema
-- [ ] **Integración con calendario** académico
-- [ ] **Análisis predictivo** de demanda
-- [ ] **Expansión** a otras universidades
-
-### Mejoras Técnicas
-- [ ] **Containerización** con Docker
-- [ ] **CI/CD Pipeline** automatizado
-- [ ] **Monitoreo** y logging avanzado
-- [ ] **Tests automatizados** al 100%
-
-## 📈 Impacto Esperado
-
-### Beneficios Sociales
-- **Reducción del 40%** en costos de transporte estudiantil
-- **Disminución del 25%** en huella de carbono
-- **Aumento del 60%** en interacción social universitaria
-- **Mejora del 30%** en puntualidad estudiantil
-
-### Métricas de Adopción (Proyectadas)
-- **500+ usuarios** en los primeros 3 meses
-- **2000+ viajes** coordinados en el primer año
-- **$50,000+ ahorrados** en transporte estudiantil
-- **4.5+ estrellas** de calificación en app stores
-
-## 📞 Soporte y Contacto
-
-### Documentación Técnica
-- **API Documentation**: Disponible en `/docs` del backend
-- **User Manual**: Incluido en la aplicación
-- **Developer Guide**: En el repositorio GitHub
-
-### Reporte de Issues
-- **GitHub Issues**: Para bugs y feature requests
-- **Email Soporte**: soporte@bioruta.cl (próximamente)
-- **Chat Interno**: Sistema de soporte en la app
-
 ## 🏆 Reconocimientos
 
 Este proyecto representa el esfuerzo colaborativo de un equipo multidisciplinario comprometido con la innovación en movilidad estudiantil y el desarrollo de software de calidad empresarial.
 
-**Universidad del Bío Bío - Facultad de Ciencias Empresariales**  
+**Universidad del Bío Bío - Facultad de Ciencias Empresariales** 
+**Gestión de Proyectos de software** 
 **Ingeniería Civil en Informática - 2025**
 
 ---
