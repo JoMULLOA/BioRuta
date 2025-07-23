@@ -22,7 +22,7 @@ class MapaWidget extends StatelessWidget {
           unFollowUser: false,
         ),
         zoomOption: ZoomOption(
-          initZoom: 14,
+          initZoom: 5, // Zoom más amplio para ver Sudamérica
           minZoomLevel: 4,
           maxZoomLevel: 18,
           stepZoom: 1.0,
@@ -36,6 +36,10 @@ class MapaWidget extends StatelessWidget {
           ),
         ),
         roadConfiguration: const RoadOption(roadColor: Colors.purple),
+        // Configuraciones para eliminar elementos por defecto
+        enableRotationByGesture: true,
+        showZoomController: false,
+        showContributorBadgeForOSM: false,
       ),
     );
   }

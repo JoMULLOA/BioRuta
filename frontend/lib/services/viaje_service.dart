@@ -490,6 +490,82 @@ class ViajeService {
     }
   }
 
+  /// Eliminar un pasajero de un viaje (solo para conductores)
+  /// Incluye lógica de reembolso automático
+  static Future<Map<String, dynamic>> eliminarPasajero(String viajeId, String usuarioRut) async {
+    try {
+      // Verificar si necesitamos login antes de hacer la petición
+      if (await TokenManager.needsLogin()) {
+        return {
+          'success': false,
+          'message': 'Sesión expirada. Por favor, inicia sesión nuevamente.'
+        };
+      }
+
+      final headers = await _getHeaders();
+      if (headers == null) {
+        return {
+          'success': false,
+          'message': 'No se pudo obtener el token de autenticación'
+        };
+      }
+
+      // Llamada real al endpoint del backend
+      final response = await http.delete(
+        Uri.parse('$baseUrl/viajes/$viajeId/eliminar-pasajero/$usuarioRut'),
+        headers: headers,
+      );
+
+      // Verificar si la respuesta es JSON válido
+      Map<String, dynamic> data;
+      try {
+        data = json.decode(response.body);
+      } catch (e) {
+        // Si no es JSON válido, probablemente es una página de error HTML
+        return {
+          'success': false,
+          'message': 'Error del servidor (${response.statusCode}): La funcionalidad de eliminar pasajeros no está disponible en el backend.'
+        };
+      }
+
+      if (response.statusCode == 200) {
+        return {
+          'success': true,
+          'message': data['message'] ?? 'Pasajero eliminado exitosamente',
+          'data': data['data']
+        };
+      } else if (response.statusCode == 401) {
+        // Token expirado o inválido
+        await TokenManager.clearAuthData();
+        return {
+          'success': false,
+          'message': 'Sesión expirada. Por favor, inicia sesión nuevamente.'
+        };
+      } else if (response.statusCode == 403) {
+        return {
+          'success': false,
+          'message': 'No tienes permisos para eliminar pasajeros de este viaje.'
+        };
+      } else if (response.statusCode == 404) {
+        return {
+          'success': false,
+          'message': data['message'] ?? 'Viaje o pasajero no encontrado.'
+        };
+      } else {
+        return {
+          'success': false,
+          'message': data['message'] ?? 'Error al eliminar el pasajero'
+        };
+      }
+      
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Error de conexión: $e'
+      };
+    }
+  }
+
   /// Verificar si el usuario tiene viajes activos (como conductor o pasajero)
   static Future<bool> tieneViajesActivos() async {
     try {

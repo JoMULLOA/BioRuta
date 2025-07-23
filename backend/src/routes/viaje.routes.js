@@ -12,7 +12,8 @@ import {
   confirmarPasajero,
   cambiarEstadoViaje,
   abandonarViaje,
-  obtenerViajesEnRadio
+  obtenerViajesEnRadio,
+  eliminarPasajero
 } from "../controllers/viaje.controller.js";
 import { 
   viajeBodyValidation,
@@ -79,6 +80,13 @@ router.put(
   "/:viajeId/confirmar/:usuarioRut",
   authenticateJwt,
   confirmarPasajero
+);
+
+// Eliminar pasajero - DELETE /api/viajes/:viajeId/eliminar-pasajero/:usuarioRut
+router.delete(
+  "/:viajeId/eliminar-pasajero/:usuarioRut",
+  authenticateJwt,
+  eliminarPasajero
 );
 
 // Cambiar estado del viaje - PUT /api/viajes/:viajeId/estado

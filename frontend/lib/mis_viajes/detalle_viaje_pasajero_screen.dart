@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/viaje_model.dart';
 import '../services/ruta_service.dart';
+import '../utils/map_launcher.dart';
 
 class DetalleViajePasajeroScreen extends StatefulWidget {
   final Viaje viaje;
@@ -185,67 +186,132 @@ class _DetalleViajePasajeroScreenState extends State<DetalleViajePasajeroScreen>
             // Información del conductor
             if (viaje.conductor != null)
               Card(
-                elevation: 2,
+                elevation: 3,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(16),
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Conductor',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF854937),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          const CircleAvatar(
-                            backgroundColor: Color(0xFF854937),
-                            child: Icon(Icons.person, color: Colors.white),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  viaje.conductor!.nombre,
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                Text(
-                                  viaje.conductor!.email,
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                              ],
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        const Color(0xFF854937).withOpacity(0.05),
+                        Colors.white,
+                      ],
+                    ),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.person_pin_circle,
+                              color: Color(0xFF854937),
+                              size: 24,
                             ),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.message, color: Color(0xFF854937)),
-                            onPressed: () {
-                              // TODO: Implementar chat o contacto con conductor
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Función de chat en desarrollo'),
+                            const SizedBox(width: 8),
+                            const Text(
+                              'Tu Conductor',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF854937),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Container(
+                              width: 60,
+                              height: 60,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF854937),
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFF854937).withOpacity(0.3),
+                                    spreadRadius: 2,
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 3),
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(
+                                Icons.person,
+                                color: Colors.white,
+                                size: 32,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    viaje.conductor!.nombre,
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF070505),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.email,
+                                        size: 16,
+                                        color: Colors.grey,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Expanded(
+                                        child: Text(
+                                          viaje.conductor!.email,
+                                          style: const TextStyle(
+                                            fontSize: 14,
+                                            color: Colors.grey,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Container(
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF854937).withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: IconButton(
+                                icon: const Icon(
+                                  Icons.message,
+                                  color: Color(0xFF854937),
+                                  size: 20,
                                 ),
-                              );
-                            },
-                            tooltip: 'Contactar conductor',
-                          ),
-                        ],
-                      ),
-                    ],
+                                onPressed: () {
+                                  // TODO: Implementar chat o contacto con conductor
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Función de chat en desarrollo'),
+                                      backgroundColor: Color(0xFF854937),
+                                    ),
+                                  );
+                                },
+                                tooltip: 'Contactar conductor',
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -253,71 +319,87 @@ class _DetalleViajePasajeroScreenState extends State<DetalleViajePasajeroScreen>
 
             // Información del viaje
             Card(
-              elevation: 2,
+              elevation: 3,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(16),
               ),
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Información del Viaje',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF854937),
-                      ),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.route,
+                          color: Color(0xFF854937),
+                          size: 24,
+                        ),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Detalles del Viaje',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF854937),
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 20),
                     
-                    _buildInfoRow(Icons.location_on, 'Origen', viaje.origen.nombre, Colors.green),
-                    _buildInfoRow(Icons.flag, 'Destino', viaje.destino.nombre, Colors.red),
+                    _buildInfoRow(Icons.my_location, 'Origen', viaje.origen.nombre, Colors.green),
+                    const SizedBox(height: 12),
+                    _buildInfoRow(Icons.location_on, 'Destino', viaje.destino.nombre, Colors.red),
+                    const SizedBox(height: 12),
                     _buildInfoRow(Icons.calendar_today, 'Fecha', 
                       '${viaje.fechaIda.day}/${viaje.fechaIda.month}/${viaje.fechaIda.year}', Colors.blue),
-                    _buildInfoRow(Icons.access_time, 'Hora', viaje.horaIda, Colors.blue),
-                    _buildInfoRow(Icons.attach_money, 'Precio', '\$${viaje.precio.toInt()}', Colors.orange),
-                    _buildInfoRow(Icons.people, 'Pasajeros', 
-                      '${viaje.pasajeros.length}/${viaje.maxPasajeros}', Colors.purple),
-                    
-                    if (viaje.vehiculo != null) ...[
-                      const SizedBox(height: 8),
-                      const Divider(),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'Vehículo',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF854937),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      _buildInfoRow(Icons.directions_car, 'Modelo', viaje.vehiculo!.modelo, const Color(0xFF854937)),
-                      _buildInfoRow(Icons.confirmation_number, 'Patente', viaje.vehiculo!.patente, const Color(0xFF854937)),
-                      _buildInfoRow(Icons.palette, 'Color', viaje.vehiculo!.color, const Color(0xFF854937)),
-                      _buildInfoRow(Icons.airline_seat_recline_normal, 'Asientos', viaje.vehiculo!.nroAsientos.toString(), const Color(0xFF854937)),
-                    ],
+                    const SizedBox(height: 12),
+                    _buildInfoRow(Icons.schedule, 'Hora de salida', viaje.horaIda, Colors.blue),
+                    const SizedBox(height: 12),
+                    _buildInfoRow(Icons.attach_money, 'Precio por persona', '\$${viaje.precio.toInt()}', Colors.orange),
+                    const SizedBox(height: 12),
+                    _buildInfoRow(Icons.people, 'Ocupación', 
+                      '${viaje.pasajeros.length}/${viaje.maxPasajeros} pasajeros', Colors.purple),
 
                     if (viaje.comentarios != null && viaje.comentarios!.isNotEmpty) ...[
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 16),
                       const Divider(),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'Comentarios',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF854937),
-                        ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.comment,
+                            color: Color(0xFF854937),
+                            size: 18,
+                          ),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'Comentarios del conductor',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF854937),
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 8),
-                      Text(
-                        viaje.comentarios!,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: Colors.black87,
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[50],
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey[200]!),
+                        ),
+                        child: Text(
+                          viaje.comentarios!,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Colors.black87,
+                            height: 1.4,
+                          ),
                         ),
                       ),
                     ],
@@ -327,29 +409,196 @@ class _DetalleViajePasajeroScreenState extends State<DetalleViajePasajeroScreen>
             ),
             const SizedBox(height: 16),
 
+            // Información del vehículo (sección separada y mejorada)
+            if (viaje.vehiculo != null)
+              Card(
+                elevation: 3,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Colors.blue.withOpacity(0.05),
+                        Colors.white,
+                      ],
+                    ),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.blue.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Icon(
+                                Icons.directions_car,
+                                color: Colors.blue,
+                                size: 24,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            const Text(
+                              'Vehículo del Viaje',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF854937),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+                        
+                        // Información principal del vehículo
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.blue.withOpacity(0.2)),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 60,
+                                height: 60,
+                                decoration: BoxDecoration(
+                                  color: Colors.blue.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Icon(
+                                  Icons.car_rental,
+                                  color: Colors.blue,
+                                  size: 32,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      viaje.vehiculo!.modelo,
+                                      style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xFF070505),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: Colors.blue.withOpacity(0.1),
+                                            borderRadius: BorderRadius.circular(6),
+                                          ),
+                                          child: Text(
+                                            viaje.vehiculo!.patente,
+                                            style: const TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.blue,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        
+                        const SizedBox(height: 12),
+                        
+                        // Detalles del vehículo
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildVehicleDetailCard(
+                                Icons.palette,
+                                'Color',
+                                viaje.vehiculo!.color,
+                                Colors.purple,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _buildVehicleDetailCard(
+                                Icons.event_seat,
+                                'Asientos',
+                                '${viaje.vehiculo!.nroAsientos}',
+                                Colors.green,
+                              ),
+                            ),
+                            if (viaje.vehiculo!.tipo != null) ...[
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: _buildVehicleDetailCard(
+                                  Icons.category,
+                                  'Tipo',
+                                  viaje.vehiculo!.tipo!,
+                                  Colors.teal,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            const SizedBox(height: 16),
+
             // Otros pasajeros
             if (viaje.pasajeros.length > 1)
               Card(
-                elevation: 2,
+                elevation: 3,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(16),
                 ),
                 child: Padding(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(20),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Otros Pasajeros',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF854937),
-                        ),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.people,
+                            color: Color(0xFF854937),
+                            size: 24,
+                          ),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'Compañeros de Viaje',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF854937),
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 16),
                       
-                      ...viaje.pasajeros.skip(1).map((pasajero) => _buildOtroPasajeroCard(pasajero)),
+                      // Mostrar todos los pasajeros excepto el usuario actual
+                      ...viaje.pasajeros.map((pasajero) => _buildOtroPasajeroCard(pasajero)),
                     ],
                   ),
                 ),
@@ -378,6 +627,90 @@ class _DetalleViajePasajeroScreenState extends State<DetalleViajePasajeroScreen>
             
             const SizedBox(height: 16),
 
+            // Botones de navegación
+            Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.navigation,
+                          color: Color(0xFF854937),
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Navegación',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF854937),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              MapLauncher.openRouteInGoogleMaps(
+                                viaje.origen.latitud,
+                                viaje.origen.longitud,
+                                viaje.destino.latitud,
+                                viaje.destino.longitud,
+                              );
+                            },
+                            icon: const Icon(Icons.map, size: 18),
+                            label: const Text('Google Maps'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              MapLauncher.openRouteInWaze(
+                                viaje.destino.latitud,
+                                viaje.destino.longitud,
+                              );
+                            },
+                            icon: const Icon(Icons.navigation, size: 18),
+                            label: const Text('Waze'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            
+            const SizedBox(height: 16),
+
             // Información según el estado
             _buildInformacionEstado(),
           ],
@@ -387,26 +720,43 @@ class _DetalleViajePasajeroScreenState extends State<DetalleViajePasajeroScreen>
   }
 
   Widget _buildInfoRow(IconData icon, String label, String value, Color iconColor) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: iconColor.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: iconColor.withOpacity(0.2)),
+      ),
       child: Row(
         children: [
-          Icon(icon, size: 20, color: iconColor),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: iconColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, size: 20, color: iconColor),
+          ),
           const SizedBox(width: 12),
           Expanded(
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '$label: ',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF854937),
+                  label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: iconColor,
                   ),
                 ),
-                Expanded(
-                  child: Text(
-                    value,
-                    style: const TextStyle(color: Color(0xFF070505)),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF070505),
                   ),
                 ),
               ],
@@ -422,31 +772,52 @@ class _DetalleViajePasajeroScreenState extends State<DetalleViajePasajeroScreen>
     final nombre = usuario?['nombre'] ?? 'Pasajero ${pasajero.usuarioRut}';
     
     Color estadoColor;
+    String estadoTexto;
+    
     switch (pasajero.estado) {
       case 'confirmado':
         estadoColor = Colors.green;
+        estadoTexto = 'Confirmado';
         break;
       case 'pendiente':
         estadoColor = Colors.orange;
+        estadoTexto = 'Pendiente';
         break;
       case 'rechazado':
         estadoColor = Colors.red;
+        estadoTexto = 'Rechazado';
         break;
       default:
         estadoColor = Colors.grey;
+        estadoTexto = 'Desconocido';
     }
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey[300]!),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: estadoColor.withOpacity(0.3)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         children: [
-          Icon(Icons.person, color: estadoColor, size: 24),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: estadoColor.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.person, color: estadoColor, size: 24),
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -455,16 +826,38 @@ class _DetalleViajePasajeroScreenState extends State<DetalleViajePasajeroScreen>
                 Text(
                   nombre,
                   style: const TextStyle(
-                    fontWeight: FontWeight.w500,
-                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16,
+                    color: Color(0xFF070505),
                   ),
                 ),
-                Text(
-                  '${pasajero.pasajerosSolicitados} pasajero(s)',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey,
-                  ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: estadoColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        estadoTexto,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: estadoColor,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '${pasajero.pasajerosSolicitados} pasajero(s)',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -624,6 +1017,41 @@ class _DetalleViajePasajeroScreenState extends State<DetalleViajePasajeroScreen>
                      backgroundColor == Colors.blue[100] ? Colors.blue : Colors.grey),
           const SizedBox(width: 12),
           Expanded(child: contenido),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVehicleDetailCard(IconData icon, String label, String value, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 18),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              color: color,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF070505),
+            ),
+            textAlign: TextAlign.center,
+          ),
         ],
       ),
     );

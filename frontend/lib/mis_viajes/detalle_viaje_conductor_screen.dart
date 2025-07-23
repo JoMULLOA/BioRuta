@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/viaje_model.dart';
 import '../services/viaje_service.dart';
 import '../services/ruta_service.dart';
+import '../utils/map_launcher.dart';
 
 class DetalleViajeConductorScreen extends StatefulWidget {
   final Viaje viaje;
@@ -56,6 +57,21 @@ class _DetalleViajeConductorScreenState extends State<DetalleViajeConductorScree
         return 'Cancelado';
       default:
         return 'Desconocido';
+    }
+  }
+
+  IconData _getEstadoIcon(String estado) {
+    switch (estado) {
+      case 'activo':
+        return Icons.schedule;
+      case 'en_curso':
+        return Icons.directions_car;
+      case 'completado':
+        return Icons.check_circle;
+      case 'cancelado':
+        return Icons.cancel;
+      default:
+        return Icons.help;
     }
   }
 
@@ -203,6 +219,78 @@ class _DetalleViajeConductorScreenState extends State<DetalleViajeConductorScree
     }
   }
 
+  Future<void> _eliminarPasajero(String usuarioRut, String nombrePasajero) async {
+    final confirmado = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Eliminar Pasajero'),
+          content: Text('¿Estás seguro de que quieres eliminar a $nombrePasajero de este viaje?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Eliminar'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmado == true) {
+      setState(() {
+        cargando = true;
+      });
+
+      try {
+        final resultado = await ViajeService.eliminarPasajero(viaje.id, usuarioRut);
+
+        if (mounted) {
+          setState(() {
+            cargando = false;
+          });
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(resultado['message']),
+              backgroundColor: resultado['success'] == true ? Colors.green : Colors.red,
+            ),
+          );
+
+          if (resultado['success'] == true) {
+            // Actualizar la lista de pasajeros localmente
+            setState(() {
+              viaje = viaje.copyWith(
+                pasajeros: viaje.pasajeros.where((p) => p.usuarioRut != usuarioRut).toList(),
+                plazasDisponibles: viaje.plazasDisponibles + 1,
+              );
+            });
+          }
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+            cargando = false;
+          });
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
+  }
+
   void _toggleRutaRestante() {
     setState(() {
       mostrarRutaRestante = !mostrarRutaRestante;
@@ -246,32 +334,49 @@ class _DetalleViajeConductorScreenState extends State<DetalleViajeConductorScree
                 children: [
                   // Estado del viaje
                   Card(
-                    elevation: 2,
+                    elevation: 3,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(16),
                     ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 12,
-                            height: 12,
-                            decoration: BoxDecoration(
-                              color: _getEstadoColor(viaje.estado),
-                              shape: BoxShape.circle,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            _getEstadoColor(viaje.estado).withOpacity(0.1),
+                            Colors.white,
+                          ],
+                        ),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: _getEstadoColor(viaje.estado).withOpacity(0.2),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                _getEstadoIcon(viaje.estado),
+                                color: _getEstadoColor(viaje.estado),
+                                size: 24,
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 12),
-                          Text(
-                            'Estado: ${_getEstadoTexto(viaje.estado)}',
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF854937),
+                            const SizedBox(width: 16),
+                            Text(
+                              'Estado: ${_getEstadoTexto(viaje.estado)}',
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF854937),
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -279,33 +384,48 @@ class _DetalleViajeConductorScreenState extends State<DetalleViajeConductorScree
 
                   // Información del viaje
                   Card(
-                    elevation: 2,
+                    elevation: 3,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(16),
                     ),
                     child: Padding(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(20),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            'Información del Viaje',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF854937),
-                            ),
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.route,
+                                color: Color(0xFF854937),
+                                size: 24,
+                              ),
+                              const SizedBox(width: 8),
+                              const Text(
+                                'Información del Viaje',
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF854937),
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 20),
                           
-                          _buildInfoRow(Icons.location_on, 'Origen', viaje.origen.nombre, Colors.green),
-                          _buildInfoRow(Icons.flag, 'Destino', viaje.destino.nombre, Colors.red),
+                          _buildInfoRow(Icons.my_location, 'Origen', viaje.origen.nombre, Colors.green),
+                          const SizedBox(height: 12),
+                          _buildInfoRow(Icons.location_on, 'Destino', viaje.destino.nombre, Colors.red),
+                          const SizedBox(height: 12),
                           _buildInfoRow(Icons.calendar_today, 'Fecha', 
                             '${viaje.fechaIda.day}/${viaje.fechaIda.month}/${viaje.fechaIda.year}', Colors.blue),
-                          _buildInfoRow(Icons.access_time, 'Hora', viaje.horaIda, Colors.blue),
-                          _buildInfoRow(Icons.attach_money, 'Precio', '\$${viaje.precio.toInt()}', Colors.orange),
+                          const SizedBox(height: 12),
+                          _buildInfoRow(Icons.schedule, 'Hora de salida', viaje.horaIda, Colors.blue),
+                          const SizedBox(height: 12),
+                          _buildInfoRow(Icons.attach_money, 'Precio por persona', '\$${viaje.precio.toInt()}', Colors.orange),
                           
                           if (viaje.vehiculo != null) ...[
+                            const SizedBox(height: 12),
                             _buildInfoRow(Icons.directions_car, 'Vehículo', 
                               '${viaje.vehiculo!.modelo} - ${viaje.vehiculo!.patente}', const Color(0xFF854937)),
                           ],
@@ -375,26 +495,43 @@ class _DetalleViajeConductorScreenState extends State<DetalleViajeConductorScree
   }
 
   Widget _buildInfoRow(IconData icon, String label, String value, Color iconColor) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: iconColor.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: iconColor.withOpacity(0.2)),
+      ),
       child: Row(
         children: [
-          Icon(icon, size: 20, color: iconColor),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: iconColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, size: 20, color: iconColor),
+          ),
           const SizedBox(width: 12),
           Expanded(
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '$label: ',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF854937),
+                  label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: iconColor,
                   ),
                 ),
-                Expanded(
-                  child: Text(
-                    value,
-                    style: const TextStyle(color: Color(0xFF070505)),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF070505),
                   ),
                 ),
               ],
@@ -431,53 +568,145 @@ class _DetalleViajeConductorScreenState extends State<DetalleViajeConductorScree
     }
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey[300]!),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: estadoColor.withOpacity(0.3)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-      child: Row(
+      child: Column(
         children: [
-          Icon(Icons.person, color: estadoColor, size: 24),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: estadoColor.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.person, color: estadoColor, size: 24),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      nombre,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                        color: Color(0xFF070505),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: estadoColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            estadoTexto,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: estadoColor,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '${pasajero.pasajerosSolicitados} pasajero(s)',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (pasajero.mensaje != null && pasajero.mensaje!.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[50],
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.message, size: 16, color: Colors.grey),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                pasajero.mensaje!,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (pasajero.estado == 'pendiente' || pasajero.estado == 'confirmado') ...[
+            const SizedBox(height: 12),
+            Row(
               children: [
-                Text(
-                  nombre,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w500,
-                    fontSize: 14,
-                  ),
-                ),
-                Text(
-                  '${pasajero.pasajerosSolicitados} pasajero(s) - $estadoTexto',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: estadoColor,
-                  ),
-                ),
-                if (pasajero.mensaje != null && pasajero.mensaje!.isNotEmpty)
-                  Text(
-                    pasajero.mensaje!,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey,
-                      fontStyle: FontStyle.italic,
+                if (pasajero.estado == 'pendiente') ...[
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => _confirmarPasajero(pasajero.usuarioRut, nombre),
+                      icon: const Icon(Icons.check, size: 18),
+                      label: const Text('Confirmar'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
                     ),
                   ),
+                  const SizedBox(width: 8),
+                ],
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _eliminarPasajero(pasajero.usuarioRut, nombre),
+                    icon: const Icon(Icons.person_remove, size: 18),
+                    label: Text(pasajero.estado == 'confirmado' ? 'Eliminar' : 'Rechazar'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red,
+                      side: const BorderSide(color: Colors.red),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ),
               ],
             ),
-          ),
-          if (pasajero.estado == 'pendiente')
-            IconButton(
-              icon: const Icon(Icons.check, color: Colors.green),
-              onPressed: () => _confirmarPasajero(pasajero.usuarioRut, nombre),
-              tooltip: 'Confirmar pasajero',
-            ),
+          ],
         ],
       ),
     );
@@ -507,7 +736,89 @@ class _DetalleViajeConductorScreenState extends State<DetalleViajeConductorScree
           controlAffinity: ListTileControlAffinity.leading,
           contentPadding: EdgeInsets.zero,
         ),
-        
+
+        const SizedBox(height: 8),
+        // Botones de navegación
+        Card(
+          elevation: 2,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.navigation,
+                      color: Color(0xFF854937),
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Navegación',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF854937),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          MapLauncher.openRouteInGoogleMaps(
+                            viaje.origen.latitud,
+                            viaje.origen.longitud,
+                            viaje.destino.latitud,
+                            viaje.destino.longitud,
+                          );
+                        },
+                        icon: const Icon(Icons.map, size: 18),
+                        label: const Text('Google Maps'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          MapLauncher.openRouteInWaze(
+                            viaje.destino.latitud,
+                            viaje.destino.longitud,
+                          );
+                        },
+                        icon: const Icon(Icons.navigation, size: 18),
+                        label: const Text('Waze'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
         const SizedBox(height: 16),
         
         if (estado == 'activo') ...[

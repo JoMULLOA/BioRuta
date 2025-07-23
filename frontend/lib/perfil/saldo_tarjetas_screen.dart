@@ -682,40 +682,7 @@ class _SaldoTarjetasScreenState extends State<SaldoTarjetasScreen>
             
             const SizedBox(height: 20),
             
-            // Información del sandbox
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFFEDCAB6).withOpacity(0.3),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: const Color(0xFF8D4F3A).withOpacity(0.3),
-                  width: 1,
-                ),
-              ),
-              child: const Column(
-                children: [
-                  Icon(Icons.info, color: Color(0xFF8D4F3A)),
-                  SizedBox(height: 8),
-                  Text(
-                    'Modo Sandbox',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF6B3B2D),
-                    ),
-                  ),
-                  SizedBox(height: 4),
-                  Text(
-                    'Este es tu saldo actual para realizar pagos en la aplicación.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF6B3B2D),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          
             
             const SizedBox(height: 30),
             

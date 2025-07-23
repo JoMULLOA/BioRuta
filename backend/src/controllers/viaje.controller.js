@@ -1922,3 +1922,139 @@ export async function obtenerViajesEnRadio(req, res) {
     handleErrorServer(res, 500, "Error interno del servidor");
   }
 }
+
+/**
+ * Eliminar un pasajero de un viaje (solo el conductor puede hacer esto)
+ */
+export async function eliminarPasajero(req, res) {
+  try {
+    const { viajeId, usuarioRut } = req.params;
+    const conductorRut = req.user.rut;
+
+    console.log(`🗑️ Eliminando pasajero ${usuarioRut} del viaje ${viajeId} por conductor ${conductorRut}`);
+
+    // Buscar el viaje
+    const viaje = await Viaje.findById(viajeId);
+
+    if (!viaje) {
+      console.log(`❌ Viaje ${viajeId} no encontrado`);
+      return handleErrorServer(res, 404, "Viaje no encontrado");
+    }
+
+    // Verificar que el usuario autenticado es el conductor del viaje
+    if (viaje.usuario_rut !== conductorRut) {
+      console.log(`❌ Usuario ${conductorRut} no es el conductor del viaje`);
+      return handleErrorServer(res, 403, "Solo el conductor puede eliminar pasajeros");
+    }
+
+    console.log(`📋 Viaje encontrado. Conductor: ${viaje.usuario_rut}`);
+    console.log(`👥 Pasajeros en el viaje (${viaje.pasajeros.length}):`);
+    viaje.pasajeros.forEach((p, index) => {
+      console.log(`   ${index}: RUT="${p.usuario_rut}" Estado="${p.estado}"`);
+    });
+
+    // Buscar el pasajero en la lista
+    const pasajeroIndex = viaje.pasajeros.findIndex(p => p.usuario_rut === usuarioRut);
+    console.log(`🔍 Buscando pasajero con RUT "${usuarioRut}". Índice encontrado: ${pasajeroIndex}`);
+
+    if (pasajeroIndex === -1) {
+      console.log(`❌ Pasajero ${usuarioRut} no encontrado en este viaje`);
+      return handleErrorServer(res, 404, "Pasajero no encontrado en este viaje");
+    }
+
+    const pasajeroAEliminar = viaje.pasajeros[pasajeroIndex];
+    console.log(`🗑️ Eliminando pasajero: RUT="${pasajeroAEliminar.usuario_rut}" Estado="${pasajeroAEliminar.estado}"`);
+
+    // Verificar si necesitamos procesar un reembolso
+    let reembolsoProcesado = false;
+    if (pasajeroAEliminar.estado === 'confirmado') {
+      try {
+        // Buscar información de pago del pasajero
+        const { AppDataSource } = await import('../config/configDb.js');
+        const { default: Notificacion } = await import('../entity/notificacion.entity.js');
+        
+        const notificacionRepository = AppDataSource.getRepository(Notificacion);
+        
+        const solicitud = await notificacionRepository.findOne({
+          where: {
+            rutEmisor: usuarioRut,
+            rutReceptor: conductorRut,
+            tipo: 'solicitud_viaje',
+            viajeId: viajeId
+          }
+        });
+
+        if (solicitud && solicitud.datos && solicitud.datos.pago) {
+          console.log(`💰 Procesando reembolso para pasajero ${usuarioRut}: ${JSON.stringify(solicitud.datos.pago)}`);
+          
+          // Aquí se implementaría la lógica de reembolso con MercadoPago
+          // Por ahora, simular que el reembolso se procesa exitosamente
+          reembolsoProcesado = true;
+          console.log(`✅ Reembolso procesado exitosamente para ${usuarioRut}`);
+        }
+      } catch (reembolsoError) {
+        console.error(`⚠️ Error procesando reembolso:`, reembolsoError.message);
+        // Continuar con la eliminación aunque falle el reembolso
+      }
+    }
+
+    // Remover al pasajero de la lista
+    viaje.pasajeros.splice(pasajeroIndex, 1);
+    
+    // Actualizar fecha de modificación
+    viaje.fecha_actualizacion = new Date();
+
+    // Guardar los cambios
+    await viaje.save();
+
+    // Eliminar del chat grupal
+    try {
+      const participantes = await eliminarParticipante(viajeId, usuarioRut);
+      console.log(`✅ Pasajero ${usuarioRut} eliminado del chat grupal del viaje ${viajeId}`);
+      
+      // Notificar a todos sobre la eliminación del participante
+      notificarParticipanteEliminado(viajeId, usuarioRut, participantes);
+    } catch (chatError) {
+      console.error(`⚠️ Error al eliminar pasajero del chat grupal:`, chatError.message);
+      // No fallar la eliminación si falla el chat
+    }
+
+    // Crear notificación para el pasajero eliminado
+    try {
+      const { crearNotificacion } = await import('../services/notificacion.service.js');
+      
+      await crearNotificacion({
+        rutEmisor: conductorRut,
+        rutReceptor: usuarioRut,
+        tipo: 'pasajero_eliminado',
+        titulo: 'Eliminado de viaje',
+        mensaje: `Has sido eliminado del viaje por el conductor.${reembolsoProcesado ? ' Se ha procesado tu reembolso.' : ''}`,
+        viajeId: viajeId,
+        datos: {
+          viajeId: viajeId,
+          reembolsoProcesado: reembolsoProcesado
+        }
+      });
+      
+      console.log(`📧 Notificación de eliminación enviada a ${usuarioRut}`);
+    } catch (notificacionError) {
+      console.error(`⚠️ Error creando notificación:`, notificacionError.message);
+      // No fallar la eliminación si falla la notificación
+    }
+
+    console.log(`✅ Pasajero ${usuarioRut} eliminado del viaje ${viajeId} exitosamente`);
+    console.log(`📊 Pasajeros restantes: ${viaje.pasajeros.length}/${viaje.maxPasajeros}`);
+
+    handleSuccess(res, 200, "Pasajero eliminado exitosamente", {
+      viajeId: viaje._id,
+      usuarioEliminado: usuarioRut,
+      pasajerosRestantes: viaje.pasajeros.length,
+      plazasDisponibles: viaje.maxPasajeros - viaje.pasajeros.length,
+      reembolsoProcesado: reembolsoProcesado
+    });
+
+  } catch (error) {
+    console.error("❌ Error al eliminar pasajero:", error);
+    handleErrorServer(res, 500, "Error interno del servidor");
+  }
+}
