@@ -269,16 +269,18 @@ class _PublicarViajePaso2State extends State<PublicarViajePaso2> {
 
     // Determinar la hora mínima basada en si es hoy o un día futuro
     final DateTime now = DateTime.now();
-    final bool isToday = pickedDate.year == now.year && 
-                        pickedDate.month == now.month && 
-                        pickedDate.day == now.day;
+    // Ajustar para horario chileno (UTC-4) - retrasar 4 horas para compensar diferencia del servidor
+    final DateTime nowChile = now.subtract(const Duration(hours: 4));
+    final bool isToday = pickedDate.year == nowChile.year && 
+                        pickedDate.month == nowChile.month && 
+                        pickedDate.day == nowChile.day;
     
-    // Si es hoy, la hora mínima es la hora actual + 1 hora
+    // Si es hoy, la hora mínima es la hora actual + 30 minutos (ajustada para Chile)
     // Si es un día futuro, puede seleccionar cualquier hora
     TimeOfDay initialTime;
     if (isToday) {
-      final nextHour = now.add(const Duration(hours: 1));
-      initialTime = TimeOfDay(hour: nextHour.hour, minute: 0);
+      final nextHour = nowChile.add(const Duration(minutes: 30));
+      initialTime = TimeOfDay(hour: nextHour.hour, minute: nextHour.minute);
     } else {
       initialTime = const TimeOfDay(hour: 8, minute: 0); // 8:00 AM por defecto
     }
@@ -309,8 +311,8 @@ class _PublicarViajePaso2State extends State<PublicarViajePaso2> {
       pickedTime.minute,
     );
 
-    // Validar que no sea una hora pasada si es hoy
-    if (isToday && combinedDateTime.isBefore(now.add(const Duration(minutes: 30)))) {
+    // Validar que no sea una hora pasada si es hoy (usando horario chileno)
+    if (isToday && combinedDateTime.isBefore(nowChile.add(const Duration(minutes: 30)))) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
