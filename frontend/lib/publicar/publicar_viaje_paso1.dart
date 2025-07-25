@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/direccion_sugerida.dart';
 import '../mapa/mapa_seleccion_simple.dart';
+import '../services/viaje_service.dart';
 import 'publicar_viaje_paso2.dart';
 
 class PublicarViajePaso1 extends StatefulWidget {
@@ -14,6 +15,12 @@ class _PublicarViajePaso1State extends State<PublicarViajePaso1> {
   List<DireccionSugerida> ubicaciones = [];
   String? origenTexto;
   String? destinoTexto;
+  
+  // Variables para el cálculo de precio
+  bool calculandoPrecio = false;
+  double? kilometrosRuta;
+  Map<String, dynamic>? infoPrecio;
+  double? precioSugerido;
 
   Future<void> _seleccionarUbicacion(bool esOrigen) async {
     final result = await Navigator.push(
@@ -49,6 +56,94 @@ class _PublicarViajePaso1State extends State<PublicarViajePaso1> {
             esOrigen: false,
           ));
         }
+      });
+      
+      // Calcular precio automáticamente cuando tengamos origen y destino
+      if (_puedeAvanzar) {
+        _calcularPrecioRuta();
+      }
+    }
+  }
+
+  Future<void> _calcularPrecioRuta() async {
+    if (ubicaciones.length < 2) return;
+    
+    setState(() {
+      calculandoPrecio = true;
+    });
+    
+    try {
+      print('🔢 Calculando precio para la ruta seleccionada...');
+      
+      final origen = ubicaciones.first;
+      final destino = ubicaciones.last;
+      
+      print('📍 Ruta: ${origen.displayName} → ${destino.displayName}');
+      
+      // Llamar al backend para obtener precio sugerido
+      final resultado = await ViajeService.obtenerPrecioSugerido(
+        origenLat: origen.lat,
+        origenLon: origen.lon,
+        destinoLat: destino.lat,
+        destinoLon: destino.lon,
+      );
+      
+      if (resultado['success'] == true && resultado['data'] != null) {
+        final data = resultado['data'];
+        
+        print('✅ Precio calculado:');
+        print('   Kilómetros: ${data['kilometros']} km');
+        print('   Precio sugerido: \$${data['precioFinal']}');
+        
+        setState(() {
+          kilometrosRuta = data['kilometros']?.toDouble() ?? 0.0;
+          precioSugerido = data['precioFinal']?.toDouble() ?? 0.0;
+          infoPrecio = {
+            'kilometros': data['kilometros'],
+            'precioBase': data['precioBase'],
+            'precioFinal': data['precioFinal'],
+            'precioPorKm': data['precioPorKm'],
+            'desglose': data['desglose'],
+          };
+        });
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('💰 Ruta calculada: ${data['kilometros']} km • \$${data['precioFinal']}'),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      } else {
+        print('❌ Error calculando precio: ${resultado['message']}');
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('⚠️ ${resultado['message']}'),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print('❌ Error calculando precio: $e');
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Error: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } finally {
+      setState(() {
+        calculandoPrecio = false;
       });
     }
   }
@@ -130,6 +225,105 @@ class _PublicarViajePaso1State extends State<PublicarViajePaso1> {
               onTap: () => _seleccionarUbicacion(false),
             ),
             
+            const SizedBox(height: 20),
+            
+            // Información del precio calculado
+            if (calculandoPrecio)
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.blue.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                ),
+                child: const Row(
+                  children: [
+                    SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+                      ),
+                    ),
+                    SizedBox(width: 12),
+                    Text(
+                      'Calculando kilómetros y precio de la ruta...',
+                      style: TextStyle(
+                        color: Colors.blue,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else if (kilometrosRuta != null && precioSugerido != null && infoPrecio != null)
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.green.withOpacity(0.3)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.route, color: Colors.green, size: 20),
+                            const SizedBox(width: 8),
+                            Text(
+                              '${kilometrosRuta!.toStringAsFixed(1)} km',
+                              style: const TextStyle(
+                                color: Colors.green,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF854937),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            '\$${precioSugerido!.toStringAsFixed(0)}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Precio base: \$${infoPrecio!['precioBase']} (${infoPrecio!['precioPorKm']}/km)',
+                      style: TextStyle(
+                        color: Colors.grey[700],
+                        fontSize: 14,
+                      ),
+                    ),
+                    if (infoPrecio!['desglose'] != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        'Incluye: combustible, desgaste y tiempo de conducción',
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            
             const SizedBox(height: 40),
             
             // Botón siguiente
@@ -142,6 +336,9 @@ class _PublicarViajePaso1State extends State<PublicarViajePaso1> {
                     context,                    MaterialPageRoute(
                       builder: (context) => PublicarViajePaso2(
                         ubicaciones: ubicaciones,
+                        kilometrosRuta: kilometrosRuta,
+                        precioSugerido: precioSugerido,
+                        infoPrecio: infoPrecio,
                       ),
                     ),
                   );

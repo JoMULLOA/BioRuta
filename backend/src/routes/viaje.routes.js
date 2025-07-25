@@ -13,7 +13,8 @@ import {
   cambiarEstadoViaje,
   abandonarViaje,
   obtenerViajesEnRadio,
-  eliminarPasajero
+  eliminarPasajero,
+  obtenerPrecioSugerido
 } from "../controllers/viaje.controller.js";
 import { 
   viajeBodyValidation,
@@ -111,6 +112,13 @@ router.post(
   authenticateJwt,
   validateBody(viajesRadarValidation),
   obtenerViajesEnRadio
+);
+
+// Obtener precio sugerido basado en ruta - POST /api/viajes/precio-sugerido
+router.post(
+  "/precio-sugerido",
+  authenticateJwt,
+  obtenerPrecioSugerido
 );
 
 export default router;

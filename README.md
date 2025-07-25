@@ -190,46 +190,63 @@ Este proyecto representa el esfuerzo colaborativo de un equipo multidisciplinari
     </td>
     <td><a href="https://github.com/JoMULLOA"><strong>José Manríquez</strong></a></td>
     <td>Project Manager & Full-Stack Developer</td>
-    <td>Arquitectura y Liderazgo</td>
-    <td>Diseño de arquitectura, gestión de proyecto, integración de módulos</td>
+    <td>Gestión de usuarios y flujo de autenticación</td>
+    <td>
+      Gestión de usuarios, vehículos y reportes, sistema de amistades,<br>
+      login/logout, registro con Nodemailer
+    </td>
   </tr>
   <tr>
     <td align="center">
       <img src="https://avatars.githubusercontent.com/Joaqomv" width="60px;" alt="Joaqomv"/>
     </td>
     <td><a href="https://github.com/Joaqomv"><strong>Joaquín Maureira</strong></a></td>
-    <td>Backend Developer</td>
-    <td>APIs y Base de Datos</td>
-    <td>Desarrollo de APIs REST, gestión de BD, sistema de autenticación</td>
+    <td>Full-Stack Developer</td>
+    <td>Ranking, métricas y lógica de negocio</td>
+    <td>
+      Ranking y sistema de puntuación, estadísticas para administrador,<br>
+      cálculo automático de pasajes
+    </td>
   </tr>
   <tr>
     <td align="center">
       <img src="https://avatars.githubusercontent.com/KrozJGG" width="60px;" alt="KrozJGG"/>
     </td>
     <td><a href="https://github.com/KrozJGG"><strong>Christian Jamett</strong></a></td>
-    <td>Frontend Developer</td>
-    <td>UI/UX y Flutter</td>
-    <td>Interfaces de usuario, componentes Flutter, experiencia móvil</td>
+    <td>Full-Stack Developer</td>
+    <td>Interfaz de usuario y funcionalidades de viaje</td>
+    <td>
+      Gestión de pagos, solicitud de viaje con notificación,<br>
+      unión/cancelación/salida de viaje, detalles de viaje,<br>
+      integración con API OpenStreetMap
+    </td>
   </tr>
   <tr>
     <td align="center">
       <img src="https://avatars.githubusercontent.com/lu1spereir4" width="60px;" alt="lu1spereir4"/>
     </td>
     <td><a href="https://github.com/lu1spereir4"><strong>Luis Pereira</strong></a></td>
-    <td>Backend Developer</td>
-    <td>WebSockets y Real-time</td>
-    <td>Sistema de mensajería, notificaciones en tiempo real, chat</td>
+    <td>Full-Stack Developer</td>
+    <td>Búsqueda, publicación y servicios en tiempo real</td>
+    <td>
+      Publicación y búsqueda dinámica de viajes, sistema SOS para pasajeros,<br>
+      sugerencias de búsqueda con API Nominatim
+    </td>
   </tr>
   <tr>
     <td align="center">
       <img src="https://avatars.githubusercontent.com/Sternen-prince" width="60px;" alt="Sternen-prince"/>
     </td>
     <td><a href="https://github.com/Sternen-prince"><strong>Francisco Cisterna</strong></a></td>
-    <td>QA Engineer & Documentation</td>
-    <td>Testing y Documentación</td>
-    <td>Pruebas de calidad, documentación técnica, casos de uso</td>
+    <td>Full-Stack Developer</td>
+    <td>Chat y control de mensajes</td>
+    <td>
+      Chat grupal e individual, edición y eliminación de mensajes,<br>
+      pruebas de calidad y documentación técnica
+    </td>
   </tr>
 </table>
+
 
 ## 📜 Licencia y Términos
 
