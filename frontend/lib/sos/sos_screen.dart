@@ -20,6 +20,7 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
   bool _isLoading = true;
   bool _activandoEmergencia = false;
   Map<String, dynamic> _estadoTracking = {};
+  Map<String, dynamic>? _infoViaje; // Información del viaje activo para SOS
   
   // Animaciones para el botón SOS
   late AnimationController _pulseController;
@@ -32,6 +33,21 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
     super.initState();
     _initAnimations();
     _cargarDatos();
+    
+    // Obtener información del viaje desde los argumentos del navigator
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+      debugPrint('🔍 [SOS INIT] Argumentos recibidos: $args');
+      if (args != null && args.containsKey('infoViaje')) {
+        debugPrint('📋 [SOS INIT] Info viaje encontrada: ${args['infoViaje']}');
+        setState(() {
+          _infoViaje = args['infoViaje'];
+        });
+        debugPrint('✅ [SOS INIT] _infoViaje actualizada: $_infoViaje');
+      } else {
+        debugPrint('⚠️ [SOS INIT] No se encontró información del viaje en argumentos');
+      }
+    });
     
     // Inicializar timer para actualizar estado del tracking
     Timer.periodic(const Duration(minutes: 1), (timer) {
@@ -243,7 +259,7 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
           ],
         ),
         content: const Text(
-          '¿Qué tipo de alerta de emergencia deseas enviar?',
+          '¿Confirmas que deseas activar la alerta de emergencia? Se enviará tu ubicación actual a tus contactos de emergencia.',
         ),
         actions: [
           TextButton(
@@ -253,19 +269,12 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
           ElevatedButton(
             onPressed: () => Navigator.of(context).pop('normal'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.orange,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Emergencia Simple'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(context).pop('tracking'),
-            style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red.shade700,
               foregroundColor: Colors.white,
             ),
-            child: const Text('SOS + Ubicación 8h'),
+            child: const Text('Activar Emergencia'),
           ),
+          // Botón SOS + Ubicación 8h ocultado por solicitud del usuario
         ],
       ),
     );
@@ -278,8 +287,26 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
       // Simular nombre de usuario (en tu app real, obtenlo del estado global)
       const nombreUsuario = 'Usuario BioRuta';
       
-      final conTracking = opcion == 'tracking';
-      await _emergenciaService.activarEmergencia(nombreUsuario, conTracking: conTracking);
+      // Siempre usar tracking (envío a WhatsApp) ya que solo tenemos un botón
+      final conTracking = true;
+      
+      // Incluir información del viaje si está disponible
+      Map<String, dynamic>? infoAdicional;
+      debugPrint('🔍 [SOS] Verificando _infoViaje: $_infoViaje');
+      if (_infoViaje != null) {
+        infoAdicional = {
+          'viaje': _infoViaje,
+        };
+        debugPrint('📋 [SOS] Enviando infoAdicional: $infoAdicional');
+      } else {
+        debugPrint('⚠️ [SOS] No hay información del viaje para enviar');
+      }
+      
+      await _emergenciaService.activarEmergencia(
+        nombreUsuario, 
+        conTracking: conTracking,
+        infoAdicional: infoAdicional,
+      );
       
       if (mounted) {
         // Mostrar confirmación de éxito
@@ -294,12 +321,9 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
                 const Text('Emergencia Activada'),
               ],
             ),
-            content: Text(
-              conTracking 
-                ? 'Se ha activado el SOS con seguimiento de ubicación por 8 horas. '
-                  'Tus contactos recibirán actualizaciones cada 30 minutos.'
-                : 'Se ha enviado la alerta de emergencia a tus contactos. '
-                  'Mantente seguro y busca ayuda si es necesario.',
+            content: const Text(
+              'Se ha activado la alerta de emergencia. '
+              'Tus contactos han recibido tu ubicación y los detalles del viaje.',
             ),
             actions: [
               ElevatedButton(

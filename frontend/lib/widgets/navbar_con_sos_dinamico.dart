@@ -87,11 +87,33 @@ class _NavbarConSOSDinamicoState extends State<NavbarConSOSDinamico> {
     return index;
   }
 
-  void _manejarSOS() {
+  void _manejarSOS() async {
     // Solo navegar a SOS si no estamos ya en SOS
     final currentRoute = ModalRoute.of(context)?.settings.name;
     if (currentRoute != '/sos') {
-      Navigator.pushNamed(context, '/sos');
+      // Obtener información del viaje activo para enviar en el SOS
+      Map<String, dynamic>? infoViaje;
+      try {
+        debugPrint('🔍 Verificando viajes para SOS...');
+        final tieneViajes = await ViajeService.tieneViajesActivos();
+        debugPrint('📊 Tiene viajes activos: $tieneViajes');
+        
+        if (tieneViajes) {
+          // Obtener detalles del viaje activo
+          debugPrint('🔄 Obteniendo detalles del viaje activo...');
+          infoViaje = await ViajeService.obtenerDetallesViajeActivo();
+          debugPrint('📋 Info viaje obtenida: $infoViaje');
+        } else {
+          debugPrint('⚠️ No hay viajes activos para obtener detalles');
+        }
+      } catch (e) {
+        debugPrint('💥 Error al obtener info del viaje para SOS: $e');
+      }
+      
+      debugPrint('🚀 Navegando a SOS con info: $infoViaje');
+      Navigator.pushNamed(context, '/sos', arguments: {
+        'infoViaje': infoViaje,
+      });
     }
   }
 

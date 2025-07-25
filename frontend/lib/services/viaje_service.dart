@@ -745,4 +745,119 @@ class ViajeService {
       return [];
     }
   }
+
+  /// Obtener detalles del viaje activo para SOS
+  static Future<Map<String, dynamic>?> obtenerDetallesViajeActivo() async {
+    try {
+      debugPrint('🔍 [VIAJE SERVICE] Iniciando obtenerDetallesViajeActivo');
+      
+      // Verificar autenticación primero
+      if (await TokenManager.needsLogin()) {
+        debugPrint('❌ Necesita login para obtener detalles del viaje');
+        return null;
+      }
+
+      final headers = await _getHeaders();
+      if (headers == null) {
+        debugPrint('❌ No se pudo obtener headers para detalles del viaje');
+        return null;
+      }
+
+      final rutUsuario = await _storage.read(key: 'user_rut');
+      debugPrint('👤 RUT del usuario: $rutUsuario');
+      if (rutUsuario == null) {
+        debugPrint('❌ No se encontró RUT del usuario');
+        return null;
+      }
+
+      // Usar el mismo endpoint que funciona para verificar viajes activos
+      final url = Uri.parse('$baseUrl/viajes/mis-viajes');
+      debugPrint('📡 Consultando URL: $url');
+      final response = await http.get(url, headers: headers);
+
+      debugPrint("📡 Obteniendo detalles viaje activo - Status: ${response.statusCode}");
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        debugPrint("📊 Respuesta mis-viajes: $data");
+        
+        if (data['success'] == true && data['data'] != null) {
+          final List<dynamic> viajes = data['data'];
+          debugPrint("🚗 Total viajes: ${viajes.length}");
+          
+          // Buscar viajes activos donde el usuario sea pasajero
+          for (int i = 0; i < viajes.length; i++) {
+            var viaje = viajes[i];
+            debugPrint("🎯 Analizando viaje $i: ${viaje['_id']}");
+            
+            // Verificar si el viaje está activo
+            final String? estado = viaje['estado'];
+            if (estado == 'activo') {
+              debugPrint("✅ Viaje activo encontrado");
+              
+              // Verificar si el usuario es pasajero
+              if (viaje['pasajeros'] != null) {
+                final List<dynamic> pasajeros = viaje['pasajeros'];
+                
+                bool esPasajero = pasajeros.any((p) => 
+                  p['usuario_rut'] == rutUsuario && 
+                  p['estado'] == 'confirmado'
+                );
+                
+                if (esPasajero) {
+                  debugPrint("🎯 ¡Usuario encontrado como pasajero confirmado!");
+                  debugPrint("👨‍✈️ Conductor: ${viaje['conductor']}");
+                  debugPrint("🚗 Vehículo: ${viaje['vehiculo']}");
+                  debugPrint("📍 Origen: ${viaje['origen']?['nombre']}");
+                  debugPrint("📍 Destino: ${viaje['destino']?['nombre']}");
+                  
+                  // Obtener información del conductor y vehículo
+                  String nombreConductor = 'Conductor';
+                  String rutConductor = 'No disponible';
+                  String patente = 'No disponible';
+                  
+                  // Extraer datos del conductor
+                  if (viaje['conductor'] != null) {
+                    nombreConductor = viaje['conductor']['nombre'] ?? 'Conductor';
+                    rutConductor = viaje['conductor']['rut'] ?? viaje['usuario_rut'] ?? 'No disponible';
+                  } else {
+                    rutConductor = viaje['usuario_rut'] ?? 'No disponible';
+                  }
+                  
+                  // Extraer datos del vehículo
+                  if (viaje['vehiculo'] != null) {
+                    patente = viaje['vehiculo']['patente'] ?? viaje['vehiculo_patente'] ?? 'No disponible';
+                  } else {
+                    // Fallback a vehiculo_patente si no hay objeto vehiculo
+                    patente = viaje['vehiculo_patente'] ?? 'No disponible';
+                  }
+                  
+                  // Extraer información relevante para SOS (sin modelo y color)
+                  final infoExtraida = {
+                    'nombreConductor': nombreConductor,
+                    'rutConductor': rutConductor,
+                    'patente': patente,
+                    'origen': viaje['origen']?['nombre'] ?? 'No disponible',
+                    'destino': viaje['destino']?['nombre'] ?? 'No disponible',
+                  };
+                  debugPrint("📋 Información extraída para SOS: $infoExtraida");
+                  return infoExtraida;
+                }
+              }
+            }
+          }
+        }
+      } else if (response.statusCode == 401) {
+        debugPrint('❌ Token expirado al obtener detalles del viaje');
+        await TokenManager.clearAuthData();
+        return null;
+      }
+      
+      debugPrint('❌ No se encontró viaje activo donde el usuario sea pasajero');
+      return null;
+    } catch (e) {
+      debugPrint('💥 Error obteniendo detalles del viaje activo: $e');
+      return null;
+    }
+  }
 }

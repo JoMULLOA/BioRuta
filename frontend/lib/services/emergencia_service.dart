@@ -220,7 +220,7 @@ class EmergenciaService {
   }
 
   // Activar emergencia - enviar mensajes a los contactos con tracking opcional
-  Future<bool> activarEmergencia(String nombreUsuario, {bool conTracking = true}) async {
+  Future<bool> activarEmergencia(String nombreUsuario, {bool conTracking = true, Map<String, dynamic>? infoAdicional}) async {
     try {
       final contactos = await obtenerContactos();
       
@@ -230,10 +230,10 @@ class EmergenciaService {
 
       if (conTracking) {
         // Usar el nuevo sistema con tracking de 8 horas
-        return await iniciarTrackingUbicacion(nombreUsuario);
+        return await iniciarTrackingUbicacion(nombreUsuario, infoAdicional: infoAdicional);
       } else {
         // Usar el sistema tradicional de emergencia (una sola vez)
-        return await _activarEmergenciaTradicional(nombreUsuario);
+        return await _activarEmergenciaTradicional(nombreUsuario, infoAdicional: infoAdicional);
       }
     } catch (e) {
       debugPrint('Error al activar emergencia: $e');
@@ -242,7 +242,7 @@ class EmergenciaService {
   }
 
   // Método tradicional de emergencia (para compatibilidad)
-  Future<bool> _activarEmergenciaTradicional(String nombreUsuario) async {
+  Future<bool> _activarEmergenciaTradicional(String nombreUsuario, {Map<String, dynamic>? infoAdicional}) async {
     try {
       final contactos = await obtenerContactos();
       final posicion = await obtenerUbicacionActual();
@@ -254,22 +254,48 @@ class EmergenciaService {
         ubicacionTexto = 'No se pudo obtener la ubicación actual';
       }
 
+      // Construir información del viaje si está disponible
+      String infoViajeTexto = '';
+      debugPrint('🔍 Verificando infoAdicional: $infoAdicional');
+      if (infoAdicional != null && infoAdicional['viaje'] != null) {
+        final viaje = infoAdicional['viaje'];
+        debugPrint('📋 Datos del viaje recibidos: $viaje');
+        infoViajeTexto = '''
+
+📋 INFORMACIÓN DEL VIAJE:
+• Conductor: ${viaje['nombreConductor'] ?? 'No disponible'}
+• RUT Conductor: ${viaje['rutConductor'] ?? 'No disponible'}
+• Vehículo: ${viaje['patente'] ?? 'No disponible'}
+• Origen: ${viaje['origen'] ?? 'No disponible'}
+• Destino: ${viaje['destino'] ?? 'No disponible'}
+        ''';
+        debugPrint('✅ Información del viaje agregada al mensaje');
+      } else {
+        debugPrint('⚠️ No se recibió información del viaje');
+      }
+
       // Mensaje de emergencia
       final mensaje = '''
 🚨 ALERTA DE EMERGENCIA 🚨
 
 $nombreUsuario ha activado el botón de emergencia en BioRuta.
 
-$ubicacionTexto
+$ubicacionTexto$infoViajeTexto
 
 Por favor, contacta inmediatamente o verifica el estado de $nombreUsuario.
 
 Mensaje enviado automáticamente desde BioRuta - App de viajes compartidos.
       ''';
 
+      debugPrint('📱 [EMERGENCIA] Mensaje final a enviar:');
+      debugPrint('----------------------------------------');
+      debugPrint(mensaje);
+      debugPrint('----------------------------------------');
+
       // Enviar mensaje a cada contacto vía WhatsApp
       bool algunoEnviado = false;
       for (final contacto in contactos) {
+        debugPrint('📞 Enviando mensaje a: ${contacto.telefono}');
         final exito = await enviarWhatsApp(contacto.telefono, mensaje);
         if (exito) algunoEnviado = true;
       }
@@ -343,7 +369,7 @@ Mensaje enviado automáticamente desde BioRuta - App de viajes compartidos.
   // =========== FUNCIONALIDAD DE TRACKING EN TIEMPO REAL (8 HORAS) ===========
   
   // Iniciar tracking de ubicación en tiempo real por 8 horas
-  Future<bool> iniciarTrackingUbicacion(String nombreUsuario) async {
+  Future<bool> iniciarTrackingUbicacion(String nombreUsuario, {Map<String, dynamic>? infoAdicional}) async {
     try {
       // Verificar si ya hay un tracking activo
       if (await _estaTrackingActivo()) {
@@ -363,7 +389,7 @@ Mensaje enviado automáticamente desde BioRuta - App de viajes compartidos.
       }
 
       // Enviar ubicación inicial con Live Location de WhatsApp
-      await _enviarUbicacionInicial(nombreUsuario, posicion, contactos);
+      await _enviarUbicacionInicial(nombreUsuario, posicion, contactos, infoAdicional: infoAdicional);
 
       // Marcar tracking como activo
       final prefs = await SharedPreferences.getInstance();
@@ -409,7 +435,27 @@ Mensaje enviado automáticamente desde BioRuta - App de viajes compartidos.
   }
 
   // Enviar ubicación inicial con WhatsApp Live Location
-  Future<void> _enviarUbicacionInicial(String nombreUsuario, Position posicion, List<ContactoEmergencia> contactos) async {
+  Future<void> _enviarUbicacionInicial(String nombreUsuario, Position posicion, List<ContactoEmergencia> contactos, {Map<String, dynamic>? infoAdicional}) async {
+    // Construir información del viaje si está disponible
+    String infoViajeTexto = '';
+    debugPrint('🔍 [TRACKING] Verificando infoAdicional: $infoAdicional');
+    if (infoAdicional != null && infoAdicional['viaje'] != null) {
+      final viaje = infoAdicional['viaje'];
+      debugPrint('📋 [TRACKING] Datos del viaje recibidos: $viaje');
+      infoViajeTexto = '''
+
+📋 INFORMACIÓN DEL VIAJE:
+• Conductor: ${viaje['nombreConductor'] ?? 'No disponible'}
+• RUT Conductor: ${viaje['rutConductor'] ?? 'No disponible'}
+• Vehículo: ${viaje['patente'] ?? 'No disponible'}
+• Origen: ${viaje['origen'] ?? 'No disponible'}
+• Destino: ${viaje['destino'] ?? 'No disponible'}
+      ''';
+      debugPrint('✅ [TRACKING] Información del viaje agregada al mensaje');
+    } else {
+      debugPrint('⚠️ [TRACKING] No se recibió información del viaje');
+    }
+
     final mensaje = '''
 🚨 EMERGENCIA ACTIVADA 🚨
 
@@ -418,15 +464,21 @@ $nombreUsuario ha activado el sistema de emergencia SOS.
 📍 UBICACIÓN EN TIEMPO REAL:
 Se compartirá la ubicación cada 30 minutos durante las próximas 8 horas.
 
-Ubicación actual: https://maps.google.com/?q=${posicion.latitude},${posicion.longitude}
+Ubicación actual: https://maps.google.com/?q=${posicion.latitude},${posicion.longitude}$infoViajeTexto
 
 ⚠️ IMPORTANTE: Este es un mensaje de emergencia automático. Por favor contacta inmediatamente a $nombreUsuario.
 
 Mensaje enviado desde BioRuta - App de viajes compartidos.
     ''';
 
+    debugPrint('📱 [TRACKING] Mensaje final a enviar:');
+    debugPrint('----------------------------------------');
+    debugPrint(mensaje);
+    debugPrint('----------------------------------------');
+
     // Enviar a cada contacto
     for (final contacto in contactos) {
+      debugPrint('📞 [TRACKING] Enviando mensaje a: ${contacto.telefono}');
       await enviarWhatsApp(contacto.telefono, mensaje);
       
       // Pequeña pausa entre envíos para evitar spam
