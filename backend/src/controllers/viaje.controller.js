@@ -2093,9 +2093,10 @@ export async function eliminarPasajero(req, res) {
  * Calcular precio sugerido basado en kilómetros de la ruta
  * @param {number} kilometros - Kilómetros de la ruta
  * @param {object} opciones - Opciones de cálculo
+ * @param {object} vehiculo - Información del vehículo (opcional)
  * @returns {object} Información del precio calculado
  */
-function calcularPrecioSugerido(kilometros, opciones = {}) {
+function calcularPrecioSugerido(kilometros, opciones = {}, vehiculo = null) {
   const {
     tipoVehiculo = 'otro',     // Tipo de vehículo para calcular precio/km
     tipoCombustible = 'bencina', // Tipo de combustible para factor
@@ -2116,16 +2117,39 @@ function calcularPrecioSugerido(kilometros, opciones = {}) {
   let precioAjustado = precioBase * factorGasolina * factorCombustible * factorDemanda;
 
   // Redondear a múltiplos de 100
-  const precioFinal = Math.round(precioAjustado / 100) * 100;
+  const precioTotal = Math.round(precioAjustado / 100) * 100;
+
+  // Calcular precio por persona (dividir por número de asientos del vehículo)
+  let precioPorPersona = precioTotal;
+  let nroAsientos = 1; // Por defecto, si no hay información del vehículo
+  
+  if (vehiculo && vehiculo.nro_asientos && vehiculo.nro_asientos > 1) {
+    nroAsientos = vehiculo.nro_asientos;
+    // Dividir el precio total por el número de asientos para obtener precio por persona
+    precioPorPersona = Math.round(precioTotal / nroAsientos / 100) * 100; // Redondear a múltiplos de 100
+    
+    console.log(`🚗 Vehículo detectado: ${nroAsientos} asientos`);
+    console.log(`💰 Precio total del viaje: $${precioTotal}`);
+    console.log(`👤 Precio por persona: $${precioPorPersona} (${precioTotal} ÷ ${nroAsientos})`);
+  }
 
   return {
     kilometros: kilometros,
     precioBase: Math.round(precioBase),
     precioAjustado: Math.round(precioAjustado),
-    precioFinal: precioFinal,
+    precioTotal: precioTotal, // Precio total del viaje
+    precioPorPersona: precioPorPersona, // Precio que paga cada pasajero
+    precioFinal: precioPorPersona, // Mantener compatibilidad (ahora es precio por persona)
     precioPorKm: precioPorKm, // Mostrar el precio específico usado
     tipoVehiculo: tipoVehiculo,
     tipoCombustible: tipoCombustible,
+    nroAsientos: nroAsientos, // Información del vehículo
+    vehiculo: vehiculo ? {
+      patente: vehiculo.patente,
+      modelo: vehiculo.modelo,
+      nro_asientos: vehiculo.nro_asientos,
+      tipo: vehiculo.tipo
+    } : null,
     factores: {
       gasolina: factorGasolina,
       combustible: factorCombustible,
@@ -2136,6 +2160,11 @@ function calcularPrecioSugerido(kilometros, opciones = {}) {
       costoDesgaste: Math.round(precioBase * 0.2), // ~20% desgaste vehículo
       costoTiempo: Math.round(precioBase * 0.2), // ~20% tiempo conductor
       ganancia: Math.round(precioBase * 0.2) // ~20% ganancia
+    },
+    explicacion: {
+      mensaje: vehiculo && vehiculo.nro_asientos > 1 
+        ? `Precio calculado: $${precioTotal} total ÷ ${nroAsientos} asientos = $${precioPorPersona} por persona`
+        : `Precio calculado: $${precioPorPersona} (información de vehículo no disponible)`
     }
   };
 }
@@ -2161,7 +2190,7 @@ export async function obtenerPrecioSugerido(req, res) {
     console.log('📤 Query params:', JSON.stringify(req.query, null, 2));
     console.log('👤 Usuario autenticado:', req.user?.rut || 'NO AUTENTICADO');
     
-    const { origenLat, origenLon, destinoLat, destinoLon, tipoVehiculo, factores } = req.body;
+    const { origenLat, origenLon, destinoLat, destinoLon, tipoVehiculo, factores, vehiculoPatente } = req.body;
 
     console.log('🔍 Extrayendo parámetros del body:');
     console.log('   - origenLat:', origenLat, typeof origenLat);
@@ -2170,6 +2199,7 @@ export async function obtenerPrecioSugerido(req, res) {
     console.log('   - destinoLon:', destinoLon, typeof destinoLon);
     console.log('   - tipoVehiculo:', tipoVehiculo);
     console.log('   - factores:', factores);
+    console.log('   - vehiculoPatente:', vehiculoPatente);
 
     // Validar parámetros requeridos
     if (!origenLat || !origenLon || !destinoLat || !destinoLon) {
@@ -2178,6 +2208,66 @@ export async function obtenerPrecioSugerido(req, res) {
     }
 
     console.log('✅ Validación de parámetros exitosa');
+
+    // Obtener información del vehículo del usuario si se especifica una patente
+    let vehiculoInfo = null;
+    if (vehiculoPatente && req.user?.rut) {
+      console.log(`🚗 Buscando información del vehículo con patente: ${vehiculoPatente}`);
+      
+      try {
+        const vehiculo = await vehiculoRepository.findOne({
+          where: { 
+            patente: vehiculoPatente,
+            propietario: { rut: req.user.rut }
+          },
+          relations: ["propietario"]
+        });
+
+        if (vehiculo) {
+          vehiculoInfo = {
+            patente: vehiculo.patente,
+            modelo: vehiculo.modelo,
+            nro_asientos: vehiculo.nro_asientos,
+            tipo: vehiculo.tipo,
+            tipoCombustible: vehiculo.tipoCombustible || 'bencina'
+          };
+          console.log(`✅ Vehículo encontrado:`, vehiculoInfo);
+        } else {
+          console.log(`⚠️ Vehículo con patente ${vehiculoPatente} no encontrado o no pertenece al usuario`);
+        }
+      } catch (error) {
+        console.error(`❌ Error al buscar vehículo:`, error);
+      }
+    } else if (req.user?.rut) {
+      // Si no se especifica patente, intentar obtener el primer vehículo del usuario
+      console.log(`🚗 Buscando vehículos del usuario: ${req.user.rut}`);
+      
+      try {
+        const vehiculos = await vehiculoRepository.find({
+          where: { 
+            propietario: { rut: req.user.rut }
+          },
+          relations: ["propietario"],
+          take: 1 // Solo obtener el primero
+        });
+
+        if (vehiculos.length > 0) {
+          const vehiculo = vehiculos[0];
+          vehiculoInfo = {
+            patente: vehiculo.patente,
+            modelo: vehiculo.modelo,
+            nro_asientos: vehiculo.nro_asientos,
+            tipo: vehiculo.tipo,
+            tipoCombustible: vehiculo.tipoCombustible || 'bencina'
+          };
+          console.log(`✅ Primer vehículo del usuario encontrado:`, vehiculoInfo);
+        } else {
+          console.log(`⚠️ Usuario no tiene vehículos registrados`);
+        }
+      } catch (error) {
+        console.error(`❌ Error al buscar vehículos del usuario:`, error);
+      }
+    }
 
     // Calcular kilómetros de la ruta REAL por carretera
     console.log('🛣️ Calculando distancia REAL por carretera usando OpenRouteService...');
@@ -2192,49 +2282,36 @@ export async function obtenerPrecioSugerido(req, res) {
     console.log(`📍 Coordenadas origen: lat=${origenLat}, lon=${origenLon}`);
     console.log(`📍 Coordenadas destino: lat=${destinoLat}, lon=${destinoLon}`);
 
-    // Preparar opciones de cálculo
+    // Preparar opciones de cálculo usando información del vehículo si está disponible
     let opciones = {
-      precioPorKm: 300, // Precio base por defecto
-      precioMinimo: 1000,
-      precioMaximo: 50000,
+      tipoVehiculo: vehiculoInfo?.tipo || tipoVehiculo || 'otro',
+      tipoCombustible: vehiculoInfo?.tipoCombustible || 'bencina',
       factorGasolina: 1.0,
-      factorVehiculo: 1.0,
       factorDemanda: 1.0
     };
 
-    // Ajustar factor de vehículo según el tipo
-    if (tipoVehiculo) {
-      switch (tipoVehiculo.toLowerCase()) {
-        case 'sedan':
-          opciones.factorVehiculo = 1.0;
-          break;
-        case 'suv':
-          opciones.factorVehiculo = 1.2; // SUVs consumen más combustible
-          break;
-        case 'hatchback':
-          opciones.factorVehiculo = 0.9; // Hatchbacks consumen menos
-          break;
-        default:
-          opciones.factorVehiculo = 1.0;
-      }
-    }
+    console.log(`🔧 Usando tipo de vehículo: ${opciones.tipoVehiculo} (${vehiculoInfo ? 'del vehículo del usuario' : 'del parámetro/defecto'})`);
+    console.log(`⛽ Usando tipo de combustible: ${opciones.tipoCombustible} (${vehiculoInfo ? 'del vehículo del usuario' : 'defecto'})`);
 
     // Aplicar factores personalizados si se proporcionan
     if (factores) {
       if (factores.gasolina) opciones.factorGasolina = parseFloat(factores.gasolina);
-      if (factores.vehiculo) opciones.factorVehiculo = parseFloat(factores.vehiculo);
       if (factores.demanda) opciones.factorDemanda = parseFloat(factores.demanda);
     }
 
-    // Calcular precio sugerido
+    // Calcular precio sugerido con información del vehículo
     console.log('🔢 Iniciando cálculo de precio sugerido...');
     console.log('📊 Opciones de cálculo:', JSON.stringify(opciones, null, 2));
+    console.log('🚗 Información del vehículo:', JSON.stringify(vehiculoInfo, null, 2));
     
-    const calculoPrecio = calcularPrecioSugerido(kilometros, opciones);
+    const calculoPrecio = calcularPrecioSugerido(kilometros, opciones, vehiculoInfo);
 
     console.log('✅ ¡PRECIO CALCULADO EXITOSAMENTE!');
     console.log('📊 Resultado del cálculo:', JSON.stringify(calculoPrecio, null, 2));
-    console.log(`💰 RESUMEN: ${kilometros}km → $${calculoPrecio.precioFinal}`);
+    console.log(`💰 RESUMEN: ${kilometros}km → $${calculoPrecio.precioFinal} por persona`);
+    if (vehiculoInfo && vehiculoInfo.nro_asientos > 1) {
+      console.log(`🚗 PRECIO TOTAL DEL VIAJE: $${calculoPrecio.precioTotal} (${vehiculoInfo.nro_asientos} asientos)`);
+    }
 
     const respuestaFinal = {
       ruta: {
