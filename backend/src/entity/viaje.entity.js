@@ -91,6 +91,12 @@ const viajeSchema = new mongoose.Schema({
     required: true, 
     min: 0 
   },
+  kilometros_ruta: {
+    type: Number,
+    required: true,
+    min: 0,
+    default: 0
+  },
   plazas_disponibles: { 
     type: Number, 
     required: true, 

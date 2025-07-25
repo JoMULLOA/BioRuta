@@ -566,6 +566,79 @@ class ViajeService {
     }
   }
 
+  /// Obtener precio sugerido basado en coordenadas de ruta
+  static Future<Map<String, dynamic>> obtenerPrecioSugerido({
+    required double origenLat,
+    required double origenLon,
+    required double destinoLat,
+    required double destinoLon,
+    String? tipoVehiculo,
+    Map<String, double>? factores,
+  }) async {
+    try {
+      final headers = await _getHeaders();
+      if (headers == null) {
+        return {
+          'success': false,
+          'message': 'No se pudo obtener el token de autenticación'
+        };
+      }
+
+      final body = <String, dynamic>{
+        'origenLat': origenLat,
+        'origenLon': origenLon,
+        'destinoLat': destinoLat,
+        'destinoLon': destinoLon,
+      };
+
+      if (tipoVehiculo != null) {
+        body['tipoVehiculo'] = tipoVehiculo;
+      }
+
+      if (factores != null) {
+        body['factores'] = factores;
+      }
+
+      debugPrint("🔢 Solicitando precio sugerido para ruta:");
+      debugPrint("   Origen: ($origenLat, $origenLon)");
+      debugPrint("   Destino: ($destinoLat, $destinoLon)");
+      debugPrint("   Tipo vehículo: $tipoVehiculo");
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/viajes/precio-sugerido'),
+        headers: headers,
+        body: json.encode(body),
+      );
+
+      debugPrint("📨 Respuesta precio sugerido: ${response.statusCode}");
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        debugPrint("✅ Precio sugerido obtenido: ${data['data']}");
+        
+        return {
+          'success': true,
+          'data': data['data'],
+          'message': data['message'] ?? 'Precio calculado exitosamente'
+        };
+      } else {
+        final data = json.decode(response.body);
+        debugPrint("❌ Error en precio sugerido: ${data['message']}");
+        
+        return {
+          'success': false,
+          'message': data['message'] ?? 'Error al calcular precio sugerido'
+        };
+      }
+    } catch (e) {
+      debugPrint("💥 Error calculando precio sugerido: $e");
+      return {
+        'success': false,
+        'message': 'Error de conexión: $e'
+      };
+    }
+  }
+
   /// Verificar si el usuario tiene viajes activos (como conductor o pasajero)
   static Future<bool> tieneViajesActivos() async {
     try {

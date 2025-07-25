@@ -4,10 +4,16 @@ import "publicar_viaje_paso3.dart";
 
 class PublicarViajePaso2 extends StatefulWidget {
   final List<DireccionSugerida> ubicaciones;
+  final double? kilometrosRuta;
+  final double? precioSugerido;
+  final Map<String, dynamic>? infoPrecio;
 
   const PublicarViajePaso2({
     super.key,
     required this.ubicaciones,
+    this.kilometrosRuta,
+    this.precioSugerido,
+    this.infoPrecio,
   });
 
   @override
@@ -108,8 +114,79 @@ class _PublicarViajePaso2State extends State<PublicarViajePaso2> {
                 fechaHora: _fechaHoraVuelta, 
                 onSelectDateTime: () => _seleccionarFechaHora(false)
               ),
-              const SizedBox(height: 40),
-              SizedBox(
+              const SizedBox(height: 30),
+              
+              // Mostrar información del precio calculado desde el Paso 1
+              if (widget.kilometrosRuta != null && widget.precioSugerido != null)
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.green.withOpacity(0.3)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.route, color: Colors.green, size: 20),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Ruta: ${widget.kilometrosRuta!.toStringAsFixed(1)} km',
+                                style: const TextStyle(
+                                  color: Colors.green,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF854937),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              '\$${widget.precioSugerido!.toStringAsFixed(0)}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      if (widget.infoPrecio != null) ...[
+                        Text(
+                          'Precio calculado: \$${widget.infoPrecio!['precioBase']} base (${widget.infoPrecio!['precioPorKm']}/km)',
+                          style: TextStyle(
+                            color: Colors.grey[700],
+                            fontSize: 14,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Incluye todos los costos del viaje',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              
+              const SizedBox(height: 20),
+              
+              Container(
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton(
