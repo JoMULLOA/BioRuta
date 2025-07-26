@@ -6,6 +6,7 @@ import '../models/viaje_model.dart';
 import '../models/marcador_viaje_model.dart';
 import '../config/confGlobal.dart';
 import '../utils/token_manager.dart';
+import '../utils/viaje_validator.dart';
 
 class ViajeService {
   static String get baseUrl => confGlobal.baseUrl;
@@ -16,7 +17,119 @@ class ViajeService {
     return await TokenManager.getAuthHeaders(); // Usar TokenManager
   }
   
-  /// Crear un nuevo viaje
+  /// Validar si se puede publicar un viaje en una fecha específica
+  static Future<Map<String, dynamic>> validarPublicacionViaje({
+    required DateTime fechaHoraIda,
+    DateTime? fechaHoraVuelta,
+    required double origenLat,
+    required double origenLng,
+    required double destinoLat,
+    required double destinoLng,
+  }) async {
+    try {
+      // Calcular distancia del nuevo viaje
+      final distanciaKm = ViajeValidator.calcularDistancia(origenLat, origenLng, destinoLat, destinoLng);
+      
+      // Obtener viajes activos del usuario
+      final viajesActivos = await _obtenerViajesActivosUsuario();
+      
+      // Validar viaje de ida
+      final puedePublicarIda = ViajeValidator.puedePublicarViaje(
+        nuevaFecha: fechaHoraIda,
+        distanciaKm: distanciaKm,
+        viajesActivos: viajesActivos,
+      );
+      
+      if (!puedePublicarIda) {
+        final proximoTiempo = ViajeValidator.obtenerProximoTiempoDisponible(
+          distanciaKm: distanciaKm,
+          viajesActivos: viajesActivos,
+        );
+        
+        final duracionEstimada = ViajeValidator.calcularDuracionEstimada(distanciaKm);
+        
+        return {
+          'success': false,
+          'message': 'No puedes publicar este viaje porque se solapa con un viaje activo. '
+                     'Duración estimada: ${ViajeValidator.formatearDuracion(duracionEstimada)}',
+          'proximoTiempoDisponible': proximoTiempo,
+          'duracionEstimada': duracionEstimada,
+        };
+      }
+      
+      // Si hay viaje de vuelta, validarlo también
+      if (fechaHoraVuelta != null) {
+        final puedePublicarVuelta = ViajeValidator.puedePublicarViaje(
+          nuevaFecha: fechaHoraVuelta,
+          distanciaKm: distanciaKm,
+          viajesActivos: [...viajesActivos, {
+            'fecha_ida': fechaHoraIda.toIso8601String(),
+            'origen': {'ubicacion': {'coordinates': [origenLng, origenLat]}},
+            'destino': {'ubicacion': {'coordinates': [destinoLng, destinoLat]}},
+          }], // Incluir el viaje de ida en la validación
+        );
+        
+        if (!puedePublicarVuelta) {
+          final duracionEstimada = ViajeValidator.calcularDuracionEstimada(distanciaKm);
+          return {
+            'success': false,
+            'message': 'El viaje de vuelta se solapa con otros viajes. '
+                       'Duración estimada: ${ViajeValidator.formatearDuracion(duracionEstimada)}',
+            'duracionEstimada': duracionEstimada,
+          };
+        }
+      }
+      
+      return {
+        'success': true,
+        'message': 'Viaje válido para publicar',
+        'duracionEstimada': ViajeValidator.calcularDuracionEstimada(distanciaKm),
+        'distanciaKm': distanciaKm,
+      };
+      
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Error validando viaje: $e',
+      };
+    }
+  }
+  
+  /// Obtener viajes activos del usuario para validaciones (método público)
+  static Future<List<Map<String, dynamic>>> obtenerViajesActivosUsuario() async {
+    return await _obtenerViajesActivosUsuario();
+  }
+  
+  /// Obtener viajes activos del usuario para validaciones (método privado)
+  static Future<List<Map<String, dynamic>>> _obtenerViajesActivosUsuario() async {
+    try {
+      final headers = await _getHeaders();
+      if (headers == null) return [];
+
+      final response = await http.get(
+        Uri.parse('$baseUrl/viajes/mis-viajes'),
+        headers: headers,
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['success'] == true && data['data'] != null) {
+          final List<dynamic> viajes = data['data'];
+          
+          // Filtrar solo viajes activos
+          return viajes
+              .where((viaje) => viaje['estado'] == 'activo')
+              .cast<Map<String, dynamic>>()
+              .toList();
+        }
+      }
+      
+      return [];
+    } catch (e) {
+      debugPrint('❌ Error obteniendo viajes activos: $e');
+      return [];
+    }
+  }
   static Future<Map<String, dynamic>> crearViaje({
     required List<Map<String, dynamic>> ubicaciones,
     required String fechaHoraIda,
@@ -132,7 +245,7 @@ class ViajeService {
     }
   }
 
-  /// Obtener marcadores para el mapa
+  /// Obtener marcadores para el mapa (filtra automáticamente viajes pasados)
   static Future<List<MarcadorViaje>> obtenerMarcadoresViajes({
     String? fechaDesde,
     String? fechaHasta,
@@ -152,7 +265,34 @@ class ViajeService {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final marcadoresData = data['data']['marcadores'] as List;
-        return marcadoresData
+        
+        // Filtrar marcadores que ya pasaron su hora de salida
+        final marcadoresFiltrados = marcadoresData.where((marcadorJson) {
+          try {
+            final detallesViaje = marcadorJson['detalles_viaje'];
+            if (detallesViaje != null && detallesViaje['fecha'] != null) {
+              final fechaViaje = DateTime.parse(detallesViaje['fecha']);
+              
+              // Verificar si la fecha ya pasó (considerando zona horaria chilena)
+              final fechaChile = fechaViaje.subtract(const Duration(hours: 4));
+              final ahoraChile = DateTime.now();
+              
+              // Si ya pasó la hora de salida, cambiar estado automáticamente
+              if (fechaChile.isBefore(ahoraChile)) {
+                debugPrint('🕒 Viaje ${marcadorJson['id']} ya pasó su hora de salida, debe cambiar a en_curso');
+                // Llamar al backend para cambiar estado (no esperar respuesta para no bloquear)
+                cambiarEstadoViajeAsincrono(marcadorJson['id'], 'en_curso');
+                return false; // No mostrar en el mapa
+              }
+            }
+            return true;
+          } catch (e) {
+            debugPrint('❌ Error filtrando marcador: $e');
+            return true; // En caso de error, mantener el marcador
+          }
+        }).toList();
+        
+        return marcadoresFiltrados
             .map((marcador) => MarcadorViaje.fromJson(marcador))
             .toList();
       } else {
@@ -160,6 +300,31 @@ class ViajeService {
       }
     } catch (e) {
       throw Exception('Error de conexión: $e');
+    }
+  }
+  
+  /// Cambiar estado de viaje de forma asíncrona (sin esperar respuesta)
+  static void cambiarEstadoViajeAsincrono(String viajeId, String nuevoEstado) {
+    _cambiarEstadoViajeAsync(viajeId, nuevoEstado).catchError((error) {
+      debugPrint('❌ Error cambiando estado automático del viaje $viajeId: $error');
+    });
+  }
+  
+  /// Método auxiliar para cambio de estado asíncrono
+  static Future<void> _cambiarEstadoViajeAsync(String viajeId, String nuevoEstado) async {
+    try {
+      final headers = await _getHeaders();
+      if (headers == null) return;
+
+      await http.put(
+        Uri.parse('$baseUrl/viajes/$viajeId/estado'),
+        headers: headers,
+        body: json.encode({'nuevoEstado': nuevoEstado}),
+      );
+      
+      debugPrint('✅ Estado del viaje $viajeId cambiado automáticamente a $nuevoEstado');
+    } catch (e) {
+      debugPrint('❌ Error en cambio automático de estado: $e');
     }
   }
 

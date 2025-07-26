@@ -4,6 +4,7 @@ import '../models/direccion_sugerida.dart';
 import '../services/viaje_service.dart';
 import '../services/user_service.dart';
 import '../models/viaje_model.dart';
+import '../utils/viaje_validator.dart';
 
 class PublicarViajeFinal extends StatefulWidget {
   final List<DireccionSugerida> ubicaciones;
@@ -35,6 +36,7 @@ class _PublicarViajeFinalState extends State<PublicarViajeFinal> {
   List<VehiculoViaje> vehiculosDisponibles = [];
   bool cargandoVehiculos = true;
   bool calculandoPrecio = false;
+  bool cargando = false; // Variable para el estado de carga al publicar
   double? kilometrosRuta;
   Map<String, dynamic>? infoPrecio;
 
@@ -122,6 +124,83 @@ class _PublicarViajeFinalState extends State<PublicarViajeFinal> {
     }
 
     try {
+      setState(() {
+        cargando = true;
+      });
+
+      // NUEVA VALIDACIÓN: Verificar solapamiento de viajes
+      final origen = widget.ubicaciones.firstWhere((u) => u.esOrigen == true);
+      final destino = widget.ubicaciones.firstWhere((u) => u.esOrigen != true);
+      
+      final validacion = await ViajeService.validarPublicacionViaje(
+        fechaHoraIda: widget.fechaHoraIda,
+        fechaHoraVuelta: widget.fechaHoraVuelta,
+        origenLat: origen.lat,
+        origenLng: origen.lon,
+        destinoLat: destino.lat,
+        destinoLng: destino.lon,
+      );
+      
+      if (validacion['success'] != true) {
+        setState(() {
+          cargando = false;
+        });
+        
+        // Mostrar información detallada del error
+        await showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('⚠️ Conflicto de Viajes'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(validacion['message']),
+                if (validacion['proximoTiempoDisponible'] != null) ...[
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Próximo tiempo disponible:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    DateFormat('dd/MM/yyyy HH:mm').format(validacion['proximoTiempoDisponible']),
+                    style: const TextStyle(color: Colors.green),
+                  ),
+                ],
+                if (validacion['distanciaKm'] != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    'Distancia estimada: ${validacion['distanciaKm'].toStringAsFixed(1)} km',
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                ],
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Entendido'),
+              ),
+            ],
+          ),
+        );
+        return;
+      }
+      
+      // Mostrar información de la duración estimada del viaje
+      if (validacion['duracionEstimada'] != null) {
+        final duracion = validacion['duracionEstimada'] as Duration;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '⏱️ Duración estimada: ${ViajeValidator.formatearDuracion(duracion)}',
+            ),
+            backgroundColor: Colors.blue,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+
       // Preparar ubicaciones - usar los nombres exactos que espera el backend
       final ubicaciones = widget.ubicaciones.map((u) => {
         'displayName': u.displayName,  // Cambiar de 'nombre' a 'displayName'
@@ -133,7 +212,7 @@ class _PublicarViajeFinalState extends State<PublicarViajeFinal> {
       print('📍 Ubicaciones a enviar: $ubicaciones');
       print('📅 Fecha y hora ida: ${widget.fechaHoraIda}');
       if (widget.viajeIdaYVuelta && widget.fechaHoraVuelta != null) {
-        print('� Fecha y hora vuelta: ${widget.fechaHoraVuelta}');
+        print('🔄 Fecha y hora vuelta: ${widget.fechaHoraVuelta}');
       }
 
       final resultado = await ViajeService.crearViaje(
