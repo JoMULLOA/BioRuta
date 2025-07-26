@@ -242,37 +242,33 @@ void _mostrarSolicitudesPasajeros() {
         centerTitle: true,
         automaticallyImplyLeading: false, // Quitar el botón de volver atrás
         actions: [
-          // Selector de período
+          // Selector de período - solo ícono
           Container(
             margin: const EdgeInsets.only(right: 16),
-            child: DropdownButton<String>(
-              value: _periodoSeleccionado,
-              dropdownColor: const Color(0xFF8D4F3A),
-              underline: Container(),
+            child: PopupMenuButton<String>(
+              onSelected: (String newValue) {
+                _cambiarPeriodo(newValue);
+              },
               icon: const Icon(Icons.filter_list, color: Colors.white),
-              items: const [
-                DropdownMenuItem(
+              color: const Color(0xFF8D4F3A),
+              itemBuilder: (BuildContext context) => [
+                const PopupMenuItem(
                   value: 'Todos',
                   child: Text('Todos', style: TextStyle(color: Colors.white)),
                 ),
-                DropdownMenuItem(
+                const PopupMenuItem(
                   value: 'Hoy',
                   child: Text('Hoy', style: TextStyle(color: Colors.white)),
                 ),
-                DropdownMenuItem(
+                const PopupMenuItem(
                   value: 'Esta semana',
                   child: Text('Esta semana', style: TextStyle(color: Colors.white)),
                 ),
-                DropdownMenuItem(
+                const PopupMenuItem(
                   value: 'Este mes',
                   child: Text('Este mes', style: TextStyle(color: Colors.white)),
                 ),
               ],
-              onChanged: (String? newValue) {
-                if (newValue != null) {
-                  _cambiarPeriodo(newValue);
-                }
-              },
             ),
           ),
         ],
@@ -297,47 +293,6 @@ void _mostrarSolicitudesPasajeros() {
             )
           : Column(
               children: [
-                // Indicador del filtro activo (solo si no es "Todos")
-                if (_periodoSeleccionado != 'Todos')
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    color: const Color(0xFFEDCAB6),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.filter_list, size: 16, color: Color(0xFF854937)),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Builder(
-                            builder: (context) {
-                              final count = _tabController.index == 0 ? viajesCreados.length : viajesUnidos.length;
-                              final tabName = _tabController.index == 0 ? 'publicaciones' : 'unidos';
-                              return Text(
-                                'Mostrando $_periodoSeleccionado: $count $tabName',
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: Color(0xFF854937),
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                        GestureDetector(
-                          onTap: () => _cambiarPeriodo('Todos'),
-                          child: const Text(
-                            'Ver todos',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Color(0xFF854937),
-                              fontWeight: FontWeight.w600,
-                              decoration: TextDecoration.underline,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
                 // TabBarView
                 Expanded(
                   child: TabBarView(

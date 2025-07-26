@@ -1,19 +1,15 @@
 import "package:flutter/material.dart";
 import "../models/direccion_sugerida.dart";
+import "../services/viaje_service.dart";
+import "../utils/viaje_validator.dart";
 import "publicar_viaje_paso3.dart";
 
 class PublicarViajePaso2 extends StatefulWidget {
   final List<DireccionSugerida> ubicaciones;
-  final double? kilometrosRuta;
-  final double? precioSugerido;
-  final Map<String, dynamic>? infoPrecio;
 
   const PublicarViajePaso2({
     super.key,
-    required this.ubicaciones,
-    this.kilometrosRuta,
-    this.precioSugerido,
-    this.infoPrecio,
+    required this.ubicaciones, Map<String, dynamic>? infoPrecio, double? precioSugerido, double? kilometrosRuta,
   });
 
   @override
@@ -114,79 +110,8 @@ class _PublicarViajePaso2State extends State<PublicarViajePaso2> {
                 fechaHora: _fechaHoraVuelta, 
                 onSelectDateTime: () => _seleccionarFechaHora(false)
               ),
-              const SizedBox(height: 30),
-              
-              // Mostrar información del precio calculado desde el Paso 1
-              if (widget.kilometrosRuta != null && widget.precioSugerido != null)
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.green.withOpacity(0.3)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              const Icon(Icons.route, color: Colors.green, size: 20),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Ruta: ${widget.kilometrosRuta!.toStringAsFixed(1)} km',
-                                style: const TextStyle(
-                                  color: Colors.green,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                              ),
-                            ],
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF854937),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              '\$${widget.precioSugerido!.toStringAsFixed(0)}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      if (widget.infoPrecio != null) ...[
-                        Text(
-                          'Precio calculado: \$${widget.infoPrecio!['precioBase']} base (${widget.infoPrecio!['precioPorKm']}/km)',
-                          style: TextStyle(
-                            color: Colors.grey[700],
-                            fontSize: 14,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Incluye todos los costos del viaje',
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              
-              const SizedBox(height: 20),
-              
-              Container(
+              const SizedBox(height: 40),
+              SizedBox(
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton(
@@ -346,18 +271,16 @@ class _PublicarViajePaso2State extends State<PublicarViajePaso2> {
 
     // Determinar la hora mínima basada en si es hoy o un día futuro
     final DateTime now = DateTime.now();
-    // Ajustar para horario chileno (UTC-4) - retrasar 4 horas para compensar diferencia del servidor
-    final DateTime nowChile = now.subtract(const Duration(hours: 4));
-    final bool isToday = pickedDate.year == nowChile.year && 
-                        pickedDate.month == nowChile.month && 
-                        pickedDate.day == nowChile.day;
+    final bool isToday = pickedDate.year == now.year && 
+                        pickedDate.month == now.month && 
+                        pickedDate.day == now.day;
     
-    // Si es hoy, la hora mínima es la hora actual + 30 minutos (ajustada para Chile)
+    // Si es hoy, la hora mínima es la hora actual + 1 hora
     // Si es un día futuro, puede seleccionar cualquier hora
     TimeOfDay initialTime;
     if (isToday) {
-      final nextHour = nowChile.add(const Duration(minutes: 30));
-      initialTime = TimeOfDay(hour: nextHour.hour, minute: nextHour.minute);
+      final nextHour = now.add(const Duration(hours: 1));
+      initialTime = TimeOfDay(hour: nextHour.hour, minute: 0);
     } else {
       initialTime = const TimeOfDay(hour: 8, minute: 0); // 8:00 AM por defecto
     }
@@ -388,8 +311,8 @@ class _PublicarViajePaso2State extends State<PublicarViajePaso2> {
       pickedTime.minute,
     );
 
-    // Validar que no sea una hora pasada si es hoy (usando horario chileno)
-    if (isToday && combinedDateTime.isBefore(nowChile.add(const Duration(minutes: 30)))) {
+    // Validar que no sea una hora pasada si es hoy
+    if (isToday && combinedDateTime.isBefore(now.add(const Duration(minutes: 30)))) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -400,6 +323,65 @@ class _PublicarViajePaso2State extends State<PublicarViajePaso2> {
         );
       }
       return;
+    }
+    
+    // NUEVA VALIDACIÓN: Verificar solapamiento si es viaje de vuelta
+    if (!esIda && _fechaHoraIda != null) {
+      try {
+        final origen = widget.ubicaciones.firstWhere((u) => u.esOrigen == true);
+        final destino = widget.ubicaciones.firstWhere((u) => u.esOrigen != true);
+        
+        final validacion = await ViajeService.validarPublicacionViaje(
+          fechaHoraIda: _fechaHoraIda!,
+          fechaHoraVuelta: combinedDateTime,
+          origenLat: origen.lat,
+          origenLng: origen.lon,
+          destinoLat: destino.lat,
+          destinoLng: destino.lon,
+        );
+        
+        if (validacion['success'] != true) {
+          if (mounted) {
+            await showDialog(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: const Text('⚠️ Conflicto con Viaje de Vuelta'),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(validacion['message']),
+                    if (validacion['duracionEstimada'] != null) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        'Duración estimada: ${ViajeValidator.formatearDuracion(validacion['duracionEstimada'])}',
+                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                    ],
+                  ],
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Entendido'),
+                  ),
+                ],
+              ),
+            );
+          }
+          return; // No actualizar la fecha si hay conflicto
+        }
+      } catch (e) {
+        // En caso de error en la validación, mostrar advertencia pero permitir continuar
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('⚠️ No se pudo validar el viaje: $e'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      }
     }
 
     // Actualizar el estado

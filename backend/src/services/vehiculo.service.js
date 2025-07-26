@@ -62,7 +62,8 @@ export async function getVehiculosByUserService(userRut) {
         año: vehiculo.año,
         color: vehiculo.color,
         nro_asientos: vehiculo.nro_asientos,
-        documentacion: vehiculo.documentacion
+        documentacion: vehiculo.documentacion,
+        tipoCombustible: vehiculo.tipoCombustible,
       };
     });
 

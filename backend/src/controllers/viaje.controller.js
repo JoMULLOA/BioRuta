@@ -913,6 +913,493 @@ async function obtenerViajeConDatos(viajeId) {
 }
 
 /**
+ * Obtener precio por kilómetro según el tipo de vehículo
+ * @param {string} tipoVehiculo - Tipo de vehículo
+ * @returns {number} Precio por kilómetro en CLP
+ */
+function obtenerPrecioPorKmSegunTipo(tipoVehiculo) {
+  const precios = {
+    'sedan': 180,      // $180 por km
+    'hatchback': 160,  // $160 por km
+    'suv': 220,        // $220 por km
+    'pickup': 200,     // $200 por km
+    'furgon': 190,     // $190 por km
+    'camioneta': 200,  // $200 por km
+    'coupe': 170,      // $170 por km
+    'convertible': 190, // $190 por km
+    'electrico': 120,  // $120 por km (más económico)
+    'hibrido': 140,    // $140 por km
+    'otro': 170        // $170 por km (precio promedio)
+  };
+
+  const precio = precios[tipoVehiculo?.toLowerCase()] || precios['otro'];
+  console.log(`💰 Precio por km para ${tipoVehiculo}: $${precio}/km`);
+  return precio;
+}
+
+/**
+ * Estimación local de peajes en Chile como fallback
+ * @param {number} lat1 - Latitud de origen
+ * @param {number} lon1 - Longitud de origen  
+ * @param {number} lat2 - Latitud de destino
+ * @param {number} lon2 - Longitud de destino
+ * @returns {object} Estimación de peajes
+ */
+function estimarPeajesChile(lat1, lon1, lat2, lon2) {
+  console.log(`🇨🇱 Usando estimación local de peajes chilenos`);
+  
+  // Base de datos de peajes principales en Chile con coordenadas aproximadas
+  const peajesChile = [
+    { nombre: "Peaje Chaca", lat: -18.3, lng: -70.3, costo: 1800, autopista: "Ruta 5 Norte" },
+    { nombre: "Peaje Zapahuira", lat: -18.5, lng: -69.6, costo: 2000, autopista: "Ruta 11-CH" },
+    { nombre: "Peaje Huara", lat: -20.1, lng: -69.8, costo: 2200, autopista: "Ruta 5 Norte" },
+    { nombre: "Peaje Pampa Perdiz", lat: -22.5, lng: -69.3, costo: 2500, autopista: "Ruta 5 Norte" },
+    { nombre: "Peaje El Loa", lat: -22.9, lng: -68.2, costo: 2700, autopista: "Ruta 25" },
+    { nombre: "Peaje Totoral", lat: -27.3, lng: -70.9, costo: 2900, autopista: "Ruta 5 Norte" },
+    { nombre: "Peaje El Trapiche", lat: -29.9, lng: -71.2, costo: 3100, autopista: "Ruta 5 Norte" },
+    { nombre: "Peaje Las Cardas", lat: -30.1, lng: -71.3, costo: 3300, autopista: "Ruta 5 Norte" },
+    { nombre: "Peaje El Panul", lat: -31.6, lng: -71.2, costo: 3500, autopista: "Ruta 5 Norte" },
+    { nombre: "Peaje Angostura", lat: -33.6, lng: -70.8, costo: 2500, autopista: "Ruta 5 Sur" },
+    { nombre: "Peaje Lampa", lat: -33.3, lng: -70.9, costo: 1800, autopista: "Ruta 5 Norte" },
+    { nombre: "Peaje La Pirámide", lat: -33.1, lng: -71.6, costo: 2200, autopista: "Ruta 68" },
+    { nombre: "Peaje Melipilla", lat: -33.7, lng: -71.2, costo: 1900, autopista: "Autopista del Sol" },
+    { nombre: "Peaje Maipú", lat: -33.5, lng: -70.8, costo: 1600, autopista: "Costanera Norte" },
+    { nombre: "Peaje Rancagua", lat: -34.2, lng: -70.7, costo: 2800, autopista: "Ruta 5 Sur" },
+    { nombre: "Peaje San Fernando", lat: -34.6, lng: -70.9, costo: 3200, autopista: "Ruta 5 Sur" },
+    { nombre: "Peaje Curicó", lat: -34.9, lng: -71.2, costo: 3500, autopista: "Ruta 5 Sur" },
+    { nombre: "Peaje Talca", lat: -35.4, lng: -71.7, costo: 3800, autopista: "Ruta 5 Sur" },
+    { nombre: "Peaje Chillán", lat: -36.6, lng: -72.1, costo: 4000, autopista: "Ruta del Bosque" },
+    { nombre: "Peaje Cabrero", lat: -37.0, lng: -72.4, costo: 4200, autopista: "Ruta del Itata" },
+    { nombre: "Peaje Collipulli", lat: -37.9, lng: -72.4, costo: 4400, autopista: "Ruta de la Araucanía" },
+    { nombre: "Peaje Quepe", lat: -38.8, lng: -72.6, costo: 4600, autopista: "Ruta de la Araucanía" },
+    { nombre: "Peaje Río Bueno", lat: -40.3, lng: -72.9, costo: 4700, autopista: "Ruta de los Ríos" },
+    { nombre: "Peaje La Unión", lat: -40.3, lng: -73.1, costo: 4800, autopista: "Ruta de los Ríos" },
+    { nombre: "Peaje Puerto Montt", lat: -41.5, lng: -73.0, costo: 5000, autopista: "Ruta de los Lagos" },
+    { nombre: "Peaje Túnel El Melón", lat: -32.7, lng: -71.3, costo: 2700, autopista: "Ruta 5 Norte" },
+    { nombre: "Peaje Vespucio Norte", lat: -33.4, lng: -70.6, costo: 1500, autopista: "Vespucio Norte" },
+    { nombre: "Peaje Vespucio Sur", lat: -33.5, lng: -70.6, costo: 1500, autopista: "Vespucio Sur" },
+    { nombre: "Peaje AVO I", lat: -33.4, lng: -70.6, costo: 1600, autopista: "Américo Vespucio Oriente" },
+    { nombre: "Peaje Autopista Central", lat: -33.5, lng: -70.7, costo: 1700, autopista: "Autopista Central" },
+    { nombre: "Peaje Costanera Norte", lat: -33.4, lng: -70.7, costo: 1600, autopista: "Costanera Norte" }
+  ];
+
+  // Calcular distancia total de la ruta
+  const distanciaTotal = calcularDistanciaKm(lat1, lon1, lat2, lon2);
+  
+  let costoEstimado = 0;
+  let tramosProbables = [];
+
+  // Algoritmo de estimación basado en distancia y ubicación
+  if (distanciaTotal > 30) {
+    // Viajes interurbanos probablemente usen autopistas con peajes
+    
+    if (distanciaTotal > 50 && distanciaTotal <= 150) {
+      // Viajes regionales: 1-2 peajes
+      costoEstimado = 2200;
+      tramosProbables.push("Estimación: 1 peaje interurbano");
+    } else if (distanciaTotal > 150 && distanciaTotal <= 300) {
+      // Viajes interprovinciales: 2-3 peajes  
+      costoEstimado = 4500;
+      tramosProbables.push("Estimación: 2-3 peajes interprovinciales");
+    } else if (distanciaTotal > 300) {
+      // Viajes de larga distancia: 3+ peajes
+      costoEstimado = Math.round(distanciaTotal * 15); // ~$15 por km en autopistas
+      tramosProbables.push("Estimación: múltiples peajes de larga distancia");
+    }
+
+    // Verificar si la ruta pasa cerca de peajes conocidos
+    peajesChile.forEach(peaje => {
+      const distanciaAlPeaje = Math.min(
+        calcularDistanciaKm(lat1, lon1, peaje.lat, peaje.lng),
+        calcularDistanciaKm(lat2, lon2, peaje.lat, peaje.lng) // CORREGIDO: usar lon2 en lugar de destinoLng
+      );
+      
+      if (distanciaAlPeaje < 10) { // Si está a menos de 10km de algún punto
+        tramosProbables.push(`Posible: ${peaje.nombre} ($${peaje.costo})`);
+      }
+    });
+  }
+
+  console.log(`💰 Estimación local: $${costoEstimado} para ${distanciaTotal}km`);
+  
+  return {
+    costo: costoEstimado,
+    tramos: tramosProbables,
+    esEstimacion: true,
+    proveedor: 'Estimación Local Chile',
+    distanciaKm: Math.round(distanciaTotal),
+    nota: `Estimación basada en distancia de ${Math.round(distanciaTotal)}km y peajes típicos de Chile`
+  };
+}
+
+/**
+ * Obtener precio sugerido para un viaje basado en origen y destino
+ * @param {number} origenLat - Latitud del origen
+ * @param {number} origenLon - Longitud del origen
+ * @param {number} destinoLat - Latitud del destino
+ * @param {number} destinoLon - Longitud del destino
+ * @param {object} opciones - Opciones adicionales para el cálculo
+ * @returns {object} Información del precio sugerido
+ */
+export async function obtenerPrecioSugerido(req, res) {
+  try {
+    console.log('🔥 =========================');
+    console.log('🔥 ENDPOINT PRECIO SUGERIDO LLAMADO');
+    console.log('🔥 =========================');
+    console.log('📤 Método:', req.method);
+    console.log('📤 URL:', req.url);
+    console.log('📤 Headers:', JSON.stringify(req.headers, null, 2));
+    console.log('📤 Body recibido:', JSON.stringify(req.body, null, 2));
+    console.log('📤 Query params:', JSON.stringify(req.query, null, 2));
+    console.log('👤 Usuario autenticado:', req.user?.rut || 'NO AUTENTICADO');
+    
+    const { origenLat, origenLon, destinoLat, destinoLon, tipoVehiculo, factores, vehiculoPatente } = req.body;
+
+    console.log('🔍 Extrayendo parámetros del body:');
+    console.log('   - origenLat:', origenLat, typeof origenLat);
+    console.log('   - origenLon:', origenLon, typeof origenLon);
+    console.log('   - destinoLat:', destinoLat, typeof destinoLat);
+    console.log('   - destinoLon:', destinoLon, typeof destinoLon);
+    console.log('   - tipoVehiculo:', tipoVehiculo);
+    console.log('   - factores:', factores);
+    console.log('   - vehiculoPatente:', vehiculoPatente);
+
+    // Validar parámetros requeridos
+    if (!origenLat || !origenLon || !destinoLat || !destinoLon) {
+      console.log('❌ VALIDACIÓN FALLIDA - Parámetros faltantes');
+      return handleErrorServer(res, 400, "Parámetros requeridos: origenLat, origenLon, destinoLat, destinoLon");
+    }
+
+    console.log('✅ Validación de parámetros exitosa');
+
+    // Obtener información del vehículo del usuario si se especifica una patente
+    let vehiculoInfo = null;
+    if (vehiculoPatente && req.user?.rut) {
+      console.log(`🚗 Buscando información del vehículo con patente: ${vehiculoPatente}`);
+      
+      try {
+        const vehiculo = await vehiculoRepository.findOne({
+          where: { 
+            patente: vehiculoPatente,
+            propietario: { rut: req.user.rut }
+          },
+          relations: ["propietario"]
+        });
+
+        if (vehiculo) {
+          vehiculoInfo = {
+            patente: vehiculo.patente,
+            modelo: vehiculo.modelo,
+            nro_asientos: vehiculo.nro_asientos,
+            tipo: vehiculo.tipo,
+            tipoCombustible: vehiculo.tipoCombustible || 'bencina'
+          };
+          console.log(`✅ Vehículo encontrado:`, vehiculoInfo);
+        } else {
+          console.log(`⚠️ Vehículo con patente ${vehiculoPatente} no encontrado o no pertenece al usuario`);
+        }
+      } catch (error) {
+        console.error(`❌ Error al buscar vehículo:`, error);
+      }
+    } else if (req.user?.rut) {
+      // Si no se especifica patente, intentar obtener el primer vehículo del usuario
+      console.log(`🚗 Buscando vehículos del usuario: ${req.user.rut}`);
+      
+      try {
+        const vehiculos = await vehiculoRepository.find({
+          where: { 
+            propietario: { rut: req.user.rut }
+          },
+          relations: ["propietario"],
+          take: 1 // Solo obtener el primero
+        });
+
+        if (vehiculos.length > 0) {
+          const vehiculo = vehiculos[0];
+          vehiculoInfo = {
+            patente: vehiculo.patente,
+            modelo: vehiculo.modelo,
+            nro_asientos: vehiculo.nro_asientos,
+            tipo: vehiculo.tipo,
+            tipoCombustible: vehiculo.tipoCombustible || 'bencina'
+          };
+          console.log(`✅ Primer vehículo del usuario encontrado:`, vehiculoInfo);
+        } else {
+          console.log(`⚠️ Usuario no tiene vehículos registrados`);
+        }
+      } catch (error) {
+        console.error(`❌ Error al buscar vehículos del usuario:`, error);
+      }
+    }
+
+    // Calcular kilómetros de la ruta REAL por carretera
+    console.log('🛣️ Calculando distancia REAL por carretera usando OpenRouteService...');
+    const kilometros = await calcularDistanciaCarretera(
+      parseFloat(origenLat), 
+      parseFloat(origenLon), 
+      parseFloat(destinoLat), 
+      parseFloat(destinoLon)
+    );
+    
+    console.log(`📏 DISTANCIA REAL CALCULADA: ${kilometros} km`);
+    console.log(`📍 Coordenadas origen: lat=${origenLat}, lon=${origenLon}`);
+    console.log(`📍 Coordenadas destino: lat=${destinoLat}, lon=${destinoLon}`);
+
+    // Preparar opciones de cálculo usando información del vehículo si está disponible
+    let opciones = {
+      tipoVehiculo: vehiculoInfo?.tipo || tipoVehiculo || 'otro',
+      tipoCombustible: vehiculoInfo?.tipoCombustible || 'bencina',
+      factorGasolina: 1.0,
+      factorDemanda: 1.0
+    };
+
+    console.log(`🔧 Usando tipo de vehículo: ${opciones.tipoVehiculo} (${vehiculoInfo ? 'del vehículo del usuario' : 'del parámetro/defecto'})`);
+    console.log(`⛽ Usando tipo de combustible: ${opciones.tipoCombustible} (${vehiculoInfo ? 'del vehículo del usuario' : 'defecto'})`);
+
+    // Aplicar factores personalizados si se proporcionan
+    if (factores) {
+      if (factores.gasolina) opciones.factorGasolina = parseFloat(factores.gasolina);
+      if (factores.demanda) opciones.factorDemanda = parseFloat(factores.demanda);
+    }
+
+    // Calcular precio sugerido con información del vehículo
+    console.log('🔢 Iniciando cálculo de precio sugerido...');
+    console.log('📊 Opciones de cálculo:', JSON.stringify(opciones, null, 2));
+    console.log('🚗 Información del vehículo:', JSON.stringify(vehiculoInfo, null, 2));
+    
+    // Calcular peajes estimados usando estimación local de Chile
+    console.log('💰 Calculando costo de peajes con estimación local...');
+    const costoPeajes = estimarPeajesChile(
+      parseFloat(origenLat), 
+      parseFloat(origenLon), 
+      parseFloat(destinoLat), 
+      parseFloat(destinoLon)
+    ).costo;
+
+    console.log(`✅ Costo de peajes calculado: $${costoPeajes} CLP`);
+
+    // Calcular precio sugerido incluyendo peajes
+    const precioConPeajes = calcularPrecioSugerido(kilometros, opciones, vehiculoInfo, costoPeajes);
+
+    console.log('✅ ¡PRECIO CALCULADO EXITOSAMENTE!');
+    console.log('📊 Resultado del cálculo:', JSON.stringify(precioConPeajes, null, 2));
+    console.log(`💰 RESUMEN: ${kilometros}km → $${precioConPeajes.precioFinal} por persona`);
+    if (vehiculoInfo && vehiculoInfo.nro_asientos > 1) {
+      console.log(`🚗 PRECIO TOTAL DEL VIAJE: $${precioConPeajes.precioTotal} (${vehiculoInfo.nro_asientos} asientos)`);
+    }
+
+    handleSuccess(res, 200, "Precio sugerido calculado exitosamente", {
+      ruta: {
+        origen: { lat: parseFloat(origenLat), lon: parseFloat(origenLon) },
+        destino: { lat: parseFloat(destinoLat), lon: parseFloat(destinoLon) }
+      },
+      ...precioConPeajes
+    });
+
+  } catch (error) {
+    console.error("Error al calcular precio sugerido:", error);
+    handleErrorServer(res, 500, "Error interno del servidor");
+  }
+}
+
+/**
+ * Calcular precio sugerido basado en kilómetros de la ruta CON PEAJES
+ * @param {number} kilometros - Kilómetros de la ruta
+ * @param {object} opciones - Opciones de cálculo
+ * @param {object} vehiculo - Información del vehículo (opcional)
+ * @param {number} peajes - Costo de peajes (opcional)
+ * @returns {object} Información del precio calculado
+ */
+function calcularPrecioSugerido(kilometros, opciones = {}, vehiculo = null, peajes = 0) {
+  const {
+    tipoVehiculo = 'otro',         // Tipo de vehículo para calcular precio/km
+    tipoCombustible = 'bencina', // Tipo de combustible para factor
+    factorGasolina = 1.0,      // Factor de ajuste por precio de gasolina
+    factorDemanda = 1.0        // Factor de ajuste por demanda
+  } = opciones;
+
+  // Obtener precio por kilómetro específico para el tipo de vehículo
+  const precioPorKm = obtenerPrecioPorKmSegunTipo(tipoVehiculo);
+  
+  // Obtener factor de combustible
+  const factorCombustible = obtenerFactorCombustible(tipoCombustible);
+
+  // Cálculo base: kilómetros * precio por km específico del vehículo
+  let precioBase = kilometros * precioPorKm;
+
+  // Aplicar factores de ajuste
+  let precioAjustado = precioBase * factorGasolina * factorCombustible * factorDemanda;
+
+  // Agregar costo de peajes al precio ajustado
+  let precioConPeajes = precioAjustado + peajes;
+
+  // Redondear a múltiplos de 100
+  const precioTotal = Math.round(precioConPeajes / 100) * 100;
+
+  // Calcular precio por persona (dividir por número de asientos del vehículo)
+  let precioPorPersona = precioTotal;
+  let nroAsientos = 1; // Por defecto, si no hay información del vehículo
+  
+  if (vehiculo && vehiculo.nro_asientos && vehiculo.nro_asientos > 1) {
+    nroAsientos = vehiculo.nro_asientos;
+    // Dividir el precio total por el número de asientos para obtener precio por persona
+    precioPorPersona = Math.round(precioTotal / nroAsientos / 100) * 100; // Redondear a múltiplos de 100
+    
+    console.log(`🚗 Vehículo detectado: ${nroAsientos} asientos`);
+    console.log(`💰 Precio total del viaje: $${precioTotal} (incluye $${peajes} de peajes)`);
+    console.log(`👤 Precio por persona: $${precioPorPersona} (${precioTotal} ÷ ${nroAsientos})`);
+  }
+
+  return {
+    kilometros: kilometros,
+    precioBase: Math.round(precioBase),
+    precioAjustado: Math.round(precioAjustado),
+    precioTotal: precioTotal, // Precio total del viaje (incluye peajes)
+    precioPorPersona: precioPorPersona, // Precio que paga cada pasajero
+    precioFinal: precioPorPersona, // Mantener compatibilidad (ahora es precio por persona)
+    precioPorKm: precioPorKm, // Mostrar el precio específico usado
+    tipoVehiculo: tipoVehiculo,
+    tipoCombustible: tipoCombustible,
+    nroAsientos: nroAsientos, // Información del vehículo
+    vehiculo: vehiculo ? {
+      patente: vehiculo.patente,
+      modelo: vehiculo.modelo,
+      nro_asientos: vehiculo.nro_asientos,
+      tipo: vehiculo.tipo
+    } : null,
+    peajes: {
+      costo: peajes,
+      incluido: peajes > 0
+    },
+    factores: {
+      gasolina: factorGasolina,
+      combustible: factorCombustible,
+      demanda: factorDemanda
+    },
+    desglose: {
+      costoCombustible: Math.round(precioBase * 0.4), // ~40% combustible
+      costoDesgaste: Math.round(precioBase * 0.2), // ~20% desgaste vehículo
+      costoTiempo: Math.round(precioBase * 0.2), // ~20% tiempo conductor
+      costoPeajes: peajes, // Costo de peajes
+      ganancia: Math.round(precioBase * 0.2) // ~20% ganancia
+    },
+    explicacion: {
+      mensaje: vehiculo && vehiculo.nro_asientos > 1 
+        ? `Precio calculado: $${precioTotal} total ÷ ${nroAsientos} asientos = $${precioPorPersona} por persona${peajes > 0 ? ` (incluye $${peajes} de peajes)` : ''}`
+        : `Precio calculado: $${precioPorPersona}${peajes > 0 ? ` (incluye $${peajes} de peajes)` : ''} (información de vehículo no disponible)`
+    }
+  };
+}
+
+/**
+ * Calcular la distancia real por carretera usando OpenRouteService API
+ * @param {number} lat1 - Latitud del primer punto
+ * @param {number} lon1 - Longitud del primer punto
+ * @param {number} lat2 - Latitud del segundo punto
+ * @param {number} lon2 - Longitud del segundo punto
+ * @returns {Promise<number>} Distancia en kilómetros por carretera
+ */
+async function calcularDistanciaCarretera(lat1, lon1, lat2, lon2) {
+  try {
+    console.log(`🛣️ Calculando ruta real: (${lat1}, ${lon1}) → (${lat2}, ${lon2})`);
+
+    // Usar OpenRouteService (gratuito hasta 2000 requests/día)
+    const url = `https://api.openrouteservice.org/v2/directions/driving-car`;
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': '5b3ce3597851110001cf6248a707b73c7b4e4c5f9e4f8b35e1b8d4cf' // API key pública demo
+      },
+      body: JSON.stringify({
+        coordinates: [[lon1, lat1], [lon2, lat2]], // OpenRouteService usa [lon, lat]
+        format: 'json',
+        units: 'km'
+      })
+    });
+
+    if (!response.ok) {
+      console.log(`⚠️ Error en OpenRouteService: ${response.status}, usando fallback`);
+      // Fallback a Haversine con factor de corrección
+      return calcularDistanciaKmConFactor(lat1, lon1, lat2, lon2);
+    }
+
+    const data = await response.json();
+    
+    if (data.routes && data.routes.length > 0) {
+      const distanciaMetros = data.routes[0].summary.distance;
+      const distanciaKm = distanciaMetros / 1000;
+      
+      console.log(`✅ Distancia real por carretera: ${distanciaKm.toFixed(2)} km`);
+      console.log(`📊 Diferencia vs línea recta: ${((distanciaKm / calcularDistanciaKm(lat1, lon1, lat2, lon2)) * 100 - 100).toFixed(1)}%`);
+      
+      return Math.round(distanciaKm * 100) / 100; // Redondear a 2 decimales
+    } else {
+      console.log(`⚠️ No se encontró ruta, usando fallback`);
+      return calcularDistanciaKmConFactor(lat1, lon1, lat2, lon2);
+    }
+
+  } catch (error) {
+    console.error(`❌ Error calculando ruta real:`, error.message);
+    // Fallback a Haversine con factor de corrección
+    return calcularDistanciaKmConFactor(lat1, lon1, lat2, lon2);
+  }
+}
+
+/**
+ * Calcular distancia con factor de corrección basado en Haversine
+ * @param {number} lat1 - Latitud del primer punto
+ * @param {number} lon1 - Longitud del primer punto
+ * @param {number} lat2 - Latitud del segundo punto
+ * @param {number} lon2 - Longitud del segundo punto
+ * @returns {number} Distancia estimada por carretera en kilómetros
+ */
+function calcularDistanciaKmConFactor(lat1, lon1, lat2, lon2) {
+  const distanciaLineal = calcularDistanciaKm(lat1, lon1, lat2, lon2);
+  
+  // Factor de corrección según distancia (basado en estadísticas reales)
+  let factor = 1.2; // 20% más por defecto
+  
+  if (distanciaLineal < 5) {
+    factor = 1.6; // Ciudades: +60% (muchas vueltas)
+  } else if (distanciaLineal < 15) {
+    factor = 1.4; // Urbano: +40%
+  } else if (distanciaLineal < 50) {
+    factor = 1.3; // Regional: +30%
+  } else if (distanciaLineal < 200) {
+    factor = 1.2; // Interprovincial: +20%
+  } else {
+    factor = 1.15; // Larga distancia: +15% (autopistas más directas)
+  }
+  
+  const distanciaEstimada = distanciaLineal * factor;
+  console.log(`🔧 Fallback - Línea recta: ${distanciaLineal}km, Factor: ${factor}, Estimado: ${distanciaEstimada.toFixed(2)}km`);
+  
+  return Math.round(distanciaEstimada * 100) / 100;
+}
+
+/**
+ * Obtener factor de combustible según el tipo
+ * @param {string} tipoCombustible - Tipo de combustible
+ * @returns {number} Factor multiplicador
+ */
+function obtenerFactorCombustible(tipoCombustible) {
+  const factores = {
+    'bencina': 1.0,      // Base
+    'diesel': 0.8,       // 20% más económico
+    'gas': 0.6,          // 40% más económico
+    'electrico': 0.3,    // 70% más económico
+    'hibrido': 0.7,      // 30% más económico
+    'glp': 0.65          // 35% más económico
+  };
+
+  const factor = factores[tipoCombustible?.toLowerCase()] || factores['bencina'];
+  console.log(`⛽ Factor de combustible para ${tipoCombustible}: ${factor}`);
+  return factor;
+}
+
+/**
  * Función para cancelar un viaje
  */
 export async function cancelarViaje(req, res) {
@@ -961,6 +1448,7 @@ export async function cancelarViaje(req, res) {
     handleErrorServer(res, "Error interno del servidor");
   }
 }
+
 /**
  * Función para eliminar un viaje
  */
@@ -1128,6 +1616,7 @@ export async function confirmarPasajero(req, res) {
 
 /**
  * Procesar pago de un viaje cuando se confirma un pasajero
+
  */
 async function procesarPagoViaje({ pasajeroRut, conductorRut, viajeId, informacionPago }) {
   try {
@@ -1240,7 +1729,6 @@ async function procesarPagoViaje({ pasajeroRut, conductorRut, viajeId, informaci
         saldo_anterior_conductor: saldoConductor,
         saldo_nuevo_conductor: nuevoSaldoConductor
       };
-
     } else if (informacionPago.metodo === 'tarjeta') {
       // Para las tarjetas del sandbox, simular proceso exitoso
       console.log(`💳 Procesando pago con tarjeta: ${informacionPago.tarjeta?.numero || 'N/A'}`);
@@ -1491,19 +1979,16 @@ export async function unirseAViaje(req, res) {
     // Verificar que el usuario no está ya en el viaje
     const yaEsPasajero = viaje.pasajeros.some(p => p.usuario_rut === userRut);
     if (yaEsPasajero) {
-      console.log(`❌ Usuario ${userRut} ya está en este viaje`);
       return handleErrorServer(res, 400, "Ya estás registrado en este viaje");
     }
 
     // Verificar que hay espacio disponible
     if (viaje.pasajeros.length >= viaje.maxPasajeros) {
-      console.log(`❌ Viaje ${viajeId} está lleno`);
       return handleErrorServer(res, 400, "El viaje está completo");
     }
 
     // Verificar que el viaje esté en estado apropiado
     if (!['activo', 'confirmado'].includes(viaje.estado)) {
-      console.log(`❌ Viaje ${viajeId} no está disponible para unirse (estado: ${viaje.estado})`);
       return handleErrorServer(res, 400, "Este viaje no está disponible para nuevos pasajeros");
     }
 
@@ -1625,6 +2110,11 @@ export async function unirseAViajeConPago(req, res) {
         // Para el procesamiento de pago
         limiteCredito: tarjetaData.limiteCredito || 500000
       };
+    } else if (metodo_pago === 'efectivo') {
+      // Para efectivo, solo guardamos la información - NO se procesan transacciones aquí
+      // Las transacciones se crearán cuando el conductor ACEPTE la solicitud
+      console.log(`💵 Solicitud de pago en efectivo - se procesará al aceptar la solicitud`);
+      informacionPago.procesarAlAceptar = true; // Flag para indicar que se procese después
     }
 
     // Crear la solicitud de notificación con información de pago
@@ -1798,7 +2288,7 @@ export async function obtenerViajesEnRadio(req, res) {
     console.log(`🔍 Ejecutando agregación $geoNear con:`);
     console.log(`   - Punto: [${longitud}, ${latitud}]`);
     console.log(`   - Radio máximo: ${radioKm * 1000} metros`);
-    console.log(`   - Filtros: estado=activo${fecha ? `, fecha=${fecha}` : ''}`);
+    console.log(`     - Filtros: estado=activo${fecha ? `, fecha=${fecha}` : ''}`);
 
     // Buscar viajes usando agregación con geoNear
 
@@ -2087,384 +2577,4 @@ export async function eliminarPasajero(req, res) {
     console.error("❌ Error al eliminar pasajero:", error);
     handleErrorServer(res, 500, "Error interno del servidor");
   }
-}
-
-/**
- * Calcular precio sugerido basado en kilómetros de la ruta
- * @param {number} kilometros - Kilómetros de la ruta
- * @param {object} opciones - Opciones de cálculo
- * @param {object} vehiculo - Información del vehículo (opcional)
- * @returns {object} Información del precio calculado
- */
-function calcularPrecioSugerido(kilometros, opciones = {}, vehiculo = null) {
-  const {
-    tipoVehiculo = 'otro',     // Tipo de vehículo para calcular precio/km
-    tipoCombustible = 'bencina', // Tipo de combustible para factor
-    factorGasolina = 1.0,      // Factor de ajuste por precio de gasolina
-    factorDemanda = 1.0        // Factor de ajuste por demanda
-  } = opciones;
-
-  // Obtener precio por kilómetro específico para el tipo de vehículo
-  const precioPorKm = obtenerPrecioPorKmSegunTipo(tipoVehiculo);
-  
-  // Obtener factor de combustible
-  const factorCombustible = obtenerFactorCombustible(tipoCombustible);
-
-  // Cálculo base: kilómetros * precio por km específico del vehículo
-  let precioBase = kilometros * precioPorKm;
-
-  // Aplicar factores de ajuste
-  let precioAjustado = precioBase * factorGasolina * factorCombustible * factorDemanda;
-
-  // Redondear a múltiplos de 100
-  const precioTotal = Math.round(precioAjustado / 100) * 100;
-
-  // Calcular precio por persona (dividir por número de asientos del vehículo)
-  let precioPorPersona = precioTotal;
-  let nroAsientos = 1; // Por defecto, si no hay información del vehículo
-  
-  if (vehiculo && vehiculo.nro_asientos && vehiculo.nro_asientos > 1) {
-    nroAsientos = vehiculo.nro_asientos;
-    // Dividir el precio total por el número de asientos para obtener precio por persona
-    precioPorPersona = Math.round(precioTotal / nroAsientos / 100) * 100; // Redondear a múltiplos de 100
-    
-    console.log(`🚗 Vehículo detectado: ${nroAsientos} asientos`);
-    console.log(`💰 Precio total del viaje: $${precioTotal}`);
-    console.log(`👤 Precio por persona: $${precioPorPersona} (${precioTotal} ÷ ${nroAsientos})`);
-  }
-
-  return {
-    kilometros: kilometros,
-    precioBase: Math.round(precioBase),
-    precioAjustado: Math.round(precioAjustado),
-    precioTotal: precioTotal, // Precio total del viaje
-    precioPorPersona: precioPorPersona, // Precio que paga cada pasajero
-    precioFinal: precioPorPersona, // Mantener compatibilidad (ahora es precio por persona)
-    precioPorKm: precioPorKm, // Mostrar el precio específico usado
-    tipoVehiculo: tipoVehiculo,
-    tipoCombustible: tipoCombustible,
-    nroAsientos: nroAsientos, // Información del vehículo
-    vehiculo: vehiculo ? {
-      patente: vehiculo.patente,
-      modelo: vehiculo.modelo,
-      nro_asientos: vehiculo.nro_asientos,
-      tipo: vehiculo.tipo
-    } : null,
-    factores: {
-      gasolina: factorGasolina,
-      combustible: factorCombustible,
-      demanda: factorDemanda
-    },
-    desglose: {
-      costoCombustible: Math.round(precioBase * 0.4), // ~40% combustible
-      costoDesgaste: Math.round(precioBase * 0.2), // ~20% desgaste vehículo
-      costoTiempo: Math.round(precioBase * 0.2), // ~20% tiempo conductor
-      ganancia: Math.round(precioBase * 0.2) // ~20% ganancia
-    },
-    explicacion: {
-      mensaje: vehiculo && vehiculo.nro_asientos > 1 
-        ? `Precio calculado: $${precioTotal} total ÷ ${nroAsientos} asientos = $${precioPorPersona} por persona`
-        : `Precio calculado: $${precioPorPersona} (información de vehículo no disponible)`
-    }
-  };
-}
-
-/**
- * Obtener precio sugerido para un viaje basado en origen y destino
- * @param {number} origenLat - Latitud del origen
- * @param {number} origenLon - Longitud del origen
- * @param {number} destinoLat - Latitud del destino
- * @param {number} destinoLon - Longitud del destino
- * @param {object} opciones - Opciones adicionales para el cálculo
- * @returns {object} Información del precio sugerido
- */
-export async function obtenerPrecioSugerido(req, res) {
-  try {
-    console.log('🔥 =========================');
-    console.log('🔥 ENDPOINT PRECIO SUGERIDO LLAMADO');
-    console.log('🔥 =========================');
-    console.log('📤 Método:', req.method);
-    console.log('📤 URL:', req.url);
-    console.log('📤 Headers:', JSON.stringify(req.headers, null, 2));
-    console.log('📤 Body recibido:', JSON.stringify(req.body, null, 2));
-    console.log('📤 Query params:', JSON.stringify(req.query, null, 2));
-    console.log('👤 Usuario autenticado:', req.user?.rut || 'NO AUTENTICADO');
-    
-    const { origenLat, origenLon, destinoLat, destinoLon, tipoVehiculo, factores, vehiculoPatente } = req.body;
-
-    console.log('🔍 Extrayendo parámetros del body:');
-    console.log('   - origenLat:', origenLat, typeof origenLat);
-    console.log('   - origenLon:', origenLon, typeof origenLon);
-    console.log('   - destinoLat:', destinoLat, typeof destinoLat);
-    console.log('   - destinoLon:', destinoLon, typeof destinoLon);
-    console.log('   - tipoVehiculo:', tipoVehiculo);
-    console.log('   - factores:', factores);
-    console.log('   - vehiculoPatente:', vehiculoPatente);
-
-    // Validar parámetros requeridos
-    if (!origenLat || !origenLon || !destinoLat || !destinoLon) {
-      console.log('❌ VALIDACIÓN FALLIDA - Parámetros faltantes');
-      return handleErrorServer(res, 400, "Parámetros requeridos: origenLat, origenLon, destinoLat, destinoLon");
-    }
-
-    console.log('✅ Validación de parámetros exitosa');
-
-    // Obtener información del vehículo del usuario si se especifica una patente
-    let vehiculoInfo = null;
-    if (vehiculoPatente && req.user?.rut) {
-      console.log(`🚗 Buscando información del vehículo con patente: ${vehiculoPatente}`);
-      
-      try {
-        const vehiculo = await vehiculoRepository.findOne({
-          where: { 
-            patente: vehiculoPatente,
-            propietario: { rut: req.user.rut }
-          },
-          relations: ["propietario"]
-        });
-
-        if (vehiculo) {
-          vehiculoInfo = {
-            patente: vehiculo.patente,
-            modelo: vehiculo.modelo,
-            nro_asientos: vehiculo.nro_asientos,
-            tipo: vehiculo.tipo,
-            tipoCombustible: vehiculo.tipoCombustible || 'bencina'
-          };
-          console.log(`✅ Vehículo encontrado:`, vehiculoInfo);
-        } else {
-          console.log(`⚠️ Vehículo con patente ${vehiculoPatente} no encontrado o no pertenece al usuario`);
-        }
-      } catch (error) {
-        console.error(`❌ Error al buscar vehículo:`, error);
-      }
-    } else if (req.user?.rut) {
-      // Si no se especifica patente, intentar obtener el primer vehículo del usuario
-      console.log(`🚗 Buscando vehículos del usuario: ${req.user.rut}`);
-      
-      try {
-        const vehiculos = await vehiculoRepository.find({
-          where: { 
-            propietario: { rut: req.user.rut }
-          },
-          relations: ["propietario"],
-          take: 1 // Solo obtener el primero
-        });
-
-        if (vehiculos.length > 0) {
-          const vehiculo = vehiculos[0];
-          vehiculoInfo = {
-            patente: vehiculo.patente,
-            modelo: vehiculo.modelo,
-            nro_asientos: vehiculo.nro_asientos,
-            tipo: vehiculo.tipo,
-            tipoCombustible: vehiculo.tipoCombustible || 'bencina'
-          };
-          console.log(`✅ Primer vehículo del usuario encontrado:`, vehiculoInfo);
-        } else {
-          console.log(`⚠️ Usuario no tiene vehículos registrados`);
-        }
-      } catch (error) {
-        console.error(`❌ Error al buscar vehículos del usuario:`, error);
-      }
-    }
-
-    // Calcular kilómetros de la ruta REAL por carretera
-    console.log('🛣️ Calculando distancia REAL por carretera usando OpenRouteService...');
-    const kilometros = await calcularDistanciaCarretera(
-      parseFloat(origenLat), 
-      parseFloat(origenLon), 
-      parseFloat(destinoLat), 
-      parseFloat(destinoLon)
-    );
-    
-    console.log(`📏 DISTANCIA REAL CALCULADA: ${kilometros} km`);
-    console.log(`📍 Coordenadas origen: lat=${origenLat}, lon=${origenLon}`);
-    console.log(`📍 Coordenadas destino: lat=${destinoLat}, lon=${destinoLon}`);
-
-    // Preparar opciones de cálculo usando información del vehículo si está disponible
-    let opciones = {
-      tipoVehiculo: vehiculoInfo?.tipo || tipoVehiculo || 'otro',
-      tipoCombustible: vehiculoInfo?.tipoCombustible || 'bencina',
-      factorGasolina: 1.0,
-      factorDemanda: 1.0
-    };
-
-    console.log(`🔧 Usando tipo de vehículo: ${opciones.tipoVehiculo} (${vehiculoInfo ? 'del vehículo del usuario' : 'del parámetro/defecto'})`);
-    console.log(`⛽ Usando tipo de combustible: ${opciones.tipoCombustible} (${vehiculoInfo ? 'del vehículo del usuario' : 'defecto'})`);
-
-    // Aplicar factores personalizados si se proporcionan
-    if (factores) {
-      if (factores.gasolina) opciones.factorGasolina = parseFloat(factores.gasolina);
-      if (factores.demanda) opciones.factorDemanda = parseFloat(factores.demanda);
-    }
-
-    // Calcular precio sugerido con información del vehículo
-    console.log('🔢 Iniciando cálculo de precio sugerido...');
-    console.log('📊 Opciones de cálculo:', JSON.stringify(opciones, null, 2));
-    console.log('🚗 Información del vehículo:', JSON.stringify(vehiculoInfo, null, 2));
-    
-    const calculoPrecio = calcularPrecioSugerido(kilometros, opciones, vehiculoInfo);
-
-    console.log('✅ ¡PRECIO CALCULADO EXITOSAMENTE!');
-    console.log('📊 Resultado del cálculo:', JSON.stringify(calculoPrecio, null, 2));
-    console.log(`💰 RESUMEN: ${kilometros}km → $${calculoPrecio.precioFinal} por persona`);
-    if (vehiculoInfo && vehiculoInfo.nro_asientos > 1) {
-      console.log(`🚗 PRECIO TOTAL DEL VIAJE: $${calculoPrecio.precioTotal} (${vehiculoInfo.nro_asientos} asientos)`);
-    }
-
-    const respuestaFinal = {
-      ruta: {
-        origen: { lat: parseFloat(origenLat), lon: parseFloat(origenLon) },
-        destino: { lat: parseFloat(destinoLat), lon: parseFloat(destinoLon) }
-      },
-      ...calculoPrecio
-    };
-
-    console.log('📤 RESPUESTA FINAL A ENVIAR:', JSON.stringify(respuestaFinal, null, 2));
-    console.log('🔥 =========================');
-    console.log('🔥 FIN DEL ENDPOINT PRECIO SUGERIDO');
-    console.log('🔥 =========================');
-
-    handleSuccess(res, 200, "Precio sugerido calculado exitosamente", respuestaFinal);
-
-  } catch (error) {
-    console.error("Error al calcular precio sugerido:", error);
-    handleErrorServer(res, 500, "Error interno del servidor");
-  }
-}
-
-/**
- * Calcular la distancia real por carretera usando OpenRouteService API
- * @param {number} lat1 - Latitud del primer punto
- * @param {number} lon1 - Longitud del primer punto
- * @param {number} lat2 - Latitud del segundo punto
- * @param {number} lon2 - Longitud del segundo punto
- * @returns {Promise<number>} Distancia en kilómetros por carretera
- */
-async function calcularDistanciaCarretera(lat1, lon1, lat2, lon2) {
-  try {
-    console.log(`🛣️ Calculando ruta real: (${lat1}, ${lon1}) → (${lat2}, ${lon2})`);
-
-    // Usar OpenRouteService (gratuito hasta 2000 requests/día)
-    const url = `https://api.openrouteservice.org/v2/directions/driving-car`;
-    
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': '5b3ce3597851110001cf6248a707b73c7b4e4c5f9e4f8b35e1b8d4cf' // API key pública demo
-      },
-      body: JSON.stringify({
-        coordinates: [[lon1, lat1], [lon2, lat2]], // OpenRouteService usa [lon, lat]
-        format: 'json',
-        units: 'km'
-      })
-    });
-
-    if (!response.ok) {
-      console.log(`⚠️ Error en OpenRouteService: ${response.status}, usando fallback`);
-      // Fallback a Haversine con factor de corrección
-      return calcularDistanciaKmConFactor(lat1, lon1, lat2, lon2);
-    }
-
-    const data = await response.json();
-    
-    if (data.routes && data.routes.length > 0) {
-      const distanciaMetros = data.routes[0].summary.distance;
-      const distanciaKm = distanciaMetros / 1000;
-      
-      console.log(`✅ Distancia real por carretera: ${distanciaKm.toFixed(2)} km`);
-      console.log(`📊 Diferencia vs línea recta: ${((distanciaKm / calcularDistanciaKm(lat1, lon1, lat2, lon2)) * 100 - 100).toFixed(1)}%`);
-      
-      return Math.round(distanciaKm * 100) / 100; // Redondear a 2 decimales
-    } else {
-      console.log(`⚠️ No se encontró ruta, usando fallback`);
-      return calcularDistanciaKmConFactor(lat1, lon1, lat2, lon2);
-    }
-
-  } catch (error) {
-    console.error(`❌ Error calculando ruta real:`, error.message);
-    // Fallback a Haversine con factor de corrección
-    return calcularDistanciaKmConFactor(lat1, lon1, lat2, lon2);
-  }
-}
-
-/**
- * Calcular distancia con factor de corrección basado en Haversine
- * @param {number} lat1 - Latitud del primer punto
- * @param {number} lon1 - Longitud del primer punto
- * @param {number} lat2 - Latitud del segundo punto
- * @param {number} lon2 - Longitud del segundo punto
- * @returns {number} Distancia estimada por carretera en kilómetros
- */
-function calcularDistanciaKmConFactor(lat1, lon1, lat2, lon2) {
-  const distanciaLineal = calcularDistanciaKm(lat1, lon1, lat2, lon2);
-  
-  // Factor de corrección según distancia (basado en estadísticas reales)
-  let factor = 1.2; // 20% más por defecto
-  
-  if (distanciaLineal < 5) {
-    factor = 1.6; // Ciudades: +60% (muchas vueltas)
-  } else if (distanciaLineal < 15) {
-    factor = 1.4; // Urbano: +40%
-  } else if (distanciaLineal < 50) {
-    factor = 1.3; // Regional: +30%
-  } else if (distanciaLineal < 200) {
-    factor = 1.2; // Interprovincial: +20%
-  } else {
-    factor = 1.15; // Larga distancia: +15% (autopistas más directas)
-  }
-  
-  const distanciaEstimada = distanciaLineal * factor;
-  console.log(`🔧 Fallback - Línea recta: ${distanciaLineal}km, Factor: ${factor}, Estimado: ${distanciaEstimada.toFixed(2)}km`);
-  
-  return Math.round(distanciaEstimada * 100) / 100;
-}
-
-/**
- * Obtener precio por kilómetro según el tipo de vehículo
- * Basado en costos reales de combustible en Chile (Julio 2025) + margen operativo
- * @param {string} tipoVehiculo - Tipo de vehículo
- * @returns {number} Precio por kilómetro en pesos chilenos
- */
-function obtenerPrecioPorKmSegunTipo(tipoVehiculo) {
-  const precios = {
-    // Precios actualizados basados en costos reales de combustible + margen operativo
-    'sedan': 280,       // Rendimiento: 13-16 km/L, Costo combustible: $86-106, Margen: $174-194
-    'hatchback': 250,   // Rendimiento: 14-17 km/L, Costo combustible: $81-99, Margen: $151-169  
-    'suv': 350,         // Rendimiento: 10-14 km/L, Costo combustible: $99-138, Margen: $212-251
-    'pickup': 400,      // Rendimiento: 8-12 km/L, Costo combustible: $90-135, Margen: $265-310
-    'furgon': 380,      // Rendimiento: 9-13 km/L, Costo combustible: $83-120, Margen: $260-297
-    'camioneta': 420,   // Rendimiento: 7-11 km/L, Costo combustible: $98-154, Margen: $266-322
-    'coupe': 300,       // Rendimiento: 10-13 km/L, Costo combustible: $106-138, Margen: $162-194
-    'convertible': 320, // Rendimiento: 9-12 km/L, Costo combustible: $115-153, Margen: $167-205
-    'electrico': 150,   // Costo eléctrico: $30-50/km, Margen: $100-120 (muy económico)
-    'hibrido': 200,     // Rendimiento: 20-28 km/L, Costo combustible: $49-69, Margen: $131-151
-    'otro': 300         // Precio base por defecto
-  };
-
-  console.log(`💰 Precio por km para ${tipoVehiculo}: $${precios[tipoVehiculo?.toLowerCase()] || precios['otro']}`);
-  return precios[tipoVehiculo?.toLowerCase()] || precios['otro'];
-}
-
-/**
- * Obtener factor de combustible según el tipo
- * Ajusta el precio base según la eficiencia del combustible
- * @param {string} tipoCombustible - Tipo de combustible
- * @returns {number} Factor multiplicador del precio base
- */
-function obtenerFactorCombustible(tipoCombustible) {
-  const factores = {
-    'bencina': 1.0,     // Base - Bencina 95: $1.380/L
-    'petroleo': 0.85,   // Diésel: $1.080/L (22% más barato que bencina)
-    'gas': 0.70,        // GLP: $750/L (46% más barato que bencina)
-    'electrico': 0.40,  // Electricidad: muy económico ($30-50/km vs $80-150/km)
-    'hibrido': 0.55,    // Híbrido: extremadamente eficiente (20-28 km/L vs 10-15 km/L)
-    'otro': 1.0         // Factor neutro por defecto
-  };
-
-  const factor = factores[tipoCombustible?.toLowerCase()] || factores['otro'];
-  console.log(`⛽ Factor de combustible para ${tipoCombustible}: ${factor}x`);
-  return factor;
 }

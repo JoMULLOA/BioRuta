@@ -1015,6 +1015,8 @@ class _SaldoTarjetasScreenState extends State<SaldoTarjetasScreen>
   Widget _buildTransaccionCard(Map<String, dynamic> transaccion) {
     final double monto = (transaccion['monto'] ?? 0.0).toDouble();
     final String tipo = transaccion['tipo'] ?? 'pago';
+    final String metodoPago = transaccion['metodo_pago'] ?? '';
+    final String estado = transaccion['estado'] ?? 'completado';
     final DateTime fecha = DateTime.parse(transaccion['fecha'] ?? DateTime.now().toIso8601String());
     
     // Para mostrar correctamente: 
@@ -1039,12 +1041,28 @@ class _SaldoTarjetasScreenState extends State<SaldoTarjetasScreen>
         break;
     }
     
-    return Card(
+    // Determinar si es una transacción en efectivo pendiente que puede confirmar
+    final bool esEfectivoPendiente = metodoPago == 'efectivo' && estado == 'pendiente';
+    
+    // Solo el receptor del pago (conductor) puede confirmar pagos en efectivo
+    // Si es tipo 'cobro', significa que este usuario es el conductor que recibe el pago
+    final bool puedeConfirmar = esEfectivoPendiente && tipo.toLowerCase() == 'cobro';
+    
+    // Verificar que el ID de transacción no sea null
+    final String? transaccionId = transaccion['_id'] ?? transaccion['id'];
+    final bool tieneIdValido = transaccionId != null && transaccionId.isNotEmpty;
+    
+    Widget cardContent = Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: const Color(0xFFEDCAB6).withOpacity(0.5), width: 1),
+        side: BorderSide(
+          color: esEfectivoPendiente 
+              ? Colors.orange.withOpacity(0.5) 
+              : const Color(0xFFEDCAB6).withOpacity(0.5), 
+          width: esEfectivoPendiente ? 2 : 1
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -1081,12 +1099,30 @@ class _SaldoTarjetasScreenState extends State<SaldoTarjetasScreen>
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 4),
-                      Text(
-                        _formatearFechaTransaccion(fecha),
-                        style: TextStyle(
-                          color: Colors.grey[600],
-                          fontSize: 12,
-                        ),
+                      Row(
+                        children: [
+                          Text(
+                            _formatearFechaTransaccion(fecha),
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 12,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Icon(
+                            _getMetodoPagoIcon(metodoPago),
+                            size: 12,
+                            color: Colors.grey[600],
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            _getMetodoPagoTexto(metodoPago),
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -1106,19 +1142,19 @@ class _SaldoTarjetasScreenState extends State<SaldoTarjetasScreen>
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: transaccion['estado'] == 'completado' 
+                        color: estado == 'completado' 
                             ? Colors.green.withOpacity(0.2)
                             : Colors.orange.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
-                        transaccion['estado'] ?? 'pendiente',
+                        estado,
                         style: TextStyle(
                           fontSize: 10,
-                          color: transaccion['estado'] == 'completado' 
+                          fontWeight: FontWeight.w500,
+                          color: estado == 'completado' 
                               ? Colors.green[700]
                               : Colors.orange[700],
-                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ),
@@ -1126,32 +1162,82 @@ class _SaldoTarjetasScreenState extends State<SaldoTarjetasScreen>
                 ),
               ],
             ),
-            if (transaccion['metodo_pago'] != null) ...[
-              const SizedBox(height: 8),
-              Divider(color: Colors.grey[300], height: 1),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Icon(
-                    _getMetodoPagoIcon(transaccion['metodo_pago']),
-                    size: 16,
-                    color: Colors.grey[600],
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Método: ${_getMetodoPagoTexto(transaccion['metodo_pago'])}',
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 12,
+            // Mostrar instrucciones para pagos en efectivo pendientes
+            if (puedeConfirmar && tieneIdValido) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      color: Colors.orange[700],
+                      size: 16,
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Mantén presionado para confirmar cuando se realice el pago en efectivo',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.orange[700],
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ] else if (esEfectivoPendiente && !puedeConfirmar) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.blue.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.hourglass_empty,
+                      color: Colors.blue[700],
+                      size: 16,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Esperando confirmación del conductor',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.blue[700],
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ],
         ),
       ),
     );
+    
+    // Solo permitir confirmación si es efectivo pendiente, el usuario puede confirmar y tiene ID válido
+    if (puedeConfirmar && tieneIdValido) {
+      return GestureDetector(
+        onLongPress: () => _confirmarPagoEfectivo(transaccion),
+        child: cardContent,
+      );
+    }
+    
+    return cardContent;
   }
 
   Color _getTipoTransaccionColor(String tipo) {
@@ -1231,6 +1317,96 @@ class _SaldoTarjetasScreenState extends State<SaldoTarjetasScreen>
         return const Color(0xFF2E7D32);
       default:
         return const Color(0xFF8D4F3A);
+    }
+  }
+
+  Future<void> _confirmarPagoEfectivo(Map<String, dynamic> transaccion) async {
+    try {
+      // Verificar que tengamos un ID válido
+      final String? transaccionId = transaccion['_id'] ?? transaccion['id'];
+      if (transaccionId == null || transaccionId.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Error: ID de transacción no válido'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
+      // Mostrar diálogo de confirmación
+      final confirmar = await showDialog<bool>(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: const Text('Confirmar Pago en Efectivo'),
+            content: Text(
+              '¿Confirmas que se ha realizado el pago en efectivo de \$${transaccion['monto']?.toStringAsFixed(0)} por "${transaccion['concepto']}"?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancelar'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF8D4F3A),
+                ),
+                child: const Text('Confirmar'),
+              ),
+            ],
+          );
+        },
+      );
+
+      if (confirmar == true) {
+        // Realizar la confirmación en el backend
+        final token = await TokenManager.getValidToken();
+        if (token == null) return;
+        
+        print('Confirmando transacción ID: $transaccionId'); // Debug
+        
+        final response = await http.patch(
+          Uri.parse('${confGlobal.baseUrl}/transacciones/confirmar-efectivo/$transaccionId'),
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+        );
+
+        print('Response status: ${response.statusCode}'); // Debug
+        print('Response body: ${response.body}'); // Debug
+
+        if (response.statusCode == 200) {
+          // Mostrar mensaje de éxito
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Pago en efectivo confirmado exitosamente'),
+                backgroundColor: Colors.green,
+              ),
+            );
+            
+            // Actualizar la lista de transacciones
+            _cargarDatos();
+          }
+        } else {
+          throw Exception('Error al confirmar el pago: ${response.statusCode} - ${response.body}');
+        }
+      }
+    } catch (e) {
+      print('Error al confirmar pago efectivo: $e'); // Debug
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al confirmar el pago: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 

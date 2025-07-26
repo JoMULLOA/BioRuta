@@ -6,6 +6,7 @@ import '../models/viaje_model.dart';
 import '../models/marcador_viaje_model.dart';
 import '../config/confGlobal.dart';
 import '../utils/token_manager.dart';
+import '../utils/viaje_validator.dart';
 
 class ViajeService {
   static String get baseUrl => confGlobal.baseUrl;
@@ -16,7 +17,119 @@ class ViajeService {
     return await TokenManager.getAuthHeaders(); // Usar TokenManager
   }
   
-  /// Crear un nuevo viaje
+  /// Validar si se puede publicar un viaje en una fecha específica
+  static Future<Map<String, dynamic>> validarPublicacionViaje({
+    required DateTime fechaHoraIda,
+    DateTime? fechaHoraVuelta,
+    required double origenLat,
+    required double origenLng,
+    required double destinoLat,
+    required double destinoLng,
+  }) async {
+    try {
+      // Calcular distancia del nuevo viaje
+      final distanciaKm = ViajeValidator.calcularDistancia(origenLat, origenLng, destinoLat, destinoLng);
+      
+      // Obtener viajes activos del usuario
+      final viajesActivos = await _obtenerViajesActivosUsuario();
+      
+      // Validar viaje de ida
+      final puedePublicarIda = ViajeValidator.puedePublicarViaje(
+        nuevaFecha: fechaHoraIda,
+        distanciaKm: distanciaKm,
+        viajesActivos: viajesActivos,
+      );
+      
+      if (!puedePublicarIda) {
+        final proximoTiempo = ViajeValidator.obtenerProximoTiempoDisponible(
+          distanciaKm: distanciaKm,
+          viajesActivos: viajesActivos,
+        );
+        
+        final duracionEstimada = ViajeValidator.calcularDuracionEstimada(distanciaKm);
+        
+        return {
+          'success': false,
+          'message': 'No puedes publicar este viaje porque se solapa con un viaje activo. '
+                     'Duración estimada: ${ViajeValidator.formatearDuracion(duracionEstimada)}',
+          'proximoTiempoDisponible': proximoTiempo,
+          'duracionEstimada': duracionEstimada,
+        };
+      }
+      
+      // Si hay viaje de vuelta, validarlo también
+      if (fechaHoraVuelta != null) {
+        final puedePublicarVuelta = ViajeValidator.puedePublicarViaje(
+          nuevaFecha: fechaHoraVuelta,
+          distanciaKm: distanciaKm,
+          viajesActivos: [...viajesActivos, {
+            'fecha_ida': fechaHoraIda.toIso8601String(),
+            'origen': {'ubicacion': {'coordinates': [origenLng, origenLat]}},
+            'destino': {'ubicacion': {'coordinates': [destinoLng, destinoLat]}},
+          }], // Incluir el viaje de ida en la validación
+        );
+        
+        if (!puedePublicarVuelta) {
+          final duracionEstimada = ViajeValidator.calcularDuracionEstimada(distanciaKm);
+          return {
+            'success': false,
+            'message': 'El viaje de vuelta se solapa con otros viajes. '
+                       'Duración estimada: ${ViajeValidator.formatearDuracion(duracionEstimada)}',
+            'duracionEstimada': duracionEstimada,
+          };
+        }
+      }
+      
+      return {
+        'success': true,
+        'message': 'Viaje válido para publicar',
+        'duracionEstimada': ViajeValidator.calcularDuracionEstimada(distanciaKm),
+        'distanciaKm': distanciaKm,
+      };
+      
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Error validando viaje: $e',
+      };
+    }
+  }
+  
+  /// Obtener viajes activos del usuario para validaciones (método público)
+  static Future<List<Map<String, dynamic>>> obtenerViajesActivosUsuario() async {
+    return await _obtenerViajesActivosUsuario();
+  }
+  
+  /// Obtener viajes activos del usuario para validaciones (método privado)
+  static Future<List<Map<String, dynamic>>> _obtenerViajesActivosUsuario() async {
+    try {
+      final headers = await _getHeaders();
+      if (headers == null) return [];
+
+      final response = await http.get(
+        Uri.parse('$baseUrl/viajes/mis-viajes'),
+        headers: headers,
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['success'] == true && data['data'] != null) {
+          final List<dynamic> viajes = data['data'];
+          
+          // Filtrar solo viajes activos
+          return viajes
+              .where((viaje) => viaje['estado'] == 'activo')
+              .cast<Map<String, dynamic>>()
+              .toList();
+        }
+      }
+      
+      return [];
+    } catch (e) {
+      debugPrint('❌ Error obteniendo viajes activos: $e');
+      return [];
+    }
+  }
   static Future<Map<String, dynamic>> crearViaje({
     required List<Map<String, dynamic>> ubicaciones,
     required String fechaHoraIda,
@@ -132,7 +245,7 @@ class ViajeService {
     }
   }
 
-  /// Obtener marcadores para el mapa
+  /// Obtener marcadores para el mapa (filtra automáticamente viajes pasados)
   static Future<List<MarcadorViaje>> obtenerMarcadoresViajes({
     String? fechaDesde,
     String? fechaHasta,
@@ -152,7 +265,34 @@ class ViajeService {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final marcadoresData = data['data']['marcadores'] as List;
-        return marcadoresData
+        
+        // Filtrar marcadores que ya pasaron su hora de salida
+        final marcadoresFiltrados = marcadoresData.where((marcadorJson) {
+          try {
+            final detallesViaje = marcadorJson['detalles_viaje'];
+            if (detallesViaje != null && detallesViaje['fecha'] != null) {
+              final fechaViaje = DateTime.parse(detallesViaje['fecha']);
+              
+              // Verificar si la fecha ya pasó (considerando zona horaria chilena)
+              final fechaChile = fechaViaje.subtract(const Duration(hours: 4));
+              final ahoraChile = DateTime.now();
+              
+              // Si ya pasó la hora de salida, cambiar estado automáticamente
+              if (fechaChile.isBefore(ahoraChile)) {
+                debugPrint('🕒 Viaje ${marcadorJson['id']} ya pasó su hora de salida, debe cambiar a en_curso');
+                // Llamar al backend para cambiar estado (no esperar respuesta para no bloquear)
+                cambiarEstadoViajeAsincrono(marcadorJson['id'], 'en_curso');
+                return false; // No mostrar en el mapa
+              }
+            }
+            return true;
+          } catch (e) {
+            debugPrint('❌ Error filtrando marcador: $e');
+            return true; // En caso de error, mantener el marcador
+          }
+        }).toList();
+        
+        return marcadoresFiltrados
             .map((marcador) => MarcadorViaje.fromJson(marcador))
             .toList();
       } else {
@@ -160,6 +300,31 @@ class ViajeService {
       }
     } catch (e) {
       throw Exception('Error de conexión: $e');
+    }
+  }
+  
+  /// Cambiar estado de viaje de forma asíncrona (sin esperar respuesta)
+  static void cambiarEstadoViajeAsincrono(String viajeId, String nuevoEstado) {
+    _cambiarEstadoViajeAsync(viajeId, nuevoEstado).catchError((error) {
+      debugPrint('❌ Error cambiando estado automático del viaje $viajeId: $error');
+    });
+  }
+  
+  /// Método auxiliar para cambio de estado asíncrono
+  static Future<void> _cambiarEstadoViajeAsync(String viajeId, String nuevoEstado) async {
+    try {
+      final headers = await _getHeaders();
+      if (headers == null) return;
+
+      await http.put(
+        Uri.parse('$baseUrl/viajes/$viajeId/estado'),
+        headers: headers,
+        body: json.encode({'nuevoEstado': nuevoEstado}),
+      );
+      
+      debugPrint('✅ Estado del viaje $viajeId cambiado automáticamente a $nuevoEstado');
+    } catch (e) {
+      debugPrint('❌ Error en cambio automático de estado: $e');
     }
   }
 
@@ -667,81 +832,78 @@ class ViajeService {
       final fechaActual = DateTime.now();
       debugPrint('📅 Fecha actual: $fechaActual');
 
-      // NUEVA LÓGICA: Solo mostrar SOS si el usuario es PASAJERO (unido a un viaje)
-      final viajesComoPasajero = viajes.where((viaje) {
+      // NUEVA LÓGICA: Mostrar SOS si:
+      // 1. Es CONDUCTOR y el viaje está 'en_curso' (viaje iniciado)
+      // 2. Es PASAJERO y el viaje está 'activo' o 'en_curso' (confirmado en viaje activo o en curso)
+      final viajesConSOS = viajes.where((viaje) {
         try {          
           // El conductor es el usuario_rut principal del viaje
           final conductorRut = viaje['usuario_rut']?.toString();
+          final estadoViaje = viaje['estado']?.toString().toLowerCase();
           
           debugPrint('🔍 Análisis viaje:');
           debugPrint('   - Conductor RUT: $conductorRut');
           debugPrint('   - Usuario actual RUT: $userRut');
+          debugPrint('   - Estado del viaje: $estadoViaje');
           
-          // Si el usuario es el conductor, no es pasajero
+          // Verificar si el viaje está en estado válido para SOS
+          if (estadoViaje == 'completado' || estadoViaje == 'cancelado') {
+            debugPrint('❌ Viaje completado o cancelado, no mostrar SOS');
+            return false;
+          }
+          
+          // CASO 1: Usuario es CONDUCTOR y viaje está EN_CURSO
           if (conductorRut == userRut) {
-            debugPrint('❌ Usuario es conductor, no pasajero');
-            return false;
-          }
-          
-          
-          // Verificar si hay pasajeros en el viaje
-          final pasajeros = viaje['pasajeros'];
-          if (pasajeros == null || pasajeros is! List) {
-            debugPrint('❌ No hay lista de pasajeros');
-            return false;
-          }
-          
-          debugPrint('   - Total pasajeros: ${pasajeros.length}');
-          
-          // Verificar si el usuario actual está en la lista de pasajeros
-          bool esUnPasajero = false;
-          String? estadoPasajero;
-          
-          for (var pasajero in pasajeros) {
-            if (pasajero is Map<String, dynamic>) {
-              final pasajeroRut = pasajero['usuario_rut']?.toString();
-              final estado = pasajero['estado']?.toString().toLowerCase();
-              
-              debugPrint('   - Pasajero RUT: $pasajeroRut, Estado: $estado');
-              
-              // Comparar el RUT del pasajero con el RUT del usuario actual
-              if (pasajeroRut == userRut && (estado == 'confirmado' || estado == 'pendiente')) {
-                esUnPasajero = true;
-                estadoPasajero = estado;
-                debugPrint('✅ Usuario encontrado como pasajero con estado: $estado');
-                break;
-              }
+            if (estadoViaje == 'en_curso') {
+              debugPrint('✅ Es conductor con viaje en curso, mostrar SOS');
+              return true;
+            } else {
+              debugPrint('❌ Es conductor pero viaje no está en curso (estado: $estadoViaje)');
+              return false;
             }
           }
           
-          if (!esUnPasajero) {
-            debugPrint('❌ Usuario actual ($userRut) no es un pasajero confirmado/pendiente en este viaje');
+          // CASO 2: Usuario es PASAJERO y viaje está ACTIVO o EN_CURSO
+          if (estadoViaje == 'activo' || estadoViaje == 'en_curso') {
+            // Verificar si hay pasajeros en el viaje
+            final pasajeros = viaje['pasajeros'];
+            if (pasajeros == null || pasajeros is! List) {
+              debugPrint('❌ No hay lista de pasajeros');
+              return false;
+            }
+            
+            debugPrint('   - Total pasajeros: ${pasajeros.length}');
+            
+            // Verificar si el usuario actual está en la lista de pasajeros confirmados
+            bool esUnPasajero = false;
+            
+            for (var pasajero in pasajeros) {
+              if (pasajero is Map<String, dynamic>) {
+                final pasajeroRut = pasajero['usuario_rut']?.toString();
+                final estado = pasajero['estado']?.toString().toLowerCase();
+                
+                debugPrint('   - Pasajero RUT: $pasajeroRut, Estado: $estado');
+                
+                // Solo pasajeros confirmados pueden usar SOS
+                if (pasajeroRut == userRut && estado == 'confirmado') {
+                  esUnPasajero = true;
+                  debugPrint('✅ Usuario encontrado como pasajero confirmado');
+                  break;
+                }
+              }
+            }
+            
+            if (!esUnPasajero) {
+              debugPrint('❌ Usuario actual ($userRut) no es un pasajero confirmado en este viaje');
+              return false;
+            }
+            
+            debugPrint('✅ Es pasajero confirmado en viaje $estadoViaje, mostrar SOS');
+            return true;
+          } else {
+            debugPrint('❌ Viaje no está activo ni en curso (estado: $estadoViaje)');
             return false;
           }
-          
-          debugPrint('✅ Es pasajero con estado: $estadoPasajero, verificando fecha...');
-          
-          // Verificar que el viaje sea futuro o actual
-          String? fechaString;
-          if (viaje.containsKey('fecha_ida')) {
-            fechaString = viaje['fecha_ida'];
-          } else if (viaje.containsKey('fechaHoraIda')) {
-            fechaString = viaje['fechaHoraIda'];
-          } else if (viaje.containsKey('fecha')) {
-            fechaString = viaje['fecha'];
-          }
-
-          if (fechaString == null) {
-            debugPrint('⚠️ No hay fecha, pero es pasajero confirmado -> SOS activo');
-            return true;
-          }
-
-          final fechaViaje = DateTime.parse(fechaString);
-          final esActivo = fechaViaje.isAfter(fechaActual.subtract(const Duration(days: 1)));
-          
-          debugPrint('📊 Fecha viaje: $fechaViaje, Es activo: $esActivo');
-          
-          return esActivo;
           
         } catch (e) {
           debugPrint('❌ Error procesando viaje: $e');
@@ -749,8 +911,8 @@ class ViajeService {
         }
       }).toList();
 
-      final resultado = viajesComoPasajero.isNotEmpty;
-      debugPrint('🎯 RESULTADO FINAL: Mostrar SOS = $resultado (${viajesComoPasajero.length} viajes como pasajero)');
+      final resultado = viajesConSOS.isNotEmpty;
+      debugPrint('🎯 RESULTADO FINAL: Mostrar SOS = $resultado (${viajesConSOS.length} viajes con SOS habilitado)');
       return resultado;
     } catch (e) {
       debugPrint('💥 Error al verificar viajes activos: $e');
@@ -858,65 +1020,90 @@ class ViajeService {
           final List<dynamic> viajes = data['data'];
           debugPrint("🚗 Total viajes: ${viajes.length}");
           
-          // Buscar viajes activos donde el usuario sea pasajero
+          // Buscar viajes donde el usuario pueda usar SOS (conductor en curso o pasajero en activo/curso)
           for (int i = 0; i < viajes.length; i++) {
             var viaje = viajes[i];
             debugPrint("🎯 Analizando viaje $i: ${viaje['_id']}");
             
-            // Verificar si el viaje está activo
             final String? estado = viaje['estado'];
-            if (estado == 'activo') {
-              debugPrint("✅ Viaje activo encontrado");
-              
-              // Verificar si el usuario es pasajero
+            final String? conductorRut = viaje['usuario_rut'];
+            
+            debugPrint("   - Estado: $estado");
+            debugPrint("   - Conductor: $conductorRut");
+            
+            // Verificar si el viaje está en un estado válido para SOS
+            if (estado == 'completado' || estado == 'cancelado') {
+              debugPrint("❌ Viaje completado o cancelado, saltando");
+              continue;
+            }
+            
+            bool puedeUsarSOS = false;
+            String tipoUsuario = '';
+            
+            // CASO 1: Usuario es CONDUCTOR y viaje está EN_CURSO
+            if (conductorRut == rutUsuario && estado == 'en_curso') {
+              puedeUsarSOS = true;
+              tipoUsuario = 'conductor';
+              debugPrint("✅ Usuario es conductor con viaje en curso");
+            }
+            
+            // CASO 2: Usuario es PASAJERO y viaje está ACTIVO o EN_CURSO
+            if (!puedeUsarSOS && (estado == 'activo' || estado == 'en_curso')) {
               if (viaje['pasajeros'] != null) {
                 final List<dynamic> pasajeros = viaje['pasajeros'];
                 
-                bool esPasajero = pasajeros.any((p) => 
+                bool esPasajeroConfirmado = pasajeros.any((p) => 
                   p['usuario_rut'] == rutUsuario && 
                   p['estado'] == 'confirmado'
                 );
                 
-                if (esPasajero) {
-                  debugPrint("🎯 ¡Usuario encontrado como pasajero confirmado!");
-                  debugPrint("👨‍✈️ Conductor: ${viaje['conductor']}");
-                  debugPrint("🚗 Vehículo: ${viaje['vehiculo']}");
-                  debugPrint("📍 Origen: ${viaje['origen']?['nombre']}");
-                  debugPrint("📍 Destino: ${viaje['destino']?['nombre']}");
-                  
-                  // Obtener información del conductor y vehículo
-                  String nombreConductor = 'Conductor';
-                  String rutConductor = 'No disponible';
-                  String patente = 'No disponible';
-                  
-                  // Extraer datos del conductor
-                  if (viaje['conductor'] != null) {
-                    nombreConductor = viaje['conductor']['nombre'] ?? 'Conductor';
-                    rutConductor = viaje['conductor']['rut'] ?? viaje['usuario_rut'] ?? 'No disponible';
-                  } else {
-                    rutConductor = viaje['usuario_rut'] ?? 'No disponible';
-                  }
-                  
-                  // Extraer datos del vehículo
-                  if (viaje['vehiculo'] != null) {
-                    patente = viaje['vehiculo']['patente'] ?? viaje['vehiculo_patente'] ?? 'No disponible';
-                  } else {
-                    // Fallback a vehiculo_patente si no hay objeto vehiculo
-                    patente = viaje['vehiculo_patente'] ?? 'No disponible';
-                  }
-                  
-                  // Extraer información relevante para SOS (sin modelo y color)
-                  final infoExtraida = {
-                    'nombreConductor': nombreConductor,
-                    'rutConductor': rutConductor,
-                    'patente': patente,
-                    'origen': viaje['origen']?['nombre'] ?? 'No disponible',
-                    'destino': viaje['destino']?['nombre'] ?? 'No disponible',
-                  };
-                  debugPrint("📋 Información extraída para SOS: $infoExtraida");
-                  return infoExtraida;
+                if (esPasajeroConfirmado) {
+                  puedeUsarSOS = true;
+                  tipoUsuario = 'pasajero';
+                  debugPrint("✅ Usuario es pasajero confirmado en viaje $estado");
                 }
               }
+            }
+            
+            if (puedeUsarSOS) {
+              debugPrint("🎯 ¡Usuario puede usar SOS como $tipoUsuario!");
+              debugPrint("👨‍✈️ Conductor: ${viaje['conductor']}");
+              debugPrint("🚗 Vehículo: ${viaje['vehiculo']}");
+              debugPrint("📍 Origen: ${viaje['origen']?['nombre']}");
+              debugPrint("📍 Destino: ${viaje['destino']?['nombre']}");
+              
+              // Obtener información del conductor y vehículo
+              String nombreConductor = 'Conductor';
+              String rutConductor = 'No disponible';
+              String patente = 'No disponible';
+              
+              // Extraer datos del conductor
+              if (viaje['conductor'] != null) {
+                nombreConductor = viaje['conductor']['nombre'] ?? 'Conductor';
+                rutConductor = viaje['conductor']['rut'] ?? viaje['usuario_rut'] ?? 'No disponible';
+              } else {
+                rutConductor = viaje['usuario_rut'] ?? 'No disponible';
+              }
+              
+              // Extraer datos del vehículo
+              if (viaje['vehiculo'] != null) {
+                patente = viaje['vehiculo']['patente'] ?? viaje['vehiculo_patente'] ?? 'No disponible';
+              } else {
+                // Fallback a vehiculo_patente si no hay objeto vehiculo
+                patente = viaje['vehiculo_patente'] ?? 'No disponible';
+              }
+              
+              // Extraer información relevante para SOS (sin modelo y color)
+              final infoExtraida = {
+                'nombreConductor': nombreConductor,
+                'rutConductor': rutConductor,
+                'patente': patente,
+                'origen': viaje['origen']?['nombre'] ?? 'No disponible',
+                'destino': viaje['destino']?['nombre'] ?? 'No disponible',
+                'tipoUsuario': tipoUsuario, // Añadido para identificar si es conductor o pasajero
+              };
+              debugPrint("📋 Información extraída para SOS: $infoExtraida");
+              return infoExtraida;
             }
           }
         }
@@ -926,7 +1113,7 @@ class ViajeService {
         return null;
       }
       
-      debugPrint('❌ No se encontró viaje activo donde el usuario sea pasajero');
+      debugPrint('❌ No se encontró viaje activo donde el usuario pueda usar SOS');
       return null;
     } catch (e) {
       debugPrint('💥 Error obteniendo detalles del viaje activo: $e');

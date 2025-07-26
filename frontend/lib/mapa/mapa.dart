@@ -16,9 +16,9 @@ import '../services/busqueda_service.dart';
 import '../services/viaje_service.dart';
 import '../services/ruta_service.dart';
 import '../services/user_service.dart'; // Importar UserService
+import '../services/viaje_state_monitor.dart'; // Importar monitor de estados
 import 'mapa_widget.dart';
 import 'mapa_seleccion.dart';
-import 'mapa_ui_components.dart';
 import '../buscar/resultados_busqueda.dart';
 
 
@@ -98,6 +98,9 @@ class _MapPageState extends State<MapPage> {
     
     // Configurar listener para notificaciones de viaje aceptado
     _configurarNotificacionesViajeAceptado();
+    
+    // Inicializar monitor de estados de viajes
+    ViajeStateMonitor.instance.iniciarMonitoreo();
     
     _inicializarUbicacion();
     _cargarMarcadoresViajes();
@@ -549,7 +552,6 @@ class _MapPageState extends State<MapPage> {
           pasajeros: pasajeros,
           origenTexto: direccionOrigen!,
           destinoTexto: direccionDestino!,
-          soloMujeres: soloMujeres, // Parámetro implementado
         ),
       ),
     );
@@ -603,6 +605,9 @@ class _MapPageState extends State<MapPage> {
     _debounceTimer?.cancel();
     _radarTimer?.cancel();
     _notificacionTimer?.cancel(); // Cancelar timer de notificaciones
+    
+    // Detener monitor de estados de viajes
+    ViajeStateMonitor.instance.detenerMonitoreo();
     
     // Limpiar el callback del servicio de ruta
     RutaService.instance.limpiarCallback();
@@ -2090,13 +2095,56 @@ class _MapPageState extends State<MapPage> {
             onMapTap: _onMapTap,
           ),
 
-          // Barra superior estilo Uber
-          MapaUIComponents.buildBarraSuperiorUber(
-            regionActual: _regionActual,
-            destinoSeleccionado: direccionDestino,
-            onTap: _abrirBusquedaAvanzada,
-            mostrarBotonUber: true,
-            origenSeleccionado: direccionOrigen,
+          // Barra superior de búsqueda
+          Positioned(
+            top: 50,
+            left: 16,
+            right: 16,
+            child: Container(
+              height: 50,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(25),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(25),
+                  onTap: _abrirBusquedaAvanzada,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.search,
+                          color: Color(0xFF854937),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            direccionDestino ?? '¿A dónde quieres ir?',
+                            style: TextStyle(
+                              color: direccionDestino != null 
+                                  ? Colors.black87 
+                                  : Colors.grey[600],
+                              fontSize: 16,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ),
           
           // Indicador de carga de viajes

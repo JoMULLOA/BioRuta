@@ -156,7 +156,7 @@ class _MisVehiculosPageState extends State<MisVehiculosPage> {
         }
 
         final response = await http.delete(
-          Uri.parse('${confGlobal.baseUrl}/user/vehiculos/${vehiculo['_id']}'),
+          Uri.parse('${confGlobal.baseUrl}/vehiculos/${vehiculo['patente']}'),
           headers: headers,
         );
 
