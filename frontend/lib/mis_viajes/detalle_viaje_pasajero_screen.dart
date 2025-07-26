@@ -3,6 +3,11 @@ import '../models/viaje_model.dart';
 import '../services/ruta_service.dart';
 import '../utils/map_launcher.dart';
 import '../chat/chat_grupal.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import '../utils/token_manager.dart';
+import '../config/confGlobal.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class DetalleViajePasajeroScreen extends StatefulWidget {
   final Viaje viaje;
@@ -19,6 +24,11 @@ class DetalleViajePasajeroScreen extends StatefulWidget {
 class _DetalleViajePasajeroScreenState extends State<DetalleViajePasajeroScreen> {
   late Viaje viaje;
   bool mostrarRutaRestante = false;
+  
+  // Variable para almacenar la calificación del conductor
+  double _calificacionConductor = 0;
+  bool _calificacionGuardada = false;
+  bool _yaSeVerificoCalificacion = false;
 
   @override
   void initState() {
@@ -27,6 +37,38 @@ class _DetalleViajePasajeroScreenState extends State<DetalleViajePasajeroScreen>
     
     // Verificar si ya hay una ruta activa para este viaje
     mostrarRutaRestante = RutaService.instance.tieneRutaActiva(viaje.id);
+    
+    // Verificar si ya se calificó al conductor para este viaje
+    _verificarSiYaCalificoConductor();
+  }
+
+  Future<void> _verificarSiYaCalificoConductor() async {
+    if (viaje.estado == 'completado' && !_yaSeVerificoCalificacion) {
+      _yaSeVerificoCalificacion = true;
+      
+      try {
+        final headers = await TokenManager.getAuthHeaders();
+        if (headers == null) return;
+
+        // Verificar si ya existe una calificación de este pasajero hacia este conductor para este viaje
+        // Esto se puede hacer consultando las transacciones o creando un endpoint específico
+        // Por ahora, usaremos SharedPreferences como solución temporal
+        final prefs = await SharedPreferences.getInstance();
+        final keyCalificacion = 'calificacion_conductor_${viaje.id}_${viaje.conductor?.rut}';
+        final yaCalificado = prefs.getBool(keyCalificacion) ?? false;
+        
+        if (!yaCalificado) {
+          // Solo mostrar el modal si no se ha calificado antes
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              _mostrarModalCalificacion();
+            }
+          });
+        }
+      } catch (e) {
+        print('Error verificando calificación previa: $e');
+      }
+    }
   }
 
   Color _getEstadoColor(String estado) {
@@ -103,6 +145,224 @@ class _DetalleViajePasajeroScreenState extends State<DetalleViajePasajeroScreen>
       // Desactivar ruta
       RutaService.instance.desactivarRuta();
     }
+  }
+
+  Future<void> _guardarCalificacion(double calificacion) async {
+    try {
+      final headers = await TokenManager.getAuthHeaders();
+      if (headers == null) {
+        throw Exception('No se pudo obtener el token de autenticación');
+      }
+
+      headers['Content-Type'] = 'application/json';
+
+      final response = await http.post(
+        Uri.parse('${confGlobal.baseUrl}/user/calificar'),
+        headers: headers,
+        body: json.encode({
+          'rutUsuarioCalificado': viaje.conductor!.rut,
+          'calificacion': calificacion,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['success'] == true) {
+          // Guardar en SharedPreferences que ya se calificó al conductor ANTES del setState
+          final prefs = await SharedPreferences.getInstance();
+          final keyCalificacion = 'calificacion_conductor_${viaje.id}_${viaje.conductor?.rut}';
+          await prefs.setBool(keyCalificacion, true);
+          
+          setState(() {
+            _calificacionGuardada = true;
+          });
+          
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('✅ Calificación guardada exitosamente'),
+                backgroundColor: Colors.green,
+                duration: Duration(seconds: 3),
+              ),
+            );
+          }
+        } else {
+          throw Exception(data['message'] ?? 'Error al guardar la calificación');
+        }
+      } else {
+        throw Exception('Error del servidor al guardar la calificación');
+      }
+    } catch (e) {
+      print('Error al calificar conductor: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Error al guardar la calificación: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
+  void _mostrarModalCalificacion() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return AlertDialog(
+              title: Row(
+                children: [
+                  Icon(
+                    Icons.star,
+                    color: Colors.amber,
+                    size: 28,
+                  ),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Califica a tu conductor',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF854937),
+                    ),
+                  ),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (viaje.conductor != null) ...[
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF854937).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF854937),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.person,
+                              color: Colors.white,
+                              size: 24,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              viaje.conductor!.nombre,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF854937),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                  const Text(
+                    '¿Cómo fue tu experiencia con el conductor?',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.black87,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 20),
+                  
+                  // Sistema de estrellas igual al del conductor
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(5, (index) {
+                      final estrella = index + 1;
+                      final estaSeleccionada = estrella <= _calificacionConductor;
+                      
+                      return GestureDetector(
+                        onTap: () {
+                          setModalState(() {
+                            _calificacionConductor = estrella.toDouble();
+                          });
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          child: Icon(
+                            estaSeleccionada ? Icons.star : Icons.star_border,
+                            color: estaSeleccionada ? const Color(0xFFFFD700) : Colors.grey[400],
+                            size: 32,
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
+                  
+                  const SizedBox(height: 16),
+                  
+                  if (_calificacionConductor > 0)
+                    Text(
+                      'Calificación: ${_calificacionConductor.toInt()}/5 estrellas',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF854937),
+                      ),
+                    ),
+                ],
+              ),
+              actions: [
+                Row(
+                  children: [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                      },
+                      child: const Text(
+                        'Omitir',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    ),
+                    const Spacer(),
+                    ElevatedButton.icon(
+                      onPressed: _calificacionConductor > 0
+                          ? () async {
+                              Navigator.of(context).pop();
+                              await _guardarCalificacion(_calificacionConductor);
+                            }
+                          : null,
+                      icon: const Icon(Icons.save, size: 18),
+                      label: const Text('Guardar'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF854937),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   @override

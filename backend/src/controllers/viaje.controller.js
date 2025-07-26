@@ -1910,6 +1910,39 @@ export async function cambiarEstadoViaje(req, res) {
 
     await viaje.save();
 
+    // NUEVO: Otorgar 2 puntos al conductor cuando complete el viaje
+    if (nuevoEstado === 'completado') {
+      try {
+        console.log(`🎯 Otorgando 2 puntos al conductor ${conductorRut} por completar el viaje ${viajeId}`);
+        
+        // Buscar el conductor en PostgreSQL
+        const conductor = await userRepository.findOne({
+          where: { rut: conductorRut }
+        });
+
+        if (conductor) {
+          // Sumar 2 puntos a la clasificación actual
+          const clasificacionActual = parseFloat(conductor.clasificacion || 0);
+          const nuevaClasificacion = clasificacionActual + 2;
+          
+          console.log(`📊 Clasificación del conductor: ${clasificacionActual} → ${nuevaClasificacion} (+2 puntos por completar viaje)`, );
+          
+          // Actualizar la clasificación en la base de datos
+          await userRepository.update(
+            { rut: conductorRut },
+            { clasificacion: nuevaClasificacion }
+          );
+          
+          console.log(`✅ Puntos otorgados exitosamente al conductor ${conductorRut}`);
+        } else {
+          console.error(`❌ No se encontró el conductor ${conductorRut} para otorgar puntos`);
+        }
+      } catch (puntosError) {
+        console.error(`⚠️ Error al otorgar puntos al conductor:`, puntosError.message);
+        // No fallar el cambio de estado si falla la asignación de puntos
+      }
+    }
+
     // Finalizar chat grupal cuando se completa o cancela el viaje
     if (nuevoEstado === 'completado' || nuevoEstado === 'cancelado') {
       try {
@@ -1930,7 +1963,7 @@ export async function cambiarEstadoViaje(req, res) {
         mensaje = 'Viaje iniciado exitosamente';
         break;
       case 'completado':
-        mensaje = 'Viaje completado exitosamente';
+        mensaje = 'Viaje completado exitosamente. El conductor ha recibido 2 puntos adicionales.';
         break;
       case 'cancelado':
         mensaje = 'Viaje cancelado';
