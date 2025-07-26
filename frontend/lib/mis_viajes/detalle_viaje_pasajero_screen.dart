@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/viaje_model.dart';
 import '../services/ruta_service.dart';
 import '../utils/map_launcher.dart';
+import '../chat/chat_grupal.dart';
 
 class DetalleViajePasajeroScreen extends StatefulWidget {
   final Viaje viaje;
@@ -297,11 +298,13 @@ class _DetalleViajePasajeroScreenState extends State<DetalleViajePasajeroScreen>
                                   size: 20,
                                 ),
                                 onPressed: () {
-                                  // TODO: Implementar chat o contacto con conductor
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Función de chat en desarrollo'),
-                                      backgroundColor: Color(0xFF854937),
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => ChatGrupalScreen(
+                                        idViaje: viaje.id.toString(),
+                                        nombreViaje: null,
+                                      ),
                                     ),
                                   );
                                 },
