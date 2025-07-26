@@ -883,7 +883,8 @@ async function obtenerViajeConDatos(viajeId) {
         usuario: usuarioPasajero ? {
           rut: usuarioPasajero.rut,
           nombre: usuarioPasajero.nombreCompleto,
-          email: usuarioPasajero.email
+          email: usuarioPasajero.email,
+          clasificacion: usuarioPasajero.clasificacion // Agregar clasificación
         } : null
       };
     })

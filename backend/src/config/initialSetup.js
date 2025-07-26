@@ -30,7 +30,7 @@ async function createInitialData() {
         rol: "estudiante",
         puntuacion: 5,
         clasificacion : 2,
-        saldo: 25000,
+        saldo: 999999,
         tarjetas: []
       });
       await userRepository.save(user1);
@@ -46,7 +46,7 @@ async function createInitialData() {
         rol: "estudiante",
         puntuacion: 3,
         clasificacion : 1,
-        saldo: 25000,
+        saldo: 999999,
         tarjetas: []
       });
       await userRepository.save(user2);
@@ -62,7 +62,7 @@ async function createInitialData() {
         rol: "estudiante",
         puntuacion: 4,
         clasificacion : 2,
-        saldo: 25000,
+        saldo: 999999,
         tarjetas: []
       });
       await userRepository.save(user3);

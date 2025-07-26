@@ -47,6 +47,12 @@ const UserSchema = new EntitySchema({
       type: "float",
       nullable: true,
     },
+    cantidadValoraciones: {
+      type: "int",
+      nullable: false,
+      default: 0,
+      comment: "Número total de valoraciones recibidas por este usuario",
+    },
     puntuacion: {
       type: "int",
       nullable: true,

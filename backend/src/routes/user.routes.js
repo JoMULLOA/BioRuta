@@ -2,7 +2,7 @@
 import express from "express";
 import { isAdmin } from "../middlewares/authorization.middleware.js";
 import { authenticateJwt } from "../middlewares/authentication.middleware.js";
-import { deleteUser, getUser, getUsers, updateUser, searchUser, buscarRut, getMisVehiculos, calcularCalificacion, obtenerPromedioGlobal, actualizarTokenFCM, getHistorialTransacciones } from "../controllers/user.controller.js";
+import { deleteUser, getUser, getUsers, updateUser, searchUser, buscarRut, getMisVehiculos, calcularCalificacion, obtenerPromedioGlobal, actualizarTokenFCM, getHistorialTransacciones, calificarUsuario } from "../controllers/user.controller.js";
 import { AppDataSource } from "../config/configDb.js";
 import User from "../entity/user.entity.js";
 
@@ -18,6 +18,9 @@ router.get("/busquedaRut", buscarRut);
 
 //Ruta calificacion de usuario
 router.post("/calcularCalificacion", calcularCalificacion);
+
+// Nueva ruta para calificar usuarios con estrellas
+router.post("/calificar", calificarUsuario);
 
 // Nueva ruta para obtener el promedio global
 router.get("/promedioGlobal", obtenerPromedioGlobal);

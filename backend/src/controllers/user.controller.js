@@ -21,7 +21,11 @@ import {
   handleErrorServer,
   handleSuccess,
 } from "../handlers/responseHandlers.js";
+import { AppDataSource } from "../config/configDb.js";
+import User from "../entity/user.entity.js";
 
+// Obtener repositorio de usuarios
+const userRepository = AppDataSource.getRepository(User);
 
 export async function getUser(req, res) {
   try {
@@ -314,5 +318,124 @@ export async function getHistorialTransacciones(req, res) {
   } catch (error) {
     console.error("Error en getHistorialTransacciones:", error);
     handleErrorServer(res, 500, error.message);
+  }
+}
+
+/**
+ * Calificar a un usuario (dar una calificación de 0-5 estrellas)
+ */
+export async function calificarUsuario(req, res) {
+  try {
+    const { rutUsuarioCalificado, calificacion } = req.body;
+    const rutCalificador = req.user.rut;
+
+    console.log(`⭐ Calificando usuario: ${rutUsuarioCalificado} con ${calificacion} estrellas por ${rutCalificador}`);
+
+    // Validar parámetros
+    if (!rutUsuarioCalificado || calificacion === undefined || calificacion === null) {
+      return handleErrorClient(res, 400, "Parámetros requeridos: rutUsuarioCalificado, calificacion");
+    }
+
+    // Validar rango de calificación (0-5)
+    if (calificacion < 0 || calificacion > 5) {
+      return handleErrorClient(res, 400, "La calificación debe estar entre 0 y 5");
+    }
+
+    // Verificar que el usuario calificado existe
+    const usuarioCalificado = await userRepository.findOne({
+      where: { rut: rutUsuarioCalificado }
+    });
+
+    if (!usuarioCalificado) {
+      return handleErrorClient(res, 404, "Usuario a calificar no encontrado");
+    }
+
+    // No permitir que un usuario se califique a sí mismo
+    if (rutCalificador === rutUsuarioCalificado) {
+      return handleErrorClient(res, 400, "No puedes calificarte a ti mismo");
+    }
+
+    // Obtener datos actuales del usuario
+    const clasificacionActual = usuarioCalificado.clasificacion || 0;
+    const cantidadValoraciones = usuarioCalificado.cantidadValoraciones || 0;
+    const puntuacionActual = usuarioCalificado.puntuacion || 0;
+    
+    // Calcular nuevo promedio simple (para luego aplicar bayesiano)
+    const nuevaCantidadValoraciones = cantidadValoraciones + 1;
+    const nuevoPromedioSimple = ((clasificacionActual * cantidadValoraciones) + calificacion) / nuevaCantidadValoraciones;
+
+    // Obtener el promedio global para el cálculo bayesiano
+    const [promedioGlobal, errorPromedio] = await obtenerPromedioGlobalService();
+    if (errorPromedio) {
+      console.warn("Error obteniendo promedio global, usando valor por defecto:", errorPromedio);
+    }
+
+    // Calcular clasificación bayesiana
+    const minimoValoraciones = 2; // Mismo valor que se usa en el perfil
+    const clasificacionBayesiana = calcularCalificacionBayesiana(
+      nuevoPromedioSimple,
+      nuevaCantidadValoraciones,
+      promedioGlobal,
+      minimoValoraciones
+    );
+    
+    // La clasificación final será la bayesiana si se calculó correctamente, sino el promedio simple
+    const clasificacionFinal = clasificacionBayesiana !== null ? clasificacionBayesiana : nuevoPromedioSimple;
+
+    // NUEVO: Calcular puntos a sumar según la calificación recibida
+    let puntosASumar = 0;
+    if (calificacion >= 4) {
+      puntosASumar = 3; // 3 puntos para 4 o 5 estrellas
+    } else if (calificacion === 3) {
+      puntosASumar = 2; // 2 puntos para 3 estrellas
+    } else if (calificacion >= 1 && calificacion <= 2) {
+      puntosASumar = 1; // 1 punto para 1 o 2 estrellas
+    } else if (calificacion === 0) {
+      puntosASumar = 0; // 0 puntos para 0 estrellas
+    }
+
+    const nuevaPuntuacion = puntuacionActual + puntosASumar;
+
+    console.log(`🎯 Sistema de puntos:`);
+    console.log(`   Calificación recibida: ${calificacion} estrellas`);
+    console.log(`   Puntos otorgados: ${puntosASumar}`);
+    console.log(`   Puntuación anterior: ${puntuacionActual}`);
+    console.log(`   Nueva puntuación: ${nuevaPuntuacion}`);
+
+    // Actualizar usuario con nueva clasificación bayesiana y puntos
+    await userRepository.update(
+      { rut: rutUsuarioCalificado },
+      {
+        clasificacion: clasificacionFinal,
+        cantidadValoraciones: nuevaCantidadValoraciones,
+        puntuacion: nuevaPuntuacion,
+        updatedAt: new Date()
+      }
+    );
+
+    console.log(`✅ Usuario ${rutUsuarioCalificado} calificado:`);
+    console.log(`   Clasificación anterior: ${clasificacionActual}`);
+    console.log(`   Promedio simple nuevo: ${nuevoPromedioSimple.toFixed(3)}`);
+    console.log(`   Clasificación bayesiana: ${clasificacionFinal.toFixed(3)}`);
+    console.log(`   Cantidad valoraciones: ${nuevaCantidadValoraciones}`);
+    console.log(`   Promedio global usado: ${promedioGlobal}`);
+    console.log(`   Puntuación actualizada: ${puntuacionActual} → ${nuevaPuntuacion} (+${puntosASumar})`);
+
+    handleSuccess(res, 200, "Usuario calificado exitosamente", {
+      rutUsuarioCalificado,
+      calificacionAnterior: clasificacionActual,
+      promedioSimpleNuevo: nuevoPromedioSimple,
+      clasificacionBayesiana: clasificacionFinal,
+      cantidadValoraciones: nuevaCantidadValoraciones,
+      calificacionOtorgada: calificacion,
+      promedioGlobalUsado: promedioGlobal,
+      puntosOtorgados: puntosASumar,
+      puntuacionAnterior: puntuacionActual,
+      nuevaPuntuacion: nuevaPuntuacion
+    });
+
+  } catch (error) {
+    console.error("Error al calificar usuario:", error);
+    handleErrorServer(res, 500, "Error interno del servidor");
   }
 }

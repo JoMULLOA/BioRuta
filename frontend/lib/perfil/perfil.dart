@@ -108,25 +108,17 @@ class Perfil_ extends State<Perfil> {
             }
           }
           
-          // Calcular clasificación usando método bayesiano
+          // Usar clasificación directa de la base de datos (ya es bayesiana)
           String clasificacionFinal = 'Sin clasificación';
           if (userData['clasificacion'] != null) {
-            double clasificacionOriginal = double.parse(userData['clasificacion'].toString());
-            int cantidadValoraciones = userData['cantidadValoraciones'] ?? 1; // Usar 1 como mínimo
-            
-            // Llamar al método bayesiano
-            double? clasificacionBayesiana = await _calcularCalificacionBayesiana(
-              clasificacionOriginal,
-              cantidadValoraciones
-            );
-            
-            if (clasificacionBayesiana != null) {
-              clasificacionFinal = clasificacionBayesiana.toStringAsFixed(1);
-              print('Clasificación original: $clasificacionOriginal');
-              print('Clasificación bayesiana: $clasificacionBayesiana');
-            } else {
-              // Si falla el cálculo bayesiano, usar la clasificación original
+            try {
+              final clasificacionOriginal = double.parse(userData['clasificacion'].toString());
+              // Ya no aplicar bayesiano aquí porque se aplica al momento de calificar
               clasificacionFinal = clasificacionOriginal.toStringAsFixed(1);
+              print('Clasificación de BD (ya bayesiana): $clasificacionOriginal');
+            } catch (e) {
+              print('Error parseando clasificación: $e');
+              clasificacionFinal = 'Sin clasificación';
             }
           }
           
