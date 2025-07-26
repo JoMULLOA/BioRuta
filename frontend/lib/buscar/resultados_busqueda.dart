@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../services/viaje_service.dart';
 import '../models/viaje_model.dart';
 import '../widgets/navbar_con_sos_dinamico.dart';
+import '../widgets/metodo_pago_modal.dart';
 
 class ResultadosBusquedaScreen extends StatefulWidget {
   final double origenLat;
@@ -12,6 +14,7 @@ class ResultadosBusquedaScreen extends StatefulWidget {
   final int pasajeros;
   final String origenTexto;
   final String destinoTexto;
+  final bool soloMujeres; // Nuevo parámetro para filtro de género
 
   const ResultadosBusquedaScreen({
     super.key,
@@ -23,6 +26,7 @@ class ResultadosBusquedaScreen extends StatefulWidget {
     required this.pasajeros,
     required this.origenTexto,
     required this.destinoTexto,
+    this.soloMujeres = false, // Por defecto false
   });
 
   @override
@@ -53,6 +57,7 @@ class _ResultadosBusquedaScreenState extends State<ResultadosBusquedaScreen> {
         destinoLng: widget.destinoLng,
         fechaViaje: widget.fechaViaje,
         pasajeros: widget.pasajeros,
+        soloMujeres: widget.soloMujeres, // Usar el parámetro soloMujeres
       );
 
       // Debug: Verificar datos del conductor
@@ -79,6 +84,78 @@ class _ResultadosBusquedaScreenState extends State<ResultadosBusquedaScreen> {
         _error = e.toString();
         _cargando = false;
       });
+    }
+  }
+
+  Future<void> _unirseAlViaje(ViajeProximidad viaje) async {
+    try {
+      // Mostrar modal de selección de método de pago
+      final metodoPagoResult = await showModalBottomSheet<Map<String, dynamic>>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (context) => MetodoPagoModal(
+          precio: viaje.precio,
+          viajeOrigen: viaje.origen.nombre,
+          viajeDestino: viaje.destino.nombre,
+          onPagoSeleccionado: (metodoPago, datosAdicionales) {
+            Navigator.pop(context, {
+              'metodoPago': metodoPago,
+              'datosAdicionales': datosAdicionales,
+            });
+          },
+        ),
+      );
+
+      if (metodoPagoResult == null) {
+        // Usuario canceló la selección de pago
+        return;
+      }
+
+      // Mostrar indicador de carga
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Enviando solicitud con información de pago...'),
+            backgroundColor: Color(0xFF854937),
+          ),
+        );
+      }
+
+      // Enviar solicitud con información de pago
+      final resultado = await ViajeService.unirseAViajeConPago(
+        viaje.id,
+        metodoPagoResult['metodoPago'],
+        metodoPagoResult['datosAdicionales'],
+      );
+
+      if (mounted) {
+        // Mensaje específico para el nuevo flujo de notificaciones con pago
+        String mensaje = resultado['message'] ?? 'Solicitud enviada';
+        if (resultado['success'] == true) {
+          mensaje = 'Solicitud enviada al conductor con información de pago. Espera su respuesta en tus notificaciones.';
+        }
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(mensaje),
+            backgroundColor: resultado['success'] == true 
+                ? const Color(0xFF854937) 
+                : Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ Error al unirse al viaje: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al enviar la solicitud: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -226,7 +303,7 @@ class _ResultadosBusquedaScreenState extends State<ResultadosBusquedaScreen> {
                 ),
               ),              const SizedBox(height: 8),
               Text(
-                'No hay viajes disponibles en un radio de 10 km de tu origen y destino para la fecha seleccionada.',
+                'No hay viajes disponibles en un radio de 2km de tu origen y destino para la fecha seleccionada.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 14,
@@ -658,15 +735,7 @@ class _ResultadosBusquedaScreenState extends State<ResultadosBusquedaScreen> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () {
-                    // TODO: Implementar navegación a detalles del viaje
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Funcionalidad de detalles próximamente disponible'),
-                        backgroundColor: Color(0xFF854937),
-                      ),
-                    );
-                  },
+                  onPressed: () => _unirseAlViaje(viaje),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF854937),
                     foregroundColor: Colors.white,

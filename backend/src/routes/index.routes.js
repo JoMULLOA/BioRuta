@@ -10,7 +10,7 @@ import notificacionRoutes from "./notificacion.routes.js";
 import contactoEmergenciaRoutes from "./contactoEmergencia.routes.js";
 import peticionSupervisionRoutes from "./peticionSupervision.routes.js";
 import viajeRoutes from "./viaje.routes.js";
-import pagoRoutes from "./pago.routes.js";
+import transaccionRoutes from "./transaccion.routes.js";
 
 const router = Router();
 
@@ -25,5 +25,5 @@ router
     .use("/contactos-emergencia", contactoEmergenciaRoutes)
     .use("/peticiones-supervision", peticionSupervisionRoutes)
     .use("/viajes", viajeRoutes)
-    .use("/pago", pagoRoutes);
+    .use("/transacciones", transaccionRoutes)
 export default router;

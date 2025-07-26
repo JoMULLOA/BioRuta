@@ -22,7 +22,7 @@ import { cookieKey, HOST, PORT } from "./config/configEnv.js";
 import { connectDB } from "./config/configDb.js";
 import { createInitialData } from "./config/initialSetup.js";
 import { passportJwtSetup } from "./auth/passport.auth.js";
-import pagoRoutes from "./routes/pago.routes.js";
+
 
 
 async function setupServer() {
@@ -69,7 +69,6 @@ async function setupServer() {
     app.use("/api/chat", chatRoutes); // Rutas de chat
     app.use("/api/viajes", viajeRoutes); // Rutas de viajes
     app.use("/api", pingRoutes);  // Rutas de MongoDB
-    app.use("/api/pagos", pagoRoutes); // Rutas de pagos
     app.use("/api/estadisticas", estadisticasRoutes); // Rutas de estadísticas
     app.use("/api/reportes", reporteRoutes); // Rutas de reportes
 

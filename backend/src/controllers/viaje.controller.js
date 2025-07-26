@@ -256,7 +256,7 @@ export async function buscarViajesPorProximidad(req, res) {
       destinoLng,
       fechaViaje,
       pasajeros = 1,
-      radio = 10.0, // 2000 metros en kilómetros por defecto
+      radio = 2.0, // 2000 metros en kilómetros por defecto
       soloMujeres = 'false' // Filtro de género (string que convertiremos a boolean)
     } = req.query;
 

@@ -215,18 +215,15 @@ export async function responderSolicitudViajeService(notificacionId, aceptar, ru
         
         try {
           // Importar la función de procesamiento de pago
-          const { procesarPagoViajeService } = await import('./pago.service.js');
+          const { procesarPagoViaje } = await import('./transaccion.service.js');
           
           const pagoInfo = notificacion.datos.pago;
           
-          resultadoPago = await procesarPagoViajeService({
+          resultadoPago = await procesarPagoViaje({
             pasajeroRut: notificacion.rutEmisor,
             conductorRut: rutUsuario,
             viajeId: notificacion.viajeId,
-            monto: pagoInfo.monto,
-            descripcion: "Pago por viaje compartido",
-            metodoPago: pagoInfo.metodo || 'saldo',
-            tarjetaInfo: pagoInfo.tarjeta || null
+            informacionPago: pagoInfo
           });
           
           console.log(`✅ ¡PAGO PROCESADO EXITOSAMENTE EN NOTIFICACIÓN!: ${JSON.stringify(resultadoPago)}`);
