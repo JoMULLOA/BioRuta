@@ -7,10 +7,11 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:http/http.dart' as http;
 import '../models/contacto_emergencia.dart';
 import '../utils/token_manager.dart';
+import '../config/confGlobal.dart';
 
 class EmergenciaService {
   static const String _tutorialKey = 'tutorial_sos_completado';
-  static const String _baseUrl = 'http://10.0.2.2:3000/api/contactos-emergencia';
+  static String get _baseUrl => '${confGlobal.baseUrl}/contactos-emergencia';
   static const String _trackingKey = 'ubicacion_tracking_activo';
   static const String _trackingStartTimeKey = 'tracking_start_time';
   
