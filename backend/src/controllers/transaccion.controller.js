@@ -3,7 +3,8 @@ import {
   crearTransaccionService, 
   obtenerHistorialTransaccionesService,
   procesarPagoViaje,
-  confirmarPagoTarjeta 
+  confirmarPagoTarjeta,
+  confirmarPagoEfectivo as confirmarPagoEfectivoService 
 } from "../services/transaccion.service.js";
 import { 
   handleErrorClient, 
@@ -150,6 +151,41 @@ export async function confirmarPago(req, res) {
     });
   } catch (error) {
     console.error("Error en confirmarPago:", error);
+    handleErrorServer(res, 500, "Error interno del servidor");
+  }
+}
+
+/**
+ * Controlador para confirmar pago en efectivo
+ */
+export async function confirmarPagoEfectivo(req, res) {
+  try {
+    const { transaccionId } = req.params;
+    const { usuarioQueConfirma } = req.body;
+
+    if (!transaccionId) {
+      return handleErrorClient(res, 400, "ID de transacción requerido");
+    }
+
+    // Usar el RUT del usuario autenticado si no se proporciona
+    const usuario = usuarioQueConfirma || req.user?.rut;
+
+    if (!usuario) {
+      return handleErrorClient(res, 400, "Usuario no identificado");
+    }
+
+    const resultado = await confirmarPagoEfectivoService(transaccionId, usuario);
+
+    if (!resultado.success) {
+      return handleErrorClient(res, 400, resultado.message);
+    }
+
+    handleSuccess(res, 200, resultado.message, {
+      transaccionId: resultado.transaccionId,
+      transaccionCorrespondienteId: resultado.transaccionCorrespondienteId
+    });
+  } catch (error) {
+    console.error("Error en confirmarPagoEfectivo:", error);
     handleErrorServer(res, 500, "Error interno del servidor");
   }
 }

@@ -1,5 +1,6 @@
 "use strict";
 import { AppDataSource } from "../config/configDb.js";
+import { In } from "typeorm";
 import { updateUserService, getUserService } from "./user.service.js";
 
 export async function crearTransaccionService({
@@ -367,6 +368,81 @@ export async function procesarPagoViaje({
         nuevoLimiteTarjeta: nuevoLimite
       };
       
+    } else if (metodo === 'efectivo') {
+      // Para pagos en efectivo, crear transacciones como pendientes
+      // No se modifica ningún saldo hasta que se confirme manualmente
+      
+      // Verificar si ya hay transacciones de efectivo para este viaje
+      const transaccionRepository = AppDataSource.getRepository("Transaccion");
+      const transaccionesExistentes = await transaccionRepository.find({
+        where: { 
+          viaje_id: viajeId, 
+          metodo_pago: 'efectivo',
+          usuario_rut: In([pasajeroRut, conductorRut])
+        }
+      });
+      
+      if (transaccionesExistentes.length > 0) {
+        console.log(`⚠️ Ya existen transacciones en efectivo para viaje ${viajeId}. Omitiendo creación.`);
+        return {
+          success: true,
+          transaccionId: transaccionesExistentes[0].id,
+          message: 'Transacciones en efectivo ya procesadas anteriormente',
+          estado: 'pendiente'
+        };
+      }
+      
+      // Crear transacción de pago del pasajero como pendiente
+      const [transaccionPago, errorPago] = await crearTransaccionService({
+        usuario_rut: pasajeroRut,
+        tipo: 'pago',
+        concepto: `Pago de viaje en efectivo - ID: ${viajeId}`,
+        monto: monto,
+        metodo_pago: 'efectivo',
+        estado: 'pendiente', // Pendiente hasta confirmación manual
+        viaje_id: viajeId,
+        transaccion_id: `viaje_efectivo_${viajeId}_${Date.now()}`,
+        datos_adicionales: {
+          conductorRut: conductorRut,
+          metodoPagoOriginal: metodo,
+          requiereConfirmacionManual: true
+        }
+      });
+      
+      if (errorPago) {
+        throw new Error(`Error al crear transacción de pago en efectivo: ${errorPago}`);
+      }
+      
+      // Crear transacción de cobro para el conductor como pendiente
+      const [transaccionCobro, errorCobro] = await crearTransaccionService({
+        usuario_rut: conductorRut,
+        tipo: 'cobro',
+        concepto: `Cobro por viaje en efectivo - ID: ${viajeId}`,
+        monto: monto,
+        metodo_pago: 'efectivo',
+        estado: 'pendiente', // Pendiente hasta confirmación manual
+        viaje_id: viajeId,
+        transaccion_id: `viaje_cobro_efectivo_${viajeId}_${Date.now()}`,
+        datos_adicionales: {
+          pasajeroRut: pasajeroRut,
+          metodoPagoOriginal: metodo,
+          requiereConfirmacionManual: true
+        }
+      });
+      
+      if (errorCobro) {
+        console.warn(`⚠️ Error al crear transacción de cobro para conductor: ${errorCobro}`);
+      }
+      
+      console.log(`✅ Transacciones en efectivo creadas como pendientes - Pago ID: ${transaccionPago.id}`);
+      
+      return {
+        success: true,
+        transaccionId: transaccionPago.id,
+        message: 'Pago en efectivo registrado como pendiente. Confirma cuando se realice el pago.',
+        estado: 'pendiente'
+      };
+      
     } else {
       throw new Error(`Método de pago no soportado: ${metodo}`);
     }
@@ -438,6 +514,71 @@ export async function confirmarPagoTarjeta(transaccionId, referenciaMercadoPago)
     
   } catch (error) {
     console.error("❌ Error al confirmar pago con tarjeta:", error);
+    return {
+      success: false,
+      message: error.message,
+      error: error.message
+    };
+  }
+}
+
+/**
+ * Confirmar pago en efectivo (cuando se confirma manualmente)
+ */
+export async function confirmarPagoEfectivo(transaccionId, usuarioQueConfirma) {
+  try {
+    console.log(`💵 Confirmando pago en efectivo - Transacción ID: ${transaccionId} por usuario: ${usuarioQueConfirma}`);
+    
+    const transaccionRepository = AppDataSource.getRepository("Transaccion");
+    
+    // Buscar la transacción de pago o cobro pendiente
+    const transaccion = await transaccionRepository.findOne({
+      where: { 
+        id: transaccionId, 
+        metodo_pago: 'efectivo', 
+        estado: 'pendiente' 
+      }
+    });
+    
+    if (!transaccion) {
+      throw new Error('Transacción en efectivo no encontrada o ya procesada');
+    }
+    
+    const { viaje_id, tipo, datos_adicionales } = transaccion;
+    const { conductorRut, pasajeroRut } = datos_adicionales;
+    
+    // Actualizar estado de la transacción actual
+    await actualizarEstadoTransaccionService(transaccionId, 'completado');
+    
+    // Buscar y actualizar la transacción correspondiente (pago o cobro)
+    const tipoCorrespondiente = tipo === 'pago' ? 'cobro' : 'pago';
+    const usuarioCorrespondiente = tipo === 'pago' ? conductorRut : pasajeroRut;
+    
+    const transaccionCorrespondiente = await transaccionRepository.findOne({
+      where: { 
+        viaje_id: viaje_id, 
+        tipo: tipoCorrespondiente, 
+        metodo_pago: 'efectivo', 
+        estado: 'pendiente',
+        usuario_rut: usuarioCorrespondiente
+      }
+    });
+    
+    if (transaccionCorrespondiente) {
+      await actualizarEstadoTransaccionService(transaccionCorrespondiente.id, 'completado');
+    }
+    
+    console.log(`✅ Pago en efectivo confirmado exitosamente - Transacción: ${transaccionId}`);
+    
+    return {
+      success: true,
+      message: 'Pago en efectivo confirmado exitosamente',
+      transaccionId: transaccionId,
+      transaccionCorrespondienteId: transaccionCorrespondiente?.id
+    };
+    
+  } catch (error) {
+    console.error("❌ Error al confirmar pago en efectivo:", error);
     return {
       success: false,
       message: error.message,

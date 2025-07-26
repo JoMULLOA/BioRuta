@@ -4,7 +4,8 @@ import {
   crearTransaccion,
   obtenerHistorial,
   procesarPago,
-  confirmarPago
+  confirmarPago,
+  confirmarPagoEfectivo
 } from "../controllers/transaccion.controller.js";
 import { authenticateJwt } from "../middlewares/authentication.middleware.js";
 
@@ -24,5 +25,8 @@ router.post("/procesar-pago", procesarPago);
 
 // Confirmar pago con tarjeta (webhook de MercadoPago)
 router.patch("/confirmar/:transaccionId", confirmarPago);
+
+// Confirmar pago en efectivo (manual)
+router.patch("/confirmar-efectivo/:transaccionId", confirmarPagoEfectivo);
 
 export default router;

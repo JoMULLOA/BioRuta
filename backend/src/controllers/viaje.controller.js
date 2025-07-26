@@ -2110,6 +2110,11 @@ export async function unirseAViajeConPago(req, res) {
         // Para el procesamiento de pago
         limiteCredito: tarjetaData.limiteCredito || 500000
       };
+    } else if (metodo_pago === 'efectivo') {
+      // Para efectivo, solo guardamos la información - NO se procesan transacciones aquí
+      // Las transacciones se crearán cuando el conductor ACEPTE la solicitud
+      console.log(`💵 Solicitud de pago en efectivo - se procesará al aceptar la solicitud`);
+      informacionPago.procesarAlAceptar = true; // Flag para indicar que se procese después
     }
 
     // Crear la solicitud de notificación con información de pago

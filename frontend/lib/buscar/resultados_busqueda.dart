@@ -89,6 +89,8 @@ class _ResultadosBusquedaScreenState extends State<ResultadosBusquedaScreen> {
 
   Future<void> _unirseAlViaje(ViajeProximidad viaje) async {
     try {
+      print('🚗 Iniciando unirse al viaje: ${viaje.id}');
+      
       // Mostrar modal de selección de método de pago
       final metodoPagoResult = await showModalBottomSheet<Map<String, dynamic>>(
         context: context,
@@ -107,8 +109,11 @@ class _ResultadosBusquedaScreenState extends State<ResultadosBusquedaScreen> {
         ),
       );
 
+      print('💳 Método de pago seleccionado: $metodoPagoResult');
+
       if (metodoPagoResult == null) {
         // Usuario canceló la selección de pago
+        print('❌ Usuario canceló la selección de pago');
         return;
       }
 
@@ -122,12 +127,19 @@ class _ResultadosBusquedaScreenState extends State<ResultadosBusquedaScreen> {
         );
       }
 
+      print('📤 Enviando solicitud...');
+      print('  - Viaje ID: ${viaje.id}');
+      print('  - Método: ${metodoPagoResult['metodoPago']}');
+      print('  - Datos: ${metodoPagoResult['datosAdicionales']}');
+
       // Enviar solicitud con información de pago
       final resultado = await ViajeService.unirseAViajeConPago(
         viaje.id,
         metodoPagoResult['metodoPago'],
         metodoPagoResult['datosAdicionales'],
       );
+
+      print('📥 Resultado recibido: $resultado');
 
       if (mounted) {
         // Mensaje específico para el nuevo flujo de notificaciones con pago
@@ -147,6 +159,7 @@ class _ResultadosBusquedaScreenState extends State<ResultadosBusquedaScreen> {
         );
       }
     } catch (e) {
+      print('❌ Error en _unirseAlViaje: $e');
       debugPrint('❌ Error al unirse al viaje: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
