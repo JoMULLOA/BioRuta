@@ -67,8 +67,16 @@ class ViajeValidator {
   }) {
     final duracionNuevoViaje = calcularDuracionEstimada(distanciaKm);
     
+    print('🔍 Validando viaje para fecha: ${nuevaFecha.toString()}');
+    print('📊 Total viajes activos a verificar: ${viajesActivos.length}');
+    
     for (final viaje in viajesActivos) {
-      final fechaViajeActivo = DateTime.parse(viaje['fecha_ida']);
+      // Convertir fecha UTC de MongoDB a hora chilena (UTC-4)
+      final fechaUtc = DateTime.parse(viaje['fecha_ida']);
+      final fechaViajeActivo = fechaUtc.subtract(const Duration(hours: 4));
+      
+      print('📅 Viaje activo - UTC: ${fechaUtc.toString()}, Chile: ${fechaViajeActivo.toString()}');
+      
       final origenLat = viaje['origen']['ubicacion']['coordinates'][1];
       final origenLng = viaje['origen']['ubicacion']['coordinates'][0];
       final destinoLat = viaje['destino']['ubicacion']['coordinates'][1];
@@ -77,16 +85,23 @@ class ViajeValidator {
       final distanciaViajeActivo = calcularDistancia(origenLat, origenLng, destinoLat, destinoLng);
       final duracionViajeActivo = calcularDuracionEstimada(distanciaViajeActivo);
       
+      print('⏱️ Duración viaje activo: ${formatearDuracion(duracionViajeActivo)}');
+      print('⏱️ Duración nuevo viaje: ${formatearDuracion(duracionNuevoViaje)}');
+      
       if (viajesSeSolapan(
         inicioViaje1: nuevaFecha,
         duracionViaje1: duracionNuevoViaje,
         inicioViaje2: fechaViajeActivo,
         duracionViaje2: duracionViajeActivo,
       )) {
+        print('❌ CONFLICTO DETECTADO: Los viajes se solapan');
         return false;
+      } else {
+        print('✅ Sin conflicto con este viaje activo');
       }
     }
     
+    print('✅ Validación completa: Se puede publicar el viaje');
     return true;
   }
 
@@ -100,7 +115,9 @@ class ViajeValidator {
     DateTime? proximoTiempo;
     
     for (final viaje in viajesActivos) {
-      final fechaViajeActivo = DateTime.parse(viaje['fecha_ida']);
+      // Convertir fecha UTC de MongoDB a hora chilena (UTC-4)
+      final fechaUtc = DateTime.parse(viaje['fecha_ida']);
+      final fechaViajeActivo = fechaUtc.subtract(const Duration(hours: 4));
       final origenLat = viaje['origen']['ubicacion']['coordinates'][1];
       final origenLng = viaje['origen']['ubicacion']['coordinates'][0];
       final destinoLat = viaje['destino']['ubicacion']['coordinates'][1];

@@ -690,19 +690,32 @@ export async function obtenerViajesParaMapa(req, res) {
 
     let filtroFecha = { estado: 'activo', plazas_disponibles: { $gt: 0 } };
     
-    // COMENTAR TEMPORALMENTE el filtro de fecha para mostrar todos los viajes
-    // Esto evita problemas de zona horaria que filtran incorrectamente los viajes
-    
+    // Filtro de fecha corregido para manejar zona horaria chilena
     if (fecha_desde || fecha_hasta) {
       filtroFecha.fecha_ida = {};
-      if (fecha_desde) filtroFecha.fecha_ida.$gte = new Date(fecha_desde);
-      if (fecha_hasta) filtroFecha.fecha_ida.$lte = new Date(fecha_hasta);
+      
+      if (fecha_desde) {
+        // Convertir fecha chilena a UTC para comparación
+        const fechaDesdeChile = new Date(fecha_desde + 'T00:00:00.000-04:00');
+        const fechaDesdeUtc = new Date(fechaDesdeChile.getTime() + (4 * 60 * 60 * 1000));
+        filtroFecha.fecha_ida.$gte = fechaDesdeUtc;
+      }
+      
+      if (fecha_hasta) {
+        // Convertir fecha chilena a UTC para comparación
+        const fechaHastaChile = new Date(fecha_hasta + 'T23:59:59.999-04:00');
+        const fechaHastaUtc = new Date(fechaHastaChile.getTime() + (4 * 60 * 60 * 1000));
+        filtroFecha.fecha_ida.$lte = fechaHastaUtc;
+      }
     } else {
-      // Por defecto, solo viajes de hoy en adelante
+      // Por defecto, solo viajes de hoy en adelante (ajustado para zona chilena)
       const hoy = new Date();
-      // No establecer horas para evitar problemas de zona horaria
-      const fechaHoy = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
-      filtroFecha.fecha_ida = { $gte: fechaHoy };
+      // Ajustar a hora chilena: restar 4 horas para obtener fecha chilena actual
+      const horaChilena = new Date(hoy.getTime() - (4 * 60 * 60 * 1000));
+      const fechaHoyChile = new Date(horaChilena.getFullYear(), horaChilena.getMonth(), horaChilena.getDate());
+      // Convertir fecha chilena de vuelta a UTC para la búsqueda
+      const fechaHoyUtc = new Date(fechaHoyChile.getTime() + (4 * 60 * 60 * 1000));
+      filtroFecha.fecha_ida = { $gte: fechaHoyUtc };
     }
 
     // Filtrar viajes según el género del usuario
@@ -2330,9 +2343,14 @@ export async function obtenerViajesEnRadio(req, res) {
     // Preparar filtro de fecha si se proporciona
     let filtroFecha = {};
     if (fecha) {
-      // Crear rango de fecha para todo el día
-      const fechaInicio = new Date(fecha + 'T00:00:00.000Z');
-      const fechaFin = new Date(fecha + 'T23:59:59.999Z');
+      // Convertir fecha chilena a rango UTC para búsqueda en MongoDB
+      // La fecha viene en formato chileno, necesitamos convertir a UTC agregando 4 horas
+      const fechaChileInicio = new Date(fecha + 'T00:00:00.000-04:00'); // Fecha chilena inicio del día
+      const fechaChileFin = new Date(fecha + 'T23:59:59.999-04:00'); // Fecha chilena fin del día
+      
+      // Convertir a UTC para la búsqueda (MongoDB almacena en UTC)
+      const fechaInicio = new Date(fechaChileInicio.getTime() + (4 * 60 * 60 * 1000)); // +4 horas para UTC
+      const fechaFin = new Date(fechaChileFin.getTime() + (4 * 60 * 60 * 1000)); // +4 horas para UTC
       
       filtroFecha = {
         fecha_ida: {
@@ -2340,7 +2358,8 @@ export async function obtenerViajesEnRadio(req, res) {
           $lte: fechaFin
         }
       };
-      console.log(`📅 Filtrando por fecha: ${fecha} (${fechaInicio.toISOString()} - ${fechaFin.toISOString()})`);
+      console.log(`📅 Filtrando por fecha chilena: ${fecha}`);
+      console.log(`📅 Rango UTC para búsqueda: ${fechaInicio.toISOString()} - ${fechaFin.toISOString()}`);
       
       // Debug: Verificar cuántos viajes hay en esa fecha
       const viajesEnFecha = await Viaje.countDocuments({

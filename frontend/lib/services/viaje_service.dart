@@ -63,7 +63,8 @@ class ViajeService {
           nuevaFecha: fechaHoraVuelta,
           distanciaKm: distanciaKm,
           viajesActivos: [...viajesActivos, {
-            'fecha_ida': fechaHoraIda.toIso8601String(),
+            // Convertir la fecha de ida a UTC para que sea consistente con los viajes activos de MongoDB
+            'fecha_ida': fechaHoraIda.add(const Duration(hours: 4)).toIso8601String(),
             'origen': {'ubicacion': {'coordinates': [origenLng, origenLat]}},
             'destino': {'ubicacion': {'coordinates': [destinoLng, destinoLat]}},
           }], // Incluir el viaje de ida en la validación
@@ -935,9 +936,11 @@ class ViajeService {
         return [];
       }
 
-      // Obtener fecha de hoy en formato YYYY-MM-DD
+      // Obtener fecha de hoy en hora chilena (UTC-4) para buscar viajes correctos
       final hoy = DateTime.now();
-      final fechaHoy = "${hoy.year}-${hoy.month.toString().padLeft(2, '0')}-${hoy.day.toString().padLeft(2, '0')}";
+      // Ajustar a hora chilena para enviar la fecha correcta al backend
+      final horaChilena = hoy.subtract(const Duration(hours: 4));
+      final fechaHoy = "${horaChilena.year}-${horaChilena.month.toString().padLeft(2, '0')}-${horaChilena.day.toString().padLeft(2, '0')}";
 
       final url = Uri.parse('$baseUrl/viajes/radar');
       final body = {
