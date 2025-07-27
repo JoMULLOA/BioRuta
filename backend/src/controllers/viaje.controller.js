@@ -1,7 +1,7 @@
 "use strict";
 import Viaje from "../entity/viaje.entity.js";
 import { AppDataSource } from "../config/configDb.js";
-import { handleErrorServer, handleSuccess } from "../handlers/responseHandlers.js";
+import { handleErrorServer, handleErrorClient, handleSuccess } from "../handlers/responseHandlers.js";
 import { crearChatGrupal, agregarParticipante, eliminarParticipante, finalizarChatGrupal } from "../services/chatGrupal.service.js";
 import { 
   notificarChatGrupalCreado, 
@@ -1672,8 +1672,8 @@ async function procesarPagoViaje({ pasajeroRut, conductorRut, viajeId, informaci
         { saldo: nuevoSaldoConductor.toString() }
       );
 
-      console.log(`📊 Resultado actualización pasajero:`, errorPasajero ? `Error: ${errorPasajero}` : 'Exitoso');
-      console.log(`📊 Resultado actualización conductor:`, errorConductor ? `Error: ${errorConductor}` : 'Exitoso');
+      console.log(`📊 Resultado de actualización pasajero:`, errorPasajero ? `Error: ${errorPasajero}` : 'Exitoso');
+      console.log(`📊 Resultado de actualización conductor:`, errorConductor ? `Error: ${errorConductor}` : 'Exitoso');
 
       if (errorPasajero || errorConductor) {
         throw new Error(`Error al actualizar saldos: ${errorPasajero || errorConductor}`);
@@ -1915,30 +1915,45 @@ export async function cambiarEstadoViaje(req, res) {
       try {
         console.log(`🎯 Otorgando 2 puntos al conductor ${conductorRut} por completar el viaje ${viajeId}`);
         
-        // Buscar el conductor en PostgreSQL
+        // Buscar el conductor en PostgreSQL con logging detallado
+        console.log(`🔍 Buscando conductor con RUT: ${conductorRut}`);
         const conductor = await userRepository.findOne({
           where: { rut: conductorRut }
         });
 
         if (conductor) {
+          console.log(`✅ Conductor encontrado: ${conductor.nombreCompleto}`);
+          console.log(`📊 Clasificación actual: ${conductor.clasificacion}`);
+          
           // Sumar 2 puntos a la clasificación actual
           const clasificacionActual = parseFloat(conductor.clasificacion || 0);
           const nuevaClasificacion = clasificacionActual + 2;
           
-          console.log(`📊 Clasificación del conductor: ${clasificacionActual} → ${nuevaClasificacion} (+2 puntos por completar viaje)`, );
+          console.log(`📈 Calculando nueva clasificación: ${clasificacionActual} + 2 = ${nuevaClasificacion}`);
           
           // Actualizar la clasificación en la base de datos
-          await userRepository.update(
+          const updateResult = await userRepository.update(
             { rut: conductorRut },
             { clasificacion: nuevaClasificacion }
           );
           
-          console.log(`✅ Puntos otorgados exitosamente al conductor ${conductorRut}`);
+          console.log(`💾 Resultado de actualización:`, updateResult);
+          console.log(`🎉 ¡PUNTOS OTORGADOS EXITOSAMENTE! Conductor ${conductorRut}: ${clasificacionActual} → ${nuevaClasificacion}`);
+          
+          // Verificar que la actualización fue exitosa
+          const conductorActualizado = await userRepository.findOne({
+            where: { rut: conductorRut }
+          });
+          
+          console.log(`🔍 Verificación - Nueva clasificación en DB: ${conductorActualizado?.clasificacion}`);
+          
         } else {
-          console.error(`❌ No se encontró el conductor ${conductorRut} para otorgar puntos`);
+          console.error(`❌ No se encontró el conductor con RUT: ${conductorRut}`);
+          console.error(`❌ Esto puede indicar un problema con la base de datos PostgreSQL`);
         }
       } catch (puntosError) {
         console.error(`⚠️ Error al otorgar puntos al conductor:`, puntosError.message);
+        console.error(`⚠️ Stack trace:`, puntosError.stack);
         // No fallar el cambio de estado si falla la asignación de puntos
       }
     }
