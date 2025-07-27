@@ -93,16 +93,20 @@ class ChatGrupalScreenState extends State<ChatGrupalScreen> {
       print('🚗🚪 Uniéndose al chat grupal...');
       ChatGrupalService.unirseAlChatGrupal(widget.idViaje);
       
-      setState(() {
-        isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
       
       print('✅ Chat grupal inicializado correctamente');
     } catch (e) {
-      setState(() {
-        errorMessage = 'Error al inicializar chat grupal: $e';
-        isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          errorMessage = 'Error al inicializar chat grupal: $e';
+          isLoading = false;
+        });
+      }
       print('❌ Error inicializando chat grupal: $e');
       print('❌ Stack trace: ${e.toString()}');
     }
@@ -121,10 +125,12 @@ class ChatGrupalScreenState extends State<ChatGrupalScreen> {
       final participantesResult = await ChatGrupalService.obtenerParticipantes(widget.idViaje);
       print('🚗👥 Participantes obtenidos: ${participantesResult.length}');
       
-      setState(() {
-        mensajes = mensajesResult;
-        participantes = participantesResult;
-      });
+      if (mounted) {
+        setState(() {
+          mensajes = mensajesResult;
+          participantes = participantesResult;
+        });
+      }
       
       print('🚗✅ Mensajes históricos cargados: ${mensajes.length} mensajes, ${participantes.length} participantes');
       
@@ -143,41 +149,57 @@ class ChatGrupalScreenState extends State<ChatGrupalScreen> {
     _messageSubscription = _socketService.groupMessageStream.listen((data) async {
       print('🚗💬 Nuevo mensaje grupal recibido en UI: $data');
       
+      // Verificar que el widget esté montado antes de hacer setState
+      if (!mounted) {
+        print('🚗⚠️ Widget no montado, ignorando mensaje');
+        return;
+      }
+      
       try {
         // Enriquecer mensaje usando método helper
         final mensajeEnriquecido = await _enriquecerMensaje(data);
         
-        setState(() {
-          mensajes.add(mensajeEnriquecido);
-        });
-        _scrollToBottom();
+        if (mounted) {
+          setState(() {
+            mensajes.add(mensajeEnriquecido);
+          });
+          _scrollToBottom();
+        }
       } catch (e) {
         print('❌ Error procesando mensaje en tiempo real: $e');
         print('❌ Data del mensaje: $data');
         
         // Fallback: crear mensaje sin enriquecimiento
         final mensaje = MensajeGrupal.fromJson(data);
-        setState(() {
-          mensajes.add(mensaje);
-        });
-        _scrollToBottom();
+        if (mounted) {
+          setState(() {
+            mensajes.add(mensaje);
+          });
+          _scrollToBottom();
+        }
       }
     });
 
     // Listener para cambios en participantes
     _participantsSubscription = _socketService.groupParticipantsStream.listen((data) {
+      if (!mounted) return;
+      
       print('🚗👥 Cambio en participantes: $data');
       _handleParticipantChange(data);
     });
 
     // Listener para eventos del chat grupal
     _eventsSubscription = _socketService.groupChatEventsStream.listen((data) {
+      if (!mounted) return;
+      
       print('🚗📊 Evento del chat grupal: $data');
       _handleChatEvent(data);
     });
 
     // Listener para estado de conexión
     _connectionSubscription = _socketService.connectionStream.listen((connected) {
+      if (!mounted) return;
+      
       print('🚗📶 Estado conexión cambiado: $connected');
       setState(() {
         isConnected = connected;
@@ -186,6 +208,8 @@ class ChatGrupalScreenState extends State<ChatGrupalScreen> {
     
     // Verificar estado inicial de conexión
     Future.delayed(Duration.zero, () {
+      if (!mounted) return;
+      
       final socketConnected = _socketService.socket?.connected ?? false;
       print('🚗📶 Estado inicial socket: $socketConnected');
       if (socketConnected && !isConnected) {
@@ -198,6 +222,8 @@ class ChatGrupalScreenState extends State<ChatGrupalScreen> {
 
     // Listener para mensajes editados
     _socketService.editedMessageStream.listen((data) {
+      if (!mounted) return;
+      
       if (data['tipo'] == 'grupal' && data['idViajeMongo'] == widget.idViaje) {
         _handleMessageEdited(data);
       }
@@ -205,6 +231,8 @@ class ChatGrupalScreenState extends State<ChatGrupalScreen> {
 
     // Listener para mensajes eliminados
     _socketService.deletedMessageStream.listen((data) {
+      if (!mounted) return;
+      
       if (data['tipo'] == 'grupal') {
         _handleMessageDeleted(data);
       }
@@ -223,7 +251,7 @@ class ChatGrupalScreenState extends State<ChatGrupalScreen> {
     }
     
     // Actualizar lista de participantes
-    if (data['participantes'] != null) {
+    if (data['participantes'] != null && mounted) {
       setState(() {
         participantes = (data['participantes'] as List<dynamic>)
             .map((p) => ParticipanteChat.fromJson(p))
@@ -290,27 +318,33 @@ class ChatGrupalScreenState extends State<ChatGrupalScreen> {
   }
 
   void _handleMessageEdited(Map<String, dynamic> data) async {
+    if (!mounted) return;
+    
     final mensajeId = data['id'];
     
     try {
       // Enriquecer el mensaje editado también
       final mensajeEnriquecido = await _enriquecerMensaje(data);
       
-      setState(() {
-        final index = mensajes.indexWhere((m) => m.id == mensajeId);
-        if (index != -1) {
-          mensajes[index] = mensajeEnriquecido;
-        }
-      });
+      if (mounted) {
+        setState(() {
+          final index = mensajes.indexWhere((m) => m.id == mensajeId);
+          if (index != -1) {
+            mensajes[index] = mensajeEnriquecido;
+          }
+        });
+      }
     } catch (e) {
       print('❌ Error enriqueciendo mensaje editado: $e');
       // Fallback sin enriquecimiento
-      setState(() {
-        final index = mensajes.indexWhere((m) => m.id == mensajeId);
-        if (index != -1) {
-          mensajes[index] = MensajeGrupal.fromJson(data);
-        }
-      });
+      if (mounted) {
+        setState(() {
+          final index = mensajes.indexWhere((m) => m.id == mensajeId);
+          if (index != -1) {
+            mensajes[index] = MensajeGrupal.fromJson(data);
+          }
+        });
+      }
     }
   }
 
@@ -328,10 +362,12 @@ class ChatGrupalScreenState extends State<ChatGrupalScreen> {
       print('🚗⏳ Lista de participantes vacía, intentando cargar...');
       try {
         final participantesResult = await ChatGrupalService.obtenerParticipantes(widget.idViaje);
-        setState(() {
-          participantes = participantesResult;
-        });
-        print('🚗✅ Participantes cargados: ${participantes.length}');
+        if (mounted) {
+          setState(() {
+            participantes = participantesResult;
+          });
+          print('🚗✅ Participantes cargados: ${participantes.length}');
+        }
       } catch (e) {
         print('🚗❌ Error cargando participantes: $e');
       }
@@ -359,6 +395,8 @@ class ChatGrupalScreenState extends State<ChatGrupalScreen> {
   }
 
   void _handleMessageDeleted(Map<String, dynamic> data) {
+    if (!mounted) return;
+    
     final mensajeId = data['idMensaje'];
     
     setState(() {
@@ -459,20 +497,18 @@ class ChatGrupalScreenState extends State<ChatGrupalScreen> {
   void dispose() {
     print('🚗🧹 Limpiando chat grupal y saliendo del viaje: ${widget.idViaje}');
     
-    // Limpiar mensajes de memoria antes de salir
-    setState(() {
-      mensajes.clear();
-      participantes.clear();
-    });
-    
-    // Salir del chat grupal
-    ChatGrupalService.salirDelChatGrupal(widget.idViaje);
-    
-    // Cancelar subscripciones
+    // Cancelar subscripciones PRIMERO para evitar setState después de dispose
     _messageSubscription?.cancel();
     _participantsSubscription?.cancel();
     _eventsSubscription?.cancel();
     _connectionSubscription?.cancel();
+    
+    // Limpiar mensajes de memoria después de cancelar subscripciones
+    mensajes.clear();
+    participantes.clear();
+    
+    // Salir del chat grupal
+    ChatGrupalService.salirDelChatGrupal(widget.idViaje);
     
     // Limpiar controladores
     _messageController.dispose();
