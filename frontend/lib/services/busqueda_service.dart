@@ -107,36 +107,33 @@ class BusquedaService {
     return null;
   }
 
-  // Calcular distancias usando distancia por carretera (no línea recta)
+  // Calcular solo tiempo estimado (no distancias) para destinos
   static void calcularDistancias(List<DireccionSugerida> sugerencias, GeoPoint ubicacionUsuario) {
     if (sugerencias.isEmpty) return;
     
     for (var sugerencia in sugerencias) {
-      // Usar distancia por carretera con factor de corrección
-      double distanciaCarretera = _calcularDistanciaConFactor(
-        ubicacionUsuario.latitude,
-        ubicacionUsuario.longitude,
-        sugerencia.lat,
-        sugerencia.lon,
-      );
+      // No calcular ni mostrar distancia
+      sugerencia.distancia = 0.0;
       
-      sugerencia.distancia = distanciaCarretera;
-      
-      // Solo calcular tiempo estimado si NO es para seleccionar origen
-      // Para origen: solo mostrar distancia desde ubicación actual
-      // Para destino: mostrar distancia y tiempo estimado de la ruta completa
+      // Solo calcular tiempo estimado si es para seleccionar DESTINO
       if (sugerencia.esOrigen == false) {
         // Es destino: calcular tiempo estimado del viaje
+        double distanciaCarretera = _calcularDistanciaConFactor(
+          ubicacionUsuario.latitude,
+          ubicacionUsuario.longitude,
+          sugerencia.lat,
+          sugerencia.lon,
+        );
         int tiempoMinutos = _calcularTiempoEstimado(distanciaCarretera);
         sugerencia.tiempoEstimado = tiempoMinutos;
       } else {
-        // Es origen o no especificado: no calcular tiempo
+        // Es origen: no calcular tiempo
         sugerencia.tiempoEstimado = 0;
       }
     }
   }
 
-  // Calcular distancias y tiempo para destino con origen específico
+  // Calcular solo tiempo estimado para destino con origen específico
   static void calcularDistanciasConOrigen(
     List<DireccionSugerida> sugerencias, 
     GeoPoint ubicacionUsuario,
@@ -145,17 +142,10 @@ class BusquedaService {
     if (sugerencias.isEmpty) return;
     
     for (var sugerencia in sugerencias) {
-      // Para destino: calcular distancia desde ubicación actual (para mostrar qué tan lejos está)
-      double distanciaDesdeUsuario = _calcularDistanciaConFactor(
-        ubicacionUsuario.latitude,
-        ubicacionUsuario.longitude,
-        sugerencia.lat,
-        sugerencia.lon,
-      );
+      // No calcular ni mostrar distancia
+      sugerencia.distancia = 0.0;
       
-      sugerencia.distancia = distanciaDesdeUsuario;
-      
-      // Solo calcular tiempo estimado si NO es para seleccionar origen Y tenemos origen
+      // Solo calcular tiempo estimado si es para seleccionar DESTINO Y tenemos origen
       if (sugerencia.esOrigen == false && origenSeleccionado != null) {
         // Es destino: calcular tiempo estimado de la ruta origen→destino
         double distanciaRuta = _calcularDistanciaConFactor(
@@ -167,7 +157,7 @@ class BusquedaService {
         int tiempoMinutos = _calcularTiempoEstimado(distanciaRuta);
         sugerencia.tiempoEstimado = tiempoMinutos;
       } else {
-        // Es origen o no hay origen seleccionado: no calcular tiempo
+        // Es origen: no calcular tiempo
         sugerencia.tiempoEstimado = 0;
       }
     }

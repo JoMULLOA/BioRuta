@@ -162,10 +162,13 @@ class _MapaSeleccionPageState extends State<MapaSeleccionPage> {
           BusquedaService.calcularDistancias(todasLasSugerencias, ubicacionActual);
         }
         
+        // Separar por tipo y ordenar por relevancia
         final regionales = todasLasSugerencias.where((s) => s.esRegional).toList()
-          ..sort((a, b) => a.distancia.compareTo(b.distancia));
+          ..sort((a, b) => a.displayName.compareTo(b.displayName)); // Orden alfabético
         
-        final generales = todasLasSugerencias.where((s) => !s.esRegional).toList();
+        final generales = todasLasSugerencias.where((s) => !s.esRegional).toList()
+          ..sort((a, b) => a.displayName.compareTo(b.displayName)); // Orden alfabético
+        
         final sugerenciasFinales = [...regionales, ...generales];
         
         if (mounted) {

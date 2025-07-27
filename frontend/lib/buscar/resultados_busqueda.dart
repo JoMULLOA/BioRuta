@@ -319,7 +319,7 @@ class _ResultadosBusquedaScreenState extends State<ResultadosBusquedaScreen> {
                 ),
               ),              const SizedBox(height: 8),
               Text(
-                'No hay viajes disponibles en un radio de 10km de tu origen y destino para la fecha seleccionada.',
+                'No hay viajes disponibles en un radio de 10 km de tu origen y destino para la fecha seleccionada.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 14,

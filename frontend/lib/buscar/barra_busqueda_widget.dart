@@ -74,19 +74,14 @@ class BarraBusquedaWidget extends StatelessWidget {
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Distancia: ${sugerencias[index].distancia.toStringAsFixed(1)} km',
-                        style: TextStyle(
-                          color: Colors.grey[600],
-                          fontSize: 12,
-                        ),
-                      ),
+                      // Solo mostrar tiempo estimado si es destino (tiempoEstimado > 0)
                       if (sugerencias[index].tiempoEstimado > 0)
                         Text(
-                          'Tiempo: ${_formatearTiempo(sugerencias[index].tiempoEstimado)}',
+                          'Tiempo estimado de viaje: ${sugerencias[index].tiempoEstimado} minutos',
                           style: TextStyle(
-                            color: Colors.grey[600],
+                            color: Colors.green[700],
                             fontSize: 12,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       Text(
@@ -106,20 +101,5 @@ class BarraBusquedaWidget extends StatelessWidget {
           ),
       ],
     );
-  }
-
-  /// Formatear tiempo en minutos a texto legible
-  String _formatearTiempo(int minutos) {
-    if (minutos < 60) {
-      return '$minutos min';
-    } else {
-      final horas = minutos ~/ 60;
-      final minutosRestantes = minutos % 60;
-      if (minutosRestantes == 0) {
-        return '${horas}h';
-      } else {
-        return '${horas}h ${minutosRestantes}min';
-      }
-    }
   }
 }
