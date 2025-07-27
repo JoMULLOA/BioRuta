@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/direccion_sugerida.dart';
+import '../services/user_service.dart'; // Importar UserService para verificar género
 import 'publicar_viaje_final.dart';
 
 class PublicarViajePaso3 extends StatefulWidget {
@@ -23,6 +24,11 @@ class PublicarViajePaso3 extends StatefulWidget {
 class _PublicarViajePaso3State extends State<PublicarViajePaso3> {
   bool _soloMujeres = false;
   String _flexibilidadSalida = 'Puntual';
+  bool _esUsuarioFemenino = false; // Variable para determinar si el usuario es mujer
+  bool _cargandoGenero = true; // Variable para controlar estado de carga
+  
+  // Flag para debug - cambiar a false en producción
+  static const bool _debugMode = true;
 
   final List<String> _opcionesFlexibilidad = [
     'Puntual',
@@ -30,6 +36,54 @@ class _PublicarViajePaso3State extends State<PublicarViajePaso3> {
     '± 10 minutos',
     '± 15 minutos',
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _verificarGeneroUsuario(); // Verificar género al inicializar
+  }
+
+  /// Verificar el género del usuario para mostrar opciones específicas
+  Future<void> _verificarGeneroUsuario() async {
+    try {
+      print('🔍 Iniciando verificación de género...');
+      final perfilUsuario = await UserService.obtenerPerfilUsuario();
+      
+      print('📋 Perfil usuario completo: $perfilUsuario');
+      
+      if (perfilUsuario != null && mounted) {
+        final genero = perfilUsuario['genero']?.toString().toLowerCase().trim();
+        print('🏷️ Género extraído: "$genero"');
+        
+        // Verificar si es femenino según los valores del backend
+        final esFemenino = genero == 'femenino';
+        print('♀️ Es femenino: $esFemenino');
+        
+        setState(() {
+          _esUsuarioFemenino = esFemenino;
+          _cargandoGenero = false;
+        });
+        
+        print('✅ Estado actualizado - _esUsuarioFemenino: $_esUsuarioFemenino');
+      } else {
+        print('❌ No se pudo obtener el perfil del usuario o widget desmontado');
+        if (mounted) {
+          setState(() {
+            _esUsuarioFemenino = false;
+            _cargandoGenero = false;
+          });
+        }
+      }
+    } catch (e) {
+      print('🚨 Error al verificar género: $e');
+      if (mounted) {
+        setState(() {
+          _esUsuarioFemenino = false;
+          _cargandoGenero = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -74,24 +128,122 @@ class _PublicarViajePaso3State extends State<PublicarViajePaso3> {
             ),
               const SizedBox(height: 30),
             
-            // Preferencias de género
-            _buildConfigCard(
-              title: 'Preferencias de pasajeros',
-              icon: Icons.person_outline,
-              child: SwitchListTile(
-                title: const Text('Solo mujeres'),
-                subtitle: const Text('Viaje exclusivo para mujeres'),
-                value: _soloMujeres,
-                activeColor: const Color(0xFF854937),
-                onChanged: (value) {
-                  setState(() {
-                    _soloMujeres = value;
-                  });
-                },
+            // DEBUG: Mostrar estado actual
+            if (_debugMode) // Activar/desactivar con el flag
+              Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey[300]!),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'DEBUG INFO:',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey[600],
+                        fontSize: 12,
+                      ),
+                    ),
+                    Text(
+                      'Cargando género: $_cargandoGenero',
+                      style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                    ),
+                    Text(
+                      'Es usuario femenino: $_esUsuarioFemenino',
+                      style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                    ),
+                    Text(
+                      'Solo mujeres activado: $_soloMujeres',
+                      style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        ElevatedButton(
+                          onPressed: () {
+                            setState(() {
+                              _cargandoGenero = true;
+                            });
+                            _verificarGeneroUsuario();
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF854937),
+                            foregroundColor: Colors.white,
+                            minimumSize: const Size(100, 32),
+                          ),
+                          child: const Text('Reverificar', style: TextStyle(fontSize: 12)),
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton(
+                          onPressed: () {
+                            setState(() {
+                              _esUsuarioFemenino = !_esUsuarioFemenino;
+                              _cargandoGenero = false;
+                            });
+                            print('🔄 Género forzado a: ${_esUsuarioFemenino ? "femenino" : "masculino"}');
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.orange,
+                            foregroundColor: Colors.white,
+                            minimumSize: const Size(100, 32),
+                          ),
+                          child: const Text('Alternar', style: TextStyle(fontSize: 12)),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ),
             
-            const SizedBox(height: 20),
+            // Preferencias de género (solo para usuarios femeninos)
+            if (_cargandoGenero)
+              Container(
+                margin: const EdgeInsets.only(bottom: 20),
+                child: const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(20.0),
+                    child: Column(
+                      children: [
+                        CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation(Color(0xFF854937)),
+                        ),
+                        SizedBox(height: 12),
+                        Text(
+                          'Verificando perfil de usuario...',
+                          style: TextStyle(
+                            color: Color(0xFF854937),
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              )
+            else if (_esUsuarioFemenino)
+              Container(
+                margin: const EdgeInsets.only(bottom: 20),
+                child: _buildConfigCard(
+                  title: 'Preferencias de pasajeros',
+                  icon: Icons.person_outline,
+                  child: SwitchListTile(
+                    title: const Text('Solo mujeres'),
+                    subtitle: const Text('Viaje exclusivo para mujeres'),
+                    value: _soloMujeres,
+                    activeColor: const Color(0xFF854937),
+                    onChanged: (value) {
+                      setState(() {
+                        _soloMujeres = value;
+                      });
+                    },
+                  ),
+                ),
+              ),
             
             // Flexibilidad de horario
             _buildConfigCard(
