@@ -100,10 +100,11 @@ class _ResultadosBusquedaScreenState extends State<ResultadosBusquedaScreen> {
           precio: viaje.precio,
           viajeOrigen: viaje.origen.nombre,
           viajeDestino: viaje.destino.nombre,
-          onPagoSeleccionado: (metodoPago, datosAdicionales) {
+          onPagoSeleccionado: (metodoPago, datosAdicionales, mensaje) {
             Navigator.pop(context, {
               'metodoPago': metodoPago,
               'datosAdicionales': datosAdicionales,
+              'mensaje': mensaje,
             });
           },
         ),
@@ -131,12 +132,14 @@ class _ResultadosBusquedaScreenState extends State<ResultadosBusquedaScreen> {
       print('  - Viaje ID: ${viaje.id}');
       print('  - Método: ${metodoPagoResult['metodoPago']}');
       print('  - Datos: ${metodoPagoResult['datosAdicionales']}');
+      print('  - Mensaje: ${metodoPagoResult['mensaje']}');
 
       // Enviar solicitud con información de pago
       final resultado = await ViajeService.unirseAViajeConPago(
         viaje.id,
         metodoPagoResult['metodoPago'],
         metodoPagoResult['datosAdicionales'],
+        mensaje: metodoPagoResult['mensaje'],
       );
 
       print('📥 Resultado recibido: $resultado');

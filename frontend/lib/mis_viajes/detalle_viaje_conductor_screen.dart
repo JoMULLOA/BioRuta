@@ -3,6 +3,7 @@ import '../models/viaje_model.dart';
 import '../services/viaje_service.dart';
 import '../services/ruta_service.dart';
 import '../utils/map_launcher.dart';
+import '../chat/chat_grupal.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../utils/token_manager.dart';
@@ -763,18 +764,23 @@ class _DetalleViajeConductorScreenState extends State<DetalleViajeConductorScree
 
   @override
   Widget build(BuildContext context) {
+    // Color palette from perfil.dart
+    final Color fondo = Color(0xFFF8F2EF);
+    final Color primario = Color(0xFF6B3B2D);
+    final Color secundario = Color(0xFF8D4F3A);
+    
     return Scaffold(
-      backgroundColor: const Color(0xFFF2EEED),
+      backgroundColor: fondo,
       appBar: AppBar(
         title: const Text('Detalle del Viaje'),
-        backgroundColor: const Color(0xFF854937),
+        backgroundColor: secundario,
         foregroundColor: Colors.white,
         elevation: 0,
       ),
       body: cargando
-          ? const Center(
+          ? Center(
               child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF854937)),
+                valueColor: AlwaysStoppedAnimation<Color>(primario),
               ),
             )
           : SingleChildScrollView(
@@ -819,10 +825,10 @@ class _DetalleViajeConductorScreenState extends State<DetalleViajeConductorScree
                             const SizedBox(width: 16),
                             Text(
                               'Estado: ${_getEstadoTexto(viaje.estado)}',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
-                                color: Color(0xFF854937),
+                                color: primario,
                               ),
                             ),
                           ],
@@ -845,39 +851,66 @@ class _DetalleViajeConductorScreenState extends State<DetalleViajeConductorScree
                         children: [
                           Row(
                             children: [
-                              const Icon(
+                              Icon(
                                 Icons.route,
-                                color: Color(0xFF854937),
+                                color: primario,
                                 size: 24,
                               ),
                               const SizedBox(width: 8),
-                              const Text(
+                              Text(
                                 'Información del Viaje',
                                 style: TextStyle(
                                   fontSize: 20,
                                   fontWeight: FontWeight.bold,
-                                  color: Color(0xFF854937),
+                                  color: primario,
+                                ),
+                              ),
+                              const Spacer(),
+                              // Chat Group Button
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: primario.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: IconButton(
+                                  icon: Icon(
+                                    Icons.message,
+                                    color: primario,
+                                    size: 20,
+                                  ),
+                                  onPressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => ChatGrupalScreen(
+                                          idViaje: viaje.id.toString(),
+                                          nombreViaje: null,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  tooltip: 'Chat grupal',
                                 ),
                               ),
                             ],
                           ),
                           const SizedBox(height: 20),
                           
-                          _buildInfoRow(Icons.my_location, 'Origen', viaje.origen.nombre, Colors.green),
+                          _buildInfoRow(Icons.my_location, 'Origen', viaje.origen.nombre, primario),
                           const SizedBox(height: 12),
-                          _buildInfoRow(Icons.location_on, 'Destino', viaje.destino.nombre, Colors.red),
+                          _buildInfoRow(Icons.location_on, 'Destino', viaje.destino.nombre, primario),
                           const SizedBox(height: 12),
                           _buildInfoRow(Icons.calendar_today, 'Fecha', 
-                            '${viaje.fechaIda.day}/${viaje.fechaIda.month}/${viaje.fechaIda.year}', Colors.blue),
+                            '${viaje.fechaIda.day}/${viaje.fechaIda.month}/${viaje.fechaIda.year}', secundario),
                           const SizedBox(height: 12),
-                          _buildInfoRow(Icons.schedule, 'Hora de salida', viaje.horaIda, Colors.blue),
+                          _buildInfoRow(Icons.schedule, 'Hora de salida', viaje.horaIda, secundario),
                           const SizedBox(height: 12),
-                          _buildInfoRow(Icons.attach_money, 'Precio por persona', '\$${viaje.precio.toInt()}', Colors.orange),
+                          _buildInfoRow(Icons.attach_money, 'Precio por persona', '\$${viaje.precio.toInt()}', Colors.green[700]!),
                           
                           if (viaje.vehiculo != null) ...[
                             const SizedBox(height: 12),
                             _buildInfoRow(Icons.directions_car, 'Vehículo', 
-                              '${viaje.vehiculo!.modelo} - ${viaje.vehiculo!.patente}', const Color(0xFF854937)),
+                              '${viaje.vehiculo!.modelo} - ${viaje.vehiculo!.patente}', primario),
                           ],
                         ],
                       ),
@@ -898,12 +931,12 @@ class _DetalleViajeConductorScreenState extends State<DetalleViajeConductorScree
                         children: [
                           Row(
                             children: [
-                              const Text(
+                              Text(
                                 'Pasajeros',
                                 style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
-                                  color: Color(0xFF854937),
+                                  color: primario,
                                 ),
                               ),
                               const Spacer(),
@@ -1164,6 +1197,8 @@ class _DetalleViajeConductorScreenState extends State<DetalleViajeConductorScree
 
   Widget _buildBotonesAccion() {
     final estado = viaje.estado;
+    // Color palette from perfil.dart
+    final Color primario = Color(0xFF6B3B2D);
     
     return Column(
       children: [
@@ -1182,7 +1217,7 @@ class _DetalleViajeConductorScreenState extends State<DetalleViajeConductorScree
           ),
           value: mostrarRutaRestante,
           onChanged: (bool? value) => _toggleRutaRestante(),
-          activeColor: const Color(0xFF854937),
+          activeColor: primario,
           controlAffinity: ListTileControlAffinity.leading,
           contentPadding: EdgeInsets.zero,
         ),
@@ -1201,18 +1236,18 @@ class _DetalleViajeConductorScreenState extends State<DetalleViajeConductorScree
               children: [
                 Row(
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.navigation,
-                      color: Color(0xFF854937),
+                      color: primario,
                       size: 20,
                     ),
                     const SizedBox(width: 8),
-                    const Text(
+                    Text(
                       'Navegación',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF854937),
+                        color: primario,
                       ),
                     ),
                   ],
@@ -1296,7 +1331,7 @@ class _DetalleViajeConductorScreenState extends State<DetalleViajeConductorScree
               icon: const Icon(Icons.flag),
               label: const Text('Completar Viaje'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF854937),
+                backgroundColor: primario,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 12),
               ),

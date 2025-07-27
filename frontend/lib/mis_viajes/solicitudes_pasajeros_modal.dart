@@ -176,7 +176,7 @@ class _SolicitudesPasajerosModalState extends State<SolicitudesPasajerosModal> {
     return Container(
       height: MediaQuery.of(context).size.height * 0.8,
       decoration: const BoxDecoration(
-        color: Color(0xFFF2EEED),
+        color: Color(0xFFF8F2EF),
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       child: Column(
@@ -189,8 +189,8 @@ class _SolicitudesPasajerosModalState extends State<SolicitudesPasajerosModal> {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  const Color(0xFF854937),
-                  const Color(0xFF6B3A2A),
+                  const Color(0xFF8D4F3A),
+                  const Color(0xFF6B3B2D),
                 ],
               ),
               borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
@@ -343,7 +343,7 @@ class _SolicitudesPasajerosModalState extends State<SolicitudesPasajerosModal> {
                         ),
                       )
                     : RefreshIndicator(
-                        color: const Color(0xFF854937),
+                        color: const Color(0xFF6B3B2D),
                         onRefresh: () => _cargarSolicitudes(),
                         child: ListView.builder(
                           padding: const EdgeInsets.all(16),
@@ -362,12 +362,15 @@ class _SolicitudesPasajerosModalState extends State<SolicitudesPasajerosModal> {
   }
 
   Widget _buildSolicitudCard(Notificacion solicitud) {
+    // Color palette from perfil.dart
+    final Color primario = Color(0xFF6B3B2D);
+    
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 3,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: const BorderSide(color: Color(0xFFEDCAB6), width: 1.5),
+        side: BorderSide(color: primario.withOpacity(0.2), width: 1.5),
       ),
       child: Container(
         decoration: BoxDecoration(
@@ -377,7 +380,7 @@ class _SolicitudesPasajerosModalState extends State<SolicitudesPasajerosModal> {
             end: Alignment.bottomRight,
             colors: [
               Colors.white,
-              const Color(0xFFFDF8F5),
+              primario.withOpacity(0.02),
             ],
           ),
         ),
@@ -392,19 +395,19 @@ class _SolicitudesPasajerosModalState extends State<SolicitudesPasajerosModal> {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF854937).withOpacity(0.15),
+                      color: primario.withOpacity(0.15),
                       borderRadius: BorderRadius.circular(12),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF854937).withOpacity(0.1),
+                          color: primario.withOpacity(0.1),
                           blurRadius: 4,
                           offset: const Offset(0, 2),
                         ),
                       ],
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.person_add_alt_1,
-                      color: Color(0xFF854937),
+                      color: primario,
                       size: 22,
                     ),
                   ),
@@ -439,14 +442,14 @@ class _SolicitudesPasajerosModalState extends State<SolicitudesPasajerosModal> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF854937).withOpacity(0.1),
+                      color: primario.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
                       _formatearTiempo(solicitud.fechaCreacion),
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 11,
-                        color: Color(0xFF854937),
+                        color: primario,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -461,9 +464,9 @@ class _SolicitudesPasajerosModalState extends State<SolicitudesPasajerosModal> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.grey[50],
+                    color: primario.withOpacity(0.05),
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.grey[200]!),
+                    border: Border.all(color: primario.withOpacity(0.2)),
                   ),
                   child: Column(
                     children: [
@@ -647,10 +650,10 @@ class _SolicitudesPasajerosModalState extends State<SolicitudesPasajerosModal> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: Colors.blue[50],
+                    color: primario.withOpacity(0.05),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: Colors.blue[200]!,
+                      color: primario.withOpacity(0.2),
                     ),
                   ),
                   child: Column(
@@ -661,14 +664,14 @@ class _SolicitudesPasajerosModalState extends State<SolicitudesPasajerosModal> {
                           Icon(
                             Icons.chat_bubble_outline,
                             size: 16,
-                            color: Colors.blue[600],
+                            color: primario,
                           ),
                           const SizedBox(width: 6),
                           Text(
                             'Mensaje:',
                             style: TextStyle(
                               fontSize: 12,
-                              color: Colors.blue[600],
+                              color: primario,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -676,7 +679,7 @@ class _SolicitudesPasajerosModalState extends State<SolicitudesPasajerosModal> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        "¿Puedo unirme a tu viaje?",
+                        solicitud.mensaje,
                         style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
