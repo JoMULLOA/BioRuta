@@ -68,22 +68,15 @@ class UserService {
   /// Obtener información del usuario actual
   static Future<Map<String, dynamic>?> obtenerPerfilUsuario() async {
     try {
-      print('🔍 Iniciando obtención de perfil de usuario...');
-      
       // Obtener email desde SharedPreferences
       final prefs = await SharedPreferences.getInstance();
       final email = prefs.getString('user_email');
       
       if (email == null) {
-        print('❌ No se encontró email en SharedPreferences');
         return null;
       }
       
-      print('📧 Email obtenido: $email');
-      print('🌐 Haciendo petición a: $baseUrl/user/busqueda?email=$email');
-      
       final headers = await _getHeaders();
-      print('📤 Headers: $headers');
       
       final response = await http.get(
         Uri.parse('$baseUrl/user/busqueda?email=$email'),
@@ -93,27 +86,19 @@ class UserService {
         },
       );
 
-      print('📥 Status Code: ${response.statusCode}');
-      print('📥 Response Body: ${response.body}');
-
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        print('📊 Data decodificada: $data');
         
         if (data['success'] == true && data['data'] != null) {
-          print('✅ Perfil obtenido exitosamente');
-          print('👤 Usuario data: ${data['data']}');
           return data['data'];
         } else {
-          print('❌ Success no es true o data es null');
           return null;
         }
       } else {
-        print('❌ Error en respuesta: ${response.statusCode} - ${response.body}');
         return null;
       }
     } catch (e) {
-      print('🚨 Error obteniendo perfil de usuario: $e');
+      print('Error obteniendo perfil de usuario: $e');
       return null;
     }
   }

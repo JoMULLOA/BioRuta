@@ -28,7 +28,7 @@ class _PublicarViajePaso3State extends State<PublicarViajePaso3> {
   bool _cargandoGenero = true; // Variable para controlar estado de carga
   
   // Flag para debug - cambiar a false en producción
-  static const bool _debugMode = true;
+  static const bool _debugMode = false;
 
   final List<String> _opcionesFlexibilidad = [
     'Puntual',
@@ -46,27 +46,19 @@ class _PublicarViajePaso3State extends State<PublicarViajePaso3> {
   /// Verificar el género del usuario para mostrar opciones específicas
   Future<void> _verificarGeneroUsuario() async {
     try {
-      print('🔍 Iniciando verificación de género...');
       final perfilUsuario = await UserService.obtenerPerfilUsuario();
-      
-      print('📋 Perfil usuario completo: $perfilUsuario');
       
       if (perfilUsuario != null && mounted) {
         final genero = perfilUsuario['genero']?.toString().toLowerCase().trim();
-        print('🏷️ Género extraído: "$genero"');
         
         // Verificar si es femenino según los valores del backend
         final esFemenino = genero == 'femenino';
-        print('♀️ Es femenino: $esFemenino');
         
         setState(() {
           _esUsuarioFemenino = esFemenino;
           _cargandoGenero = false;
         });
-        
-        print('✅ Estado actualizado - _esUsuarioFemenino: $_esUsuarioFemenino');
       } else {
-        print('❌ No se pudo obtener el perfil del usuario o widget desmontado');
         if (mounted) {
           setState(() {
             _esUsuarioFemenino = false;
@@ -75,7 +67,6 @@ class _PublicarViajePaso3State extends State<PublicarViajePaso3> {
         }
       }
     } catch (e) {
-      print('🚨 Error al verificar género: $e');
       if (mounted) {
         setState(() {
           _esUsuarioFemenino = false;
