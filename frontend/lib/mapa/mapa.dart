@@ -1170,10 +1170,11 @@ class _MapPageState extends State<MapPage> {
           precio: marcador.detallesViaje.precio,
           viajeOrigen: marcador.origen.nombre,
           viajeDestino: marcador.destino.nombre,
-          onPagoSeleccionado: (metodoPago, datosAdicionales) {
+          onPagoSeleccionado: (metodoPago, datosAdicionales, mensaje) {
             Navigator.pop(context, {
               'metodoPago': metodoPago,
               'datosAdicionales': datosAdicionales,
+              'mensaje': mensaje,
             });
           },
         ),
@@ -1199,6 +1200,7 @@ class _MapPageState extends State<MapPage> {
         marcador.id,
         metodoPagoResult['metodoPago'],
         metodoPagoResult['datosAdicionales'],
+        mensaje: metodoPagoResult['mensaje'],
       );
 
       if (mounted) {

@@ -207,6 +207,9 @@ class _DetalleViajePasajeroScreenState extends State<DetalleViajePasajeroScreen>
   }
 
   void _mostrarModalCalificacion() {
+    // Color palette from perfil.dart
+    final Color primario = Color(0xFF6B3B2D);
+    
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -227,7 +230,7 @@ class _DetalleViajePasajeroScreenState extends State<DetalleViajePasajeroScreen>
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF854937),
+                      color: Color(0xFF6B3B2D),
                     ),
                   ),
                 ],
@@ -239,7 +242,7 @@ class _DetalleViajePasajeroScreenState extends State<DetalleViajePasajeroScreen>
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF854937).withOpacity(0.1),
+                        color: primario.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Row(
@@ -248,7 +251,7 @@ class _DetalleViajePasajeroScreenState extends State<DetalleViajePasajeroScreen>
                             width: 40,
                             height: 40,
                             decoration: BoxDecoration(
-                              color: const Color(0xFF854937),
+                              color: primario,
                               shape: BoxShape.circle,
                             ),
                             child: const Icon(
@@ -261,10 +264,10 @@ class _DetalleViajePasajeroScreenState extends State<DetalleViajePasajeroScreen>
                           Expanded(
                             child: Text(
                               viaje.conductor!.nombre,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
-                                color: Color(0xFF854937),
+                                color: primario,
                               ),
                             ),
                           ),
@@ -344,7 +347,7 @@ class _DetalleViajePasajeroScreenState extends State<DetalleViajePasajeroScreen>
                       icon: const Icon(Icons.save, size: 18),
                       label: const Text('Guardar'),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF854937),
+                        backgroundColor: primario,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                         shape: RoundedRectangleBorder(
@@ -367,16 +370,21 @@ class _DetalleViajePasajeroScreenState extends State<DetalleViajePasajeroScreen>
 
   @override
   Widget build(BuildContext context) {
+    // Color palette from perfil.dart
+    final Color fondo = Color(0xFFF8F2EF);
+    final Color primario = Color(0xFF6B3B2D);
+    final Color secundario = Color(0xFF8D4F3A);
+    
     // Encontrar el estado del usuario actual como pasajero
     // Por simplicidad, asumimos que es el primer pasajero, pero en una implementación real
     // deberías buscar por el RUT del usuario actual
     final miEstadoPasajero = viaje.pasajeros.isNotEmpty ? viaje.pasajeros.first.estado : 'pendiente';
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF2EEED),
+      backgroundColor: fondo,
       appBar: AppBar(
         title: const Text('Detalle del Viaje'),
-        backgroundColor: const Color(0xFF854937),
+        backgroundColor: secundario,
         foregroundColor: Colors.white,
         elevation: 0,
       ),
@@ -408,10 +416,10 @@ class _DetalleViajePasajeroScreenState extends State<DetalleViajePasajeroScreen>
                         const SizedBox(width: 12),
                         Text(
                           'Viaje: ${_getEstadoTexto(viaje.estado)}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF854937),
+                            color: primario,
                           ),
                         ),
                       ],
@@ -430,10 +438,10 @@ class _DetalleViajePasajeroScreenState extends State<DetalleViajePasajeroScreen>
                         const SizedBox(width: 12),
                         Text(
                           'Tu estado: ${_getEstadoPasajeroTexto(miEstadoPasajero)}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w500,
-                            color: Color(0xFF854937),
+                            color: primario,
                           ),
                         ),
                       ],
@@ -458,7 +466,7 @@ class _DetalleViajePasajeroScreenState extends State<DetalleViajePasajeroScreen>
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                       colors: [
-                        const Color(0xFF854937).withOpacity(0.05),
+                        primario.withOpacity(0.05),
                         Colors.white,
                       ],
                     ),
@@ -472,7 +480,7 @@ class _DetalleViajePasajeroScreenState extends State<DetalleViajePasajeroScreen>
                           children: [
                             const Icon(
                               Icons.person_pin_circle,
-                              color: Color(0xFF854937),
+                              color: Color(0xFF6B3B2D),
                               size: 24,
                             ),
                             const SizedBox(width: 8),
@@ -481,7 +489,7 @@ class _DetalleViajePasajeroScreenState extends State<DetalleViajePasajeroScreen>
                               style: TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
-                                color: Color(0xFF854937),
+                                color: Color(0xFF6B3B2D),
                               ),
                             ),
                           ],
@@ -493,11 +501,11 @@ class _DetalleViajePasajeroScreenState extends State<DetalleViajePasajeroScreen>
                               width: 60,
                               height: 60,
                               decoration: BoxDecoration(
-                                color: const Color(0xFF854937),
+                                color: primario,
                                 shape: BoxShape.circle,
                                 boxShadow: [
                                   BoxShadow(
-                                    color: const Color(0xFF854937).withOpacity(0.3),
+                                    color: primario.withOpacity(0.3),
                                     spreadRadius: 2,
                                     blurRadius: 8,
                                     offset: const Offset(0, 3),
@@ -548,13 +556,13 @@ class _DetalleViajePasajeroScreenState extends State<DetalleViajePasajeroScreen>
                             ),
                             Container(
                               decoration: BoxDecoration(
-                                color: const Color(0xFF854937).withOpacity(0.1),
+                                color: primario.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: IconButton(
-                                icon: const Icon(
+                                icon: Icon(
                                   Icons.message,
-                                  color: Color(0xFF854937),
+                                  color: primario,
                                   size: 20,
                                 ),
                                 onPressed: () {
@@ -595,7 +603,7 @@ class _DetalleViajePasajeroScreenState extends State<DetalleViajePasajeroScreen>
                       children: [
                         const Icon(
                           Icons.route,
-                          color: Color(0xFF854937),
+                          color: Color(0xFF6B3B2D),
                           size: 24,
                         ),
                         const SizedBox(width: 8),
@@ -604,26 +612,26 @@ class _DetalleViajePasajeroScreenState extends State<DetalleViajePasajeroScreen>
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF854937),
+                            color: Color(0xFF6B3B2D),
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 20),
                     
-                    _buildInfoRow(Icons.my_location, 'Origen', viaje.origen.nombre, Colors.green),
+                    _buildInfoRow(Icons.my_location, 'Origen', viaje.origen.nombre, primario),
                     const SizedBox(height: 12),
-                    _buildInfoRow(Icons.location_on, 'Destino', viaje.destino.nombre, Colors.red),
+                    _buildInfoRow(Icons.location_on, 'Destino', viaje.destino.nombre, primario),
                     const SizedBox(height: 12),
                     _buildInfoRow(Icons.calendar_today, 'Fecha', 
-                      '${viaje.fechaIda.day}/${viaje.fechaIda.month}/${viaje.fechaIda.year}', Colors.blue),
+                      '${viaje.fechaIda.day}/${viaje.fechaIda.month}/${viaje.fechaIda.year}', secundario),
                     const SizedBox(height: 12),
-                    _buildInfoRow(Icons.schedule, 'Hora de salida', viaje.horaIda, Colors.blue),
+                    _buildInfoRow(Icons.schedule, 'Hora de salida', viaje.horaIda, secundario),
                     const SizedBox(height: 12),
-                    _buildInfoRow(Icons.attach_money, 'Precio por persona', '\$${viaje.precio.toInt()}', Colors.orange),
+                    _buildInfoRow(Icons.attach_money, 'Precio por persona', '\$${viaje.precio.toInt()}', Colors.green[700]!),
                     const SizedBox(height: 12),
                     _buildInfoRow(Icons.people, 'Ocupación', 
-                      '${viaje.pasajeros.length}/${viaje.maxPasajeros} pasajeros', Colors.purple),
+                      '${viaje.pasajeros.length}/${viaje.maxPasajeros} pasajeros', primario),
 
                     if (viaje.comentarios != null && viaje.comentarios!.isNotEmpty) ...[
                       const SizedBox(height: 16),
@@ -633,7 +641,7 @@ class _DetalleViajePasajeroScreenState extends State<DetalleViajePasajeroScreen>
                         children: [
                           const Icon(
                             Icons.comment,
-                            color: Color(0xFF854937),
+                            color: Color(0xFF6B3B2D),
                             size: 18,
                           ),
                           const SizedBox(width: 8),
@@ -642,7 +650,7 @@ class _DetalleViajePasajeroScreenState extends State<DetalleViajePasajeroScreen>
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
-                              color: Color(0xFF854937),
+                              color: Color(0xFF6B3B2D),
                             ),
                           ),
                         ],
@@ -672,27 +680,27 @@ class _DetalleViajePasajeroScreenState extends State<DetalleViajePasajeroScreen>
             ),
             const SizedBox(height: 16),
 
-            // Información del vehículo (sección separada y mejorada)
+            // Información del vehículo (mejorada)
             if (viaje.vehiculo != null)
               Card(
-                elevation: 3,
+                elevation: 2,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: Container(
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(12),
                     gradient: LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                       colors: [
-                        Colors.blue.withOpacity(0.05),
+                        primario.withOpacity(0.05),
                         Colors.white,
                       ],
                     ),
                   ),
                   child: Padding(
-                    padding: const EdgeInsets.all(20),
+                    padding: const EdgeInsets.all(16),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -701,125 +709,58 @@ class _DetalleViajePasajeroScreenState extends State<DetalleViajePasajeroScreen>
                             Container(
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
-                                color: Colors.blue.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(12),
+                                color: primario.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(8),
                               ),
-                              child: const Icon(
+                              child: Icon(
                                 Icons.directions_car,
-                                color: Colors.blue,
-                                size: 24,
+                                color: primario,
+                                size: 20,
                               ),
                             ),
                             const SizedBox(width: 12),
-                            const Text(
-                              'Vehículo del Viaje',
+                            Text(
+                              'Vehículo',
                               style: TextStyle(
-                                fontSize: 20,
+                                fontSize: 16,
                                 fontWeight: FontWeight.bold,
-                                color: Color(0xFF854937),
+                                color: primario,
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 20),
-                        
-                        // Información principal del vehículo
+                        const SizedBox(height: 12),
                         Container(
-                          padding: const EdgeInsets.all(16),
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.blue.withOpacity(0.2)),
+                            color: secundario.withOpacity(0.05),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: secundario.withOpacity(0.2),
+                              width: 1,
+                            ),
                           ),
                           child: Row(
                             children: [
-                              Container(
-                                width: 60,
-                                height: 60,
-                                decoration: BoxDecoration(
-                                  color: Colors.blue.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: const Icon(
-                                  Icons.car_rental,
-                                  color: Colors.blue,
-                                  size: 32,
-                                ),
+                              Icon(
+                                Icons.car_rental,
+                                color: secundario,
+                                size: 18,
                               ),
-                              const SizedBox(width: 16),
+                              const SizedBox(width: 8),
                               Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      viaje.vehiculo!.modelo,
-                                      style: const TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                        color: Color(0xFF070505),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Row(
-                                      children: [
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                          decoration: BoxDecoration(
-                                            color: Colors.blue.withOpacity(0.1),
-                                            borderRadius: BorderRadius.circular(6),
-                                          ),
-                                          child: Text(
-                                            viaje.vehiculo!.patente,
-                                            style: const TextStyle(
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.w600,
-                                              color: Colors.blue,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
+                                child: Text(
+                                  '${viaje.vehiculo!.modelo} • ${viaje.vehiculo!.patente}',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: primario,
+                                  ),
                                 ),
                               ),
                             ],
                           ),
-                        ),
-                        
-                        const SizedBox(height: 12),
-                        
-                        // Detalles del vehículo
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _buildVehicleDetailCard(
-                                Icons.palette,
-                                'Color',
-                                viaje.vehiculo!.color,
-                                Colors.purple,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: _buildVehicleDetailCard(
-                                Icons.event_seat,
-                                'Asientos',
-                                '${viaje.vehiculo!.nroAsientos}',
-                                Colors.green,
-                              ),
-                            ),
-                            if (viaje.vehiculo!.tipo != null) ...[
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: _buildVehicleDetailCard(
-                                  Icons.category,
-                                  'Tipo',
-                                  viaje.vehiculo!.tipo!,
-                                  Colors.teal,
-                                ),
-                              ),
-                            ],
-                          ],
                         ),
                       ],
                     ),
@@ -844,7 +785,7 @@ class _DetalleViajePasajeroScreenState extends State<DetalleViajePasajeroScreen>
                         children: [
                           const Icon(
                             Icons.people,
-                            color: Color(0xFF854937),
+                            color: Color(0xFF6B3B2D),
                             size: 24,
                           ),
                           const SizedBox(width: 8),
@@ -853,7 +794,7 @@ class _DetalleViajePasajeroScreenState extends State<DetalleViajePasajeroScreen>
                             style: TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
-                              color: Color(0xFF854937),
+                              color: Color(0xFF6B3B2D),
                             ),
                           ),
                         ],
@@ -883,7 +824,7 @@ class _DetalleViajePasajeroScreenState extends State<DetalleViajePasajeroScreen>
               ),
               value: mostrarRutaRestante,
               onChanged: (bool? value) => _toggleRutaRestante(),
-              activeColor: const Color(0xFF854937),
+              activeColor: primario,
               controlAffinity: ListTileControlAffinity.leading,
               contentPadding: EdgeInsets.zero,
             ),
@@ -905,7 +846,7 @@ class _DetalleViajePasajeroScreenState extends State<DetalleViajePasajeroScreen>
                       children: [
                         const Icon(
                           Icons.navigation,
-                          color: Color(0xFF854937),
+                          color: Color(0xFF6B3B2D),
                           size: 20,
                         ),
                         const SizedBox(width: 8),
@@ -914,7 +855,7 @@ class _DetalleViajePasajeroScreenState extends State<DetalleViajePasajeroScreen>
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF854937),
+                            color: Color(0xFF6B3B2D),
                           ),
                         ),
                       ],
@@ -1280,41 +1221,6 @@ class _DetalleViajePasajeroScreenState extends State<DetalleViajePasajeroScreen>
                      backgroundColor == Colors.blue[100] ? Colors.blue : Colors.grey),
           const SizedBox(width: 12),
           Expanded(child: contenido),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildVehicleDetailCard(IconData icon, String label, String value, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: color, size: 18),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 10,
-              color: color,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF070505),
-            ),
-            textAlign: TextAlign.center,
-          ),
         ],
       ),
     );

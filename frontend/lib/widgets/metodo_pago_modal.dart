@@ -8,7 +8,7 @@ class MetodoPagoModal extends StatefulWidget {
   final double precio;
   final String viajeOrigen;
   final String viajeDestino;
-  final Function(String metodoPago, Map<String, dynamic>? datosAdicionales) onPagoSeleccionado;
+  final Function(String metodoPago, Map<String, dynamic>? datosAdicionales, String? mensaje) onPagoSeleccionado;
 
   const MetodoPagoModal({
     Key? key,
@@ -28,11 +28,18 @@ class _MetodoPagoModalState extends State<MetodoPagoModal> {
   List<Map<String, dynamic>> tarjetasDisponibles = [];
   bool isLoading = true;
   Map<String, dynamic>? tarjetaSeleccionada;
+  final TextEditingController _mensajeController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _cargarDatosPago();
+  }
+
+  @override
+  void dispose() {
+    _mensajeController.dispose();
+    super.dispose();
   }
 
   Future<void> _cargarDatosPago() async {
@@ -261,6 +268,69 @@ class _MetodoPagoModalState extends State<MetodoPagoModal> {
                       ],
                     ),
                   ),
+          ),
+          
+          // Campo de mensaje personalizado
+          Container(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.message_outlined,
+                      color: const Color(0xFF6B3B2D),
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Mensaje al conductor (opcional)',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF6B3B2D),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _mensajeController,
+                  maxLines: 2,
+                  maxLength: 150,
+                  decoration: InputDecoration(
+                    hintText: '¿Puedo unirme a tu viaje?',
+                    hintStyle: TextStyle(
+                      color: Colors.grey[500],
+                      fontSize: 14,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(
+                        color: const Color(0xFF6B3B2D).withOpacity(0.3),
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(
+                        color: Color(0xFF6B3B2D),
+                        width: 2,
+                      ),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    filled: true,
+                    fillColor: Colors.white,
+                  ),
+                  style: const TextStyle(
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
           ),
           
           // Botón confirmar
@@ -506,6 +576,12 @@ class _MetodoPagoModalState extends State<MetodoPagoModal> {
         break;
     }
     
-    widget.onPagoSeleccionado(metodoPagoSeleccionado!, datosAdicionales);
+    // Obtener el mensaje del controller, o usar mensaje por defecto si está vacío
+    String mensaje = _mensajeController.text.trim();
+    if (mensaje.isEmpty) {
+      mensaje = '¿Puedo unirme a tu viaje?';
+    }
+    
+    widget.onPagoSeleccionado(metodoPagoSeleccionado!, datosAdicionales, mensaje);
   }
 }
