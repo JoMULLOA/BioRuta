@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../services/api_service.dart';
 import '../services/viaje_service.dart';
 import '../models/viaje_model.dart';
@@ -168,6 +169,70 @@ class _ResultadosBusquedaScreenState extends State<ResultadosBusquedaScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error al enviar la solicitud: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  // Función para abrir Google Maps con navegación al origen del viaje
+  Future<void> _abrirGoogleMaps(ViajeProximidad viaje) async {
+    try {
+      final lat = viaje.origen.latitud;
+      final lng = viaje.origen.longitud;
+      final url = Uri.parse('https://www.google.com/maps/dir/?api=1&destination=$lat,$lng&travelmode=driving');
+      
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('No se pudo abrir Google Maps'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error al abrir Google Maps: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Error al abrir Google Maps'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  // Función para abrir Waze con navegación al origen del viaje
+  Future<void> _abrirWaze(ViajeProximidad viaje) async {
+    try {
+      final lat = viaje.origen.latitud;
+      final lng = viaje.origen.longitud;
+      final url = Uri.parse('https://waze.com/ul?ll=$lat,$lng&navigate=yes');
+      
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('No se pudo abrir Waze. ¿Está instalado?'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error al abrir Waze: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Error al abrir Waze'),
             backgroundColor: Colors.red,
           ),
         );
@@ -747,7 +812,76 @@ class _ResultadosBusquedaScreenState extends State<ResultadosBusquedaScreen> {
               
               const SizedBox(height: 12),
               
-              // Botón de acción
+              // Botones de navegación
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF854937).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: const Color(0xFF854937).withOpacity(0.3),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.navigation, color: Color(0xFF854937), size: 16),
+                        SizedBox(width: 4),
+                        Text(
+                          'Navegar al punto de encuentro:',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF854937),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () => _abrirGoogleMaps(viaje),
+                            icon: const Icon(Icons.map, size: 16),
+                            label: const Text(
+                              'Google Maps',
+                              style: TextStyle(fontSize: 11),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.blue,
+                              side: const BorderSide(color: Colors.blue),
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () => _abrirWaze(viaje),
+                            icon: const Icon(Icons.navigation, size: 16),
+                            label: const Text(
+                              'Waze',
+                              style: TextStyle(fontSize: 11),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.orange,
+                              side: const BorderSide(color: Colors.orange),
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              
+              const SizedBox(height: 12),
+              
+              // Botón de acción principal
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(

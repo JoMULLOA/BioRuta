@@ -25,7 +25,7 @@ class MapaSeleccionPage extends StatefulWidget {
 }
 
 class _MapaSeleccionPageState extends State<MapaSeleccionPage> {
-  late MapController controller;
+  MapController? controller;
   final TextEditingController busquedaController = TextEditingController();
   List<DireccionSugerida> _sugerencias = [];
   bool _mostrandoSugerencias = false;
@@ -37,13 +37,26 @@ class _MapaSeleccionPageState extends State<MapaSeleccionPage> {
   @override
   void initState() {
     super.initState();
-    controller = MapController.withUserPosition(
-      trackUserLocation: const UserTrackingOption(
-        enableTracking: true,
-        unFollowUser: false,
-      ),
-    );
-    _inicializarUbicacion();
+    _inicializarController();
+  }
+
+  Future<void> _inicializarController() async {
+    try {
+      controller = MapController.withUserPosition(
+        trackUserLocation: const UserTrackingOption(
+          enableTracking: true,
+          unFollowUser: false,
+        ),
+      );
+      
+      setState(() {
+        // Controller inicializado
+      });
+      
+      _inicializarUbicacion();
+    } catch (e) {
+      debugPrint("Error al inicializar MapController: $e");
+    }
   }
 
   Future<void> _inicializarUbicacion() async {
@@ -61,8 +74,10 @@ class _MapaSeleccionPageState extends State<MapaSeleccionPage> {
   }
 
   Future<void> _centrarEnMiUbicacion() async {
+    if (controller == null) return;
+    
     try {
-      GeoPoint miPosicion = await controller.myLocation();
+      GeoPoint miPosicion = await controller!.myLocation();
       String region = await BusquedaService.identificarRegion(miPosicion);
       double zoomNivel = UbicacionService.obtenerZoomParaRegion(region);
       
@@ -70,8 +85,8 @@ class _MapaSeleccionPageState extends State<MapaSeleccionPage> {
         _regionActual = region;
       });
 
-      await controller.moveTo(miPosicion);
-      await controller.setZoom(zoomLevel: zoomNivel);
+      await controller!.moveTo(miPosicion);
+      await controller!.setZoom(zoomLevel: zoomNivel);
       
       // Solo para búsqueda se puede seleccionar automáticamente la ubicación actual
       // Para publicar viajes (origen), el usuario debe seleccionar una dirección específica
@@ -153,8 +168,8 @@ class _MapaSeleccionPageState extends State<MapaSeleccionPage> {
         }
       }
 
-      if (todasLasSugerencias.isNotEmpty) {
-        GeoPoint ubicacionActual = await controller.myLocation();
+      if (todasLasSugerencias.isNotEmpty && controller != null) {
+        GeoPoint ubicacionActual = await controller!.myLocation();
         
         // Usar función apropiada según si tenemos origen seleccionado
         if (widget.origenSeleccionado != null) {
@@ -189,6 +204,8 @@ class _MapaSeleccionPageState extends State<MapaSeleccionPage> {
   }
 
   Future<void> _seleccionarSugerencia(DireccionSugerida sugerencia) async {
+    if (controller == null) return;
+    
     setState(() {
       _ubicacionSeleccionada = sugerencia;
       busquedaController.text = sugerencia.displayName;
@@ -196,18 +213,20 @@ class _MapaSeleccionPageState extends State<MapaSeleccionPage> {
     });
 
     final punto = GeoPoint(latitude: sugerencia.lat, longitude: sugerencia.lon);
-    await controller.moveTo(punto);
+    await controller!.moveTo(punto);
     await _colocarMarcador(punto, sugerencia.displayName);
   }
 
   Future<void> _colocarMarcador(GeoPoint punto, String descripcion) async {
+    if (controller == null) return;
+    
     try {
       // Limpiar marcadores previos
       if (_marcadorColocado) {
-        await controller.removeMarker(punto);
+        await controller!.removeMarker(punto);
       }
 
-      await controller.addMarker(
+      await controller!.addMarker(
         punto,
         markerIcon: MarkerIcon(
           icon: Icon(
@@ -276,7 +295,15 @@ class _MapaSeleccionPageState extends State<MapaSeleccionPage> {
       ),
       body: Stack(
         children: [
-          MapaWidget(controller: controller),
+          // Mostrar mapa solo cuando esté inicializado
+          if (controller != null)
+            MapaWidget(controller: controller!)
+          else
+            const Center(
+              child: CircularProgressIndicator(
+                color: Color(0xFF8D4F3A),
+              ),
+            ),
           
           // Barra de búsqueda con sugerencias
           Positioned(
@@ -307,18 +334,19 @@ class _MapaSeleccionPageState extends State<MapaSeleccionPage> {
               onSugerenciaTap: _seleccionarSugerencia,
             ),
           ),          // Botón de centrar en mi ubicación
-          Positioned(
-            top: 80,
-            right: 12,
-            child: FloatingActionButton.small(
-              heroTag: 'centrar',
-              onPressed: _centrarEnMiUbicacion,
-              tooltip: 'Centrar en mi ubicación',
-              backgroundColor: const Color(0xFF8D4F3A),
-              foregroundColor: Colors.white,
-              child: const Icon(Icons.my_location),
+          if (controller != null)
+            Positioned(
+              top: 80,
+              right: 12,
+              child: FloatingActionButton.small(
+                heroTag: 'centrar',
+                onPressed: _centrarEnMiUbicacion,
+                tooltip: 'Centrar en mi ubicación',
+                backgroundColor: const Color(0xFF8D4F3A),
+                foregroundColor: Colors.white,
+                child: const Icon(Icons.my_location),
+              ),
             ),
-          ),
 
           // Botón de confirmación flotante
           if (_ubicacionSeleccionada != null)            Positioned(
