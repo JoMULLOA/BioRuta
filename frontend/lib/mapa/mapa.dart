@@ -18,7 +18,7 @@ import '../services/ruta_service.dart';
 import '../services/user_service.dart'; // Importar UserService
 import '../services/viaje_state_monitor.dart'; // Importar monitor de estados
 import 'mapa_widget.dart';
-import 'mapa_ui_components.dart'; // Importar componentes de UI
+import 'mapa_ui_components_v2.dart'; // Importar componentes de UI
 import 'mapa_seleccion.dart';
 import '../buscar/resultados_busqueda.dart';
 
@@ -553,6 +553,7 @@ class _MapPageState extends State<MapPage> {
           pasajeros: pasajeros,
           origenTexto: direccionOrigen!,
           destinoTexto: direccionDestino!,
+          soloMujeres: soloMujeres, // Pasar el parámetro de filtro
         ),
       ),
     );
@@ -1968,7 +1969,7 @@ class _MapPageState extends State<MapPage> {
       case 'hatchback':
         return Icons.directions_car_outlined;
       case 'pickup':
-        return Icons.local_shipping;
+        return Icons.drive_eta;
       default:
         return Icons.directions_car;
     }

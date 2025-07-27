@@ -288,19 +288,35 @@ export async function buscarViajesPorProximidad(req, res) {
     console.log('Solo mujeres:', filtraSoloMujeres);
     console.log('Género usuario:', usuarioConsultante.genero);
 
-    // CORREGIDO: Filtro de fecha - usar la fecha exacta proporcionada
-    const fechaBuscada = new Date(fechaViaje + 'T00:00:00.000Z'); // Agregar hora UTC para evitar conversiones
-    const fechaInicio = new Date(fechaBuscada);
-    fechaInicio.setUTCHours(0, 0, 0, 0);
-    const fechaFin = new Date(fechaBuscada);
-    fechaFin.setUTCHours(23, 59, 59, 999);
-
-    console.log('Filtro de fecha corregido:', { 
-      fechaOriginal: fechaViaje,
-      fechaBuscada: fechaBuscada.toISOString(),
-      inicio: fechaInicio.toISOString(), 
-      fin: fechaFin.toISOString() 
-    });
+    // Manejar fecha: puede ser formato simple "YYYY-MM-DD" o rango "inicio,fin"
+    let fechaInicio, fechaFin;
+    
+    if (fechaViaje.includes(',')) {
+      // Formato nuevo: rango UTC desde frontend "inicio,fin"
+      const [inicioStr, finStr] = fechaViaje.split(',');
+      fechaInicio = new Date(inicioStr);
+      fechaFin = new Date(finStr);
+      
+      console.log('Usando rango UTC desde frontend:', { 
+        fechaOriginal: fechaViaje,
+        inicio: fechaInicio.toISOString(), 
+        fin: fechaFin.toISOString() 
+      });
+    } else {
+      // Formato anterior: fecha simple "YYYY-MM-DD" (mantener compatibilidad)
+      const fechaBuscada = new Date(fechaViaje + 'T00:00:00.000Z');
+      fechaInicio = new Date(fechaBuscada);
+      fechaInicio.setUTCHours(0, 0, 0, 0);
+      fechaFin = new Date(fechaBuscada);
+      fechaFin.setUTCHours(23, 59, 59, 999);
+      
+      console.log('Usando formato anterior:', { 
+        fechaOriginal: fechaViaje,
+        fechaBuscada: fechaBuscada.toISOString(),
+        inicio: fechaInicio.toISOString(), 
+        fin: fechaFin.toISOString() 
+      });
+    }
 
     // Primero verificar si hay viajes activos en la fecha
     let filtroBase = {

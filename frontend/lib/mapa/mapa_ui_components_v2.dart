@@ -92,23 +92,26 @@ class MapaUIComponents {
     required VoidCallback onPressed,
   }) {
     return Positioned(
-      bottom: 120,
+      bottom: 120, // Más separación por el tamaño más grande
       right: 16,
-      child: FloatingActionButton(
+      child: FloatingActionButton( // Tamaño más grande
+        heroTag: 'radar', // Agregar heroTag para evitar conflictos
         onPressed: onPressed,
-        backgroundColor: radarActivo ? Colors.red : const Color(0xFF854937),
+        backgroundColor: radarActivo ? Colors.red : const Color(0xFF8D4F3A), // Fondo café
+        foregroundColor: Colors.white, // Contenido blanco
+        tooltip: 'Activar radar de viajes',
         child: AnimatedSwitcher(
           duration: const Duration(milliseconds: 300),
           child: radarActivo
               ? const Icon(
                   Icons.stop,
                   key: ValueKey('stop'),
-                  color: Colors.white,
+                  size: 28, // Icono más grande
                 )
               : const Icon(
                   Icons.radar,
                   key: ValueKey('radar'),
-                  color: Colors.white,
+                  size: 28, // Icono más grande
                 ),
         ),
       ),
@@ -377,14 +380,17 @@ class MapaUIComponents {
     required VoidCallback onPressed,
   }) {
     return Positioned(
-      bottom: 180,
+      bottom: 40, // Abajo del todo en la esquina inferior derecha
       right: 16,
-      child: FloatingActionButton.small(
+      child: FloatingActionButton( // Tamaño más grande
+        heroTag: 'ubicacion', // Agregar heroTag para evitar conflictos
         onPressed: onPressed,
-        backgroundColor: Colors.white,
+        backgroundColor: const Color(0xFF8D4F3A), // Fondo café
+        foregroundColor: Colors.white, // Contenido blanco
+        tooltip: 'Centrar en mi ubicación',
         child: const Icon(
           Icons.my_location,
-          color: Color(0xFF854937),
+          size: 28, // Icono más grande
         ),
       ),
     );

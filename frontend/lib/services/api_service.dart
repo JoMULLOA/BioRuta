@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import '../models/viaje_model.dart';
 import '../config/confGlobal.dart';
 import '../utils/token_manager.dart'; // Agregar TokenManager para autenticación
+import '../utils/date_utils.dart'; // Importar DateUtils para conversiones de zona horaria
 
 class ApiService {
   // Configuración de la API usando confGlobal
@@ -21,12 +22,15 @@ class ApiService {
     bool soloMujeres = false, // Nuevo parámetro para filtro de género
   }) async {
     try {
+      // Convertir fecha chilena (string formato "YYYY-MM-DD") a rango UTC para búsqueda en MongoDB
+      final rangoFechaUtc = DateUtils.fechaChileStringARangoUtcBusqueda(fechaViaje);
+      
       final queryParams = {
         'origenLat': origenLat.toString(),
         'origenLng': origenLng.toString(),
         'destinoLat': destinoLat.toString(),
         'destinoLng': destinoLng.toString(),
-        'fechaViaje': fechaViaje,
+        'fechaViaje': rangoFechaUtc, // Usar rango UTC en lugar de fecha chilena directa
         'pasajeros': pasajeros.toString(),
         'soloMujeres': soloMujeres.toString(), // Agregar parámetro al query
       };
