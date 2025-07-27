@@ -75,12 +75,20 @@ class BarraBusquedaWidget extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Distancia: ${sugerencias[index].distancia.toStringAsFixed(2)} km',
+                        'Distancia: ${sugerencias[index].distancia.toStringAsFixed(1)} km',
                         style: TextStyle(
                           color: Colors.grey[600],
                           fontSize: 12,
                         ),
                       ),
+                      if (sugerencias[index].tiempoEstimado > 0)
+                        Text(
+                          'Tiempo: ${_formatearTiempo(sugerencias[index].tiempoEstimado)}',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 12,
+                          ),
+                        ),
                       Text(
                         tipoSugerencia,
                         style: TextStyle(
@@ -98,5 +106,20 @@ class BarraBusquedaWidget extends StatelessWidget {
           ),
       ],
     );
+  }
+
+  /// Formatear tiempo en minutos a texto legible
+  String _formatearTiempo(int minutos) {
+    if (minutos < 60) {
+      return '$minutos min';
+    } else {
+      final horas = minutos ~/ 60;
+      final minutosRestantes = minutos % 60;
+      if (minutosRestantes == 0) {
+        return '${horas}h';
+      } else {
+        return '${horas}h ${minutosRestantes}min';
+      }
+    }
   }
 }

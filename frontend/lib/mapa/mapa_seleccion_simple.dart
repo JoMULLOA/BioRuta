@@ -71,15 +71,19 @@ class _MapaSeleccionPageState extends State<MapaSeleccionPage> {
       await controller.moveTo(miPosicion);
       await controller.setZoom(zoomLevel: zoomNivel);
       
-      // Si es origen, automáticamente seleccionar la ubicación actual
-      if (widget.esOrigen) {
-        _seleccionarUbicacionActual();
-      }
+      // Solo para búsqueda se puede seleccionar automáticamente la ubicación actual
+      // Para publicar viajes (origen), el usuario debe seleccionar una dirección específica
+      // if (widget.esOrigen) {
+      //   _seleccionarUbicacionActual();
+      // }
     } catch (e) {
       debugPrint("❌ Error al centrar en ubicación: $e");
     }
   }
 
+  // Función deshabilitada: No permitir "Mi ubicación actual" como origen al publicar viajes
+  // Para búsquedas sí se permite, pero para publicar viajes el usuario debe ser específico
+  /*
   Future<void> _seleccionarUbicacionActual() async {
     try {
       GeoPoint miPosicion = await controller.myLocation();
@@ -99,6 +103,7 @@ class _MapaSeleccionPageState extends State<MapaSeleccionPage> {
       debugPrint("❌ Error al obtener ubicación actual: $e");
     }
   }
+  */
 
   Future<void> _buscarSugerencias(String query) async {
     if (query.length < 3) {
@@ -120,11 +125,20 @@ class _MapaSeleccionPageState extends State<MapaSeleccionPage> {
       
       String regionActual = _regionActual;
 
-      final sugerenciasRegionales = await BusquedaService.buscarConRegion(query, regionActual);
+      // Pasar información sobre si es origen o destino para el cálculo de tiempo
+      final sugerenciasRegionales = await BusquedaService.buscarConRegion(
+        query, 
+        regionActual, 
+        esOrigen: widget.esOrigen
+      );
       todasLasSugerencias.addAll(sugerenciasRegionales);
 
       if (todasLasSugerencias.length < 5) {
-        final sugerenciasGenerales = await BusquedaService.buscarGeneral(query, 5 - todasLasSugerencias.length);
+        final sugerenciasGenerales = await BusquedaService.buscarGeneral(
+          query, 
+          5 - todasLasSugerencias.length,
+          esOrigen: widget.esOrigen
+        );
         
         for (var sugerencia in sugerenciasGenerales) {
           bool esDuplicado = todasLasSugerencias.any((existente) =>

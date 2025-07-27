@@ -122,11 +122,20 @@ class _MapaSeleccionPageState extends State<MapaSeleccionPage> {
       
       String regionActual = _regionActual;
 
-      final sugerenciasRegionales = await BusquedaService.buscarConRegion(query, regionActual);
+      // Pasar información sobre si es origen o destino para el cálculo de tiempo
+      final sugerenciasRegionales = await BusquedaService.buscarConRegion(
+        query, 
+        regionActual, 
+        esOrigen: widget.esOrigen
+      );
       todasLasSugerencias.addAll(sugerenciasRegionales);
 
       if (todasLasSugerencias.length < 5) {
-        final sugerenciasGenerales = await BusquedaService.buscarGeneral(query, 5 - todasLasSugerencias.length);
+        final sugerenciasGenerales = await BusquedaService.buscarGeneral(
+          query, 
+          5 - todasLasSugerencias.length,
+          esOrigen: widget.esOrigen
+        );
         
         for (var sugerencia in sugerenciasGenerales) {
           bool esDuplicado = todasLasSugerencias.any((existente) =>

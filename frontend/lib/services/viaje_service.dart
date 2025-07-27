@@ -27,8 +27,8 @@ class ViajeService {
     required double destinoLng,
   }) async {
     try {
-      // Calcular distancia del nuevo viaje
-      final distanciaKm = ViajeValidator.calcularDistancia(origenLat, origenLng, destinoLat, destinoLng);
+      // Calcular distancia del nuevo viaje por carretera (no línea recta)
+      final distanciaKm = ViajeValidator.calcularDistanciaCarretera(origenLat, origenLng, destinoLat, destinoLng);
       
       // Obtener viajes activos del usuario
       final viajesActivos = await _obtenerViajesActivosUsuario();

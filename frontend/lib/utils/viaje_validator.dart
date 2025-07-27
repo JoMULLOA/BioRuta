@@ -3,12 +3,50 @@ import 'dart:math';
 /// Utility class para validar viajes y calcular duraciones estimadas
 class ViajeValidator {
   
-  /// Calcular duración estimada del viaje basada en distancia
-  /// 1 hora cada 90 kilómetros
+  /// Calcular duración estimada del viaje basada en distancia por carretera y tipo de terreno
   static Duration calcularDuracionEstimada(double distanciaKm) {
-    // 1 hora por cada 90km
-    final horas = distanciaKm / 90.0;
+    // Velocidades promedio según tipo de ruta en Chile (más realista)
+    double velocidadPromedio;
+    
+    if (distanciaKm < 5) {
+      velocidadPromedio = 25; // Ciudad: 25 km/h (tráfico, semáforos)
+    } else if (distanciaKm < 15) {
+      velocidadPromedio = 35; // Urbano/suburbano: 35 km/h
+    } else if (distanciaKm < 50) {
+      velocidadPromedio = 60; // Regional: 60 km/h (carreteras secundarias)
+    } else if (distanciaKm < 200) {
+      velocidadPromedio = 80; // Interprovincial: 80 km/h (rutas principales)
+    } else {
+      velocidadPromedio = 90; // Larga distancia: 90 km/h (autopistas)
+    }
+    
+    // Tiempo = distancia / velocidad
+    final horas = distanciaKm / velocidadPromedio;
     return Duration(minutes: (horas * 60).round());
+  }
+
+  /// Calcular distancia por carretera usando factor de corrección (no línea recta)
+  /// Similar a calcularDistanciaKmConFactor del backend
+  static double calcularDistanciaCarretera(double lat1, double lon1, double lat2, double lon2) {
+    // Primero calcular distancia en línea recta usando Haversine
+    double distanciaLineal = calcularDistancia(lat1, lon1, lat2, lon2);
+    
+    // Factor de corrección según distancia (basado en estadísticas reales de Chile)
+    double factor = 1.2; // 20% más por defecto
+    
+    if (distanciaLineal < 5) {
+      factor = 1.6; // Ciudades: +60% (muchas vueltas)
+    } else if (distanciaLineal < 15) {
+      factor = 1.4; // Urbano: +40%
+    } else if (distanciaLineal < 50) {
+      factor = 1.3; // Regional: +30%
+    } else if (distanciaLineal < 200) {
+      factor = 1.2; // Interprovincial: +20%
+    } else {
+      factor = 1.15; // Larga distancia: +15% (autopistas más directas)
+    }
+    
+    return distanciaLineal * factor;
   }
 
   /// Calcular distancia entre dos puntos geográficos usando la fórmula de Haversine
@@ -67,26 +105,19 @@ class ViajeValidator {
   }) {
     final duracionNuevoViaje = calcularDuracionEstimada(distanciaKm);
     
-    print('🔍 Validando viaje para fecha: ${nuevaFecha.toString()}');
-    print('📊 Total viajes activos a verificar: ${viajesActivos.length}');
-    
     for (final viaje in viajesActivos) {
       // Convertir fecha UTC de MongoDB a hora chilena (UTC-4)
       final fechaUtc = DateTime.parse(viaje['fecha_ida']);
       final fechaViajeActivo = fechaUtc.subtract(const Duration(hours: 4));
-      
-      print('📅 Viaje activo - UTC: ${fechaUtc.toString()}, Chile: ${fechaViajeActivo.toString()}');
       
       final origenLat = viaje['origen']['ubicacion']['coordinates'][1];
       final origenLng = viaje['origen']['ubicacion']['coordinates'][0];
       final destinoLat = viaje['destino']['ubicacion']['coordinates'][1];
       final destinoLng = viaje['destino']['ubicacion']['coordinates'][0];
       
-      final distanciaViajeActivo = calcularDistancia(origenLat, origenLng, destinoLat, destinoLng);
+      // Usar distancia por carretera en lugar de línea recta
+      final distanciaViajeActivo = calcularDistanciaCarretera(origenLat, origenLng, destinoLat, destinoLng);
       final duracionViajeActivo = calcularDuracionEstimada(distanciaViajeActivo);
-      
-      print('⏱️ Duración viaje activo: ${formatearDuracion(duracionViajeActivo)}');
-      print('⏱️ Duración nuevo viaje: ${formatearDuracion(duracionNuevoViaje)}');
       
       if (viajesSeSolapan(
         inicioViaje1: nuevaFecha,
@@ -94,14 +125,10 @@ class ViajeValidator {
         inicioViaje2: fechaViajeActivo,
         duracionViaje2: duracionViajeActivo,
       )) {
-        print('❌ CONFLICTO DETECTADO: Los viajes se solapan');
         return false;
-      } else {
-        print('✅ Sin conflicto con este viaje activo');
       }
     }
     
-    print('✅ Validación completa: Se puede publicar el viaje');
     return true;
   }
 
@@ -123,7 +150,8 @@ class ViajeValidator {
       final destinoLat = viaje['destino']['ubicacion']['coordinates'][1];
       final destinoLng = viaje['destino']['ubicacion']['coordinates'][0];
       
-      final distanciaViajeActivo = calcularDistancia(origenLat, origenLng, destinoLat, destinoLng);
+      // Usar distancia por carretera para cálculo más preciso
+      final distanciaViajeActivo = calcularDistanciaCarretera(origenLat, origenLng, destinoLat, destinoLng);
       final duracionViajeActivo = calcularDuracionEstimada(distanciaViajeActivo);
       
       final finViajeActivo = fechaViajeActivo.add(duracionViajeActivo);
