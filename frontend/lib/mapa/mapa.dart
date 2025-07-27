@@ -18,6 +18,7 @@ import '../services/ruta_service.dart';
 import '../services/user_service.dart'; // Importar UserService
 import '../services/viaje_state_monitor.dart'; // Importar monitor de estados
 import 'mapa_widget.dart';
+import 'mapa_ui_components.dart'; // Importar componentes de UI
 import 'mapa_seleccion.dart';
 import '../buscar/resultados_busqueda.dart';
 
@@ -2095,56 +2096,13 @@ class _MapPageState extends State<MapPage> {
             onMapTap: _onMapTap,
           ),
 
-          // Barra superior de búsqueda
-          Positioned(
-            top: 50,
-            left: 16,
-            right: 16,
-            child: Container(
-              height: 50,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(25),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 10,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(25),
-                  onTap: _abrirBusquedaAvanzada,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.search,
-                          color: Color(0xFF854937),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            direccionDestino ?? '¿A dónde quieres ir?',
-                            style: TextStyle(
-                              color: direccionDestino != null 
-                                  ? Colors.black87 
-                                  : Colors.grey[600],
-                              fontSize: 16,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
+          // Barra superior de búsqueda usando MapaUIComponents
+          MapaUIComponents.buildBarraSuperiorUber(
+            regionActual: _regionActual,
+            destinoSeleccionado: direccionDestino,
+            origenSeleccionado: direccionOrigen,
+            onTap: _abrirBusquedaAvanzada,
+            mostrarBotonUber: true,
           ),
           
           // Indicador de carga de viajes
@@ -2413,39 +2371,16 @@ class _MapPageState extends State<MapPage> {
                 ),
               ),
             ),
-        ],
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-      floatingActionButton: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Botón de radar
-          FloatingActionButton(
-            heroTag: "radar",
+
+          // Botón de radar usando MapaUIComponents
+          MapaUIComponents.buildBotonRadar(
+            radarActivo: _radarActivo,
             onPressed: _toggleRadar,
-            tooltip: _radarActivo ? 'Desactivar radar' : 'Activar radar',
-            backgroundColor: _radarActivo ? Colors.red : const Color(0xFF854937),
-            foregroundColor: Colors.white,
-            child: _mostrandoAnimacionRadar 
-              ? const SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: CircularProgressIndicator(
-                    color: Colors.white,
-                    strokeWidth: 2.0,
-                  ),
-                )
-              : const Icon(Icons.radar),
           ),
-          const SizedBox(height: 12),
           
-          FloatingActionButton(
-            heroTag: "centerLocation",
+          // Botón de ubicación actual usando MapaUIComponents
+          MapaUIComponents.buildBotonUbicacionActual(
             onPressed: _centrarEnMiUbicacionConRegion,
-            tooltip: 'Centrar en mi ubicación',
-            backgroundColor: const Color(0xFF854937),
-            foregroundColor: Colors.white,
-            child: const Icon(Icons.my_location),
           ),
         ],
       ),
