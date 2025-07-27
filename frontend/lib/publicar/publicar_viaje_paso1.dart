@@ -23,12 +23,22 @@ class _PublicarViajePaso1State extends State<PublicarViajePaso1> {
   double? precioSugerido;
 
   Future<void> _seleccionarUbicacion(bool esOrigen) async {
+    // Obtener origen seleccionado para calcular tiempo correcto cuando es destino
+    DireccionSugerida? origenSeleccionado;
+    if (!esOrigen) {
+      // Es destino: buscar origen ya seleccionado
+      origenSeleccionado = ubicaciones.where((u) => u.esOrigen == true).isNotEmpty
+          ? ubicaciones.where((u) => u.esOrigen == true).first
+          : null;
+    }
+    
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => MapaSeleccionPage(
           tituloSeleccion: esOrigen ? "Seleccionar Origen" : "Seleccionar Destino",
           esOrigen: esOrigen,
+          origenSeleccionado: origenSeleccionado, // Pasar origen cuando es destino
         ),
       ),
     );

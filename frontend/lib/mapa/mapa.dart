@@ -566,6 +566,7 @@ class _MapPageState extends State<MapPage> {
         builder: (context) => const MapaSeleccionPage(
           tituloSeleccion: 'Seleccionar origen',
           esOrigen: true,
+          origenSeleccionado: null, // No hay origen previo cuando seleccionamos origen
         ),
       ),
     );
@@ -581,12 +582,24 @@ class _MapPageState extends State<MapPage> {
   }
 
   Future<void> _seleccionarDestino() async {
+    // Si ya tenemos origen, crear DireccionSugerida para pasar al destino
+    DireccionSugerida? origenSeleccionado;
+    if (direccionOrigen != null && origenLat != null && origenLng != null) {
+      origenSeleccionado = DireccionSugerida(
+        displayName: direccionOrigen!,
+        lat: origenLat!,
+        lon: origenLng!,
+        esOrigen: true,
+      );
+    }
+    
     final direccion = await Navigator.push<DireccionSugerida>(
       context,
       MaterialPageRoute(
-        builder: (context) => const MapaSeleccionPage(
+        builder: (context) => MapaSeleccionPage(
           tituloSeleccion: 'Seleccionar destino',
           esOrigen: false,
+          origenSeleccionado: origenSeleccionado,
         ),
       ),
     );

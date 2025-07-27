@@ -11,11 +11,13 @@ import '../buscar/barra_busqueda_widget.dart';
 class MapaSeleccionPage extends StatefulWidget {
   final String tituloSeleccion;
   final bool esOrigen;
+  final DireccionSugerida? origenSeleccionado; // Para calcular tiempo cuando es destino
 
   const MapaSeleccionPage({
     super.key,
     required this.tituloSeleccion,
     required this.esOrigen,
+    this.origenSeleccionado, // Opcional: solo se usa cuando esOrigen == false
   });
 
   @override
@@ -148,7 +150,17 @@ class _MapaSeleccionPageState extends State<MapaSeleccionPage> {
         }
       }      if (todasLasSugerencias.isNotEmpty) {
         GeoPoint ubicacionActual = await controller.myLocation();
-        BusquedaService.calcularDistancias(todasLasSugerencias, ubicacionActual);
+        
+        // Usar función apropiada según si tenemos origen seleccionado
+        if (widget.origenSeleccionado != null) {
+          BusquedaService.calcularDistanciasConOrigen(
+            todasLasSugerencias, 
+            ubicacionActual,
+            widget.origenSeleccionado
+          );
+        } else {
+          BusquedaService.calcularDistancias(todasLasSugerencias, ubicacionActual);
+        }
         
         final regionales = todasLasSugerencias.where((s) => s.esRegional).toList()
           ..sort((a, b) => a.distancia.compareTo(b.distancia));

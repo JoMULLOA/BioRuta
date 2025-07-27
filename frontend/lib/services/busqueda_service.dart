@@ -136,6 +136,43 @@ class BusquedaService {
     }
   }
 
+  // Calcular distancias y tiempo para destino con origen específico
+  static void calcularDistanciasConOrigen(
+    List<DireccionSugerida> sugerencias, 
+    GeoPoint ubicacionUsuario,
+    DireccionSugerida? origenSeleccionado
+  ) {
+    if (sugerencias.isEmpty) return;
+    
+    for (var sugerencia in sugerencias) {
+      // Para destino: calcular distancia desde ubicación actual (para mostrar qué tan lejos está)
+      double distanciaDesdeUsuario = _calcularDistanciaConFactor(
+        ubicacionUsuario.latitude,
+        ubicacionUsuario.longitude,
+        sugerencia.lat,
+        sugerencia.lon,
+      );
+      
+      sugerencia.distancia = distanciaDesdeUsuario;
+      
+      // Solo calcular tiempo estimado si NO es para seleccionar origen Y tenemos origen
+      if (sugerencia.esOrigen == false && origenSeleccionado != null) {
+        // Es destino: calcular tiempo estimado de la ruta origen→destino
+        double distanciaRuta = _calcularDistanciaConFactor(
+          origenSeleccionado.lat,
+          origenSeleccionado.lon,
+          sugerencia.lat,
+          sugerencia.lon,
+        );
+        int tiempoMinutos = _calcularTiempoEstimado(distanciaRuta);
+        sugerencia.tiempoEstimado = tiempoMinutos;
+      } else {
+        // Es origen o no hay origen seleccionado: no calcular tiempo
+        sugerencia.tiempoEstimado = 0;
+      }
+    }
+  }
+
   /// Calcular distancia por carretera usando factor de corrección sobre Haversine
   /// Similar a calcularDistanciaKmConFactor del backend
   static double _calcularDistanciaConFactor(double lat1, double lon1, double lat2, double lon2) {
@@ -162,19 +199,21 @@ class BusquedaService {
 
   /// Calcular tiempo estimado de viaje en minutos
   static int _calcularTiempoEstimado(double distanciaKm) {
-    // Velocidades promedio según tipo de ruta en Chile
+    // Velocidades promedio más realistas según tipo de ruta en Chile
     double velocidadPromedio;
     
-    if (distanciaKm < 5) {
-      velocidadPromedio = 25; // Ciudad: 25 km/h (tráfico, semáforos)
-    } else if (distanciaKm < 15) {
-      velocidadPromedio = 35; // Urbano/suburbano: 35 km/h
+    if (distanciaKm < 3) {
+      velocidadPromedio = 15; // Centro ciudad: 15 km/h (muy congestionado)
+    } else if (distanciaKm < 8) {
+      velocidadPromedio = 20; // Ciudad: 20 km/h (tráfico, semáforos)
+    } else if (distanciaKm < 20) {
+      velocidadPromedio = 30; // Urbano/suburbano: 30 km/h
     } else if (distanciaKm < 50) {
-      velocidadPromedio = 60; // Regional: 60 km/h (carreteras secundarias)
-    } else if (distanciaKm < 200) {
-      velocidadPromedio = 80; // Interprovincial: 80 km/h (rutas principales)
+      velocidadPromedio = 55; // Regional: 55 km/h (carreteras secundarias)
+    } else if (distanciaKm < 150) {
+      velocidadPromedio = 75; // Interprovincial: 75 km/h (rutas principales)
     } else {
-      velocidadPromedio = 90; // Larga distancia: 90 km/h (autopistas)
+      velocidadPromedio = 85; // Larga distancia: 85 km/h (autopistas)
     }
     
     // Tiempo = distancia / velocidad, convertido a minutos

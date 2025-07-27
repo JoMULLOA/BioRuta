@@ -5,19 +5,21 @@ class ViajeValidator {
   
   /// Calcular duración estimada del viaje basada en distancia por carretera y tipo de terreno
   static Duration calcularDuracionEstimada(double distanciaKm) {
-    // Velocidades promedio según tipo de ruta en Chile (más realista)
+    // Velocidades promedio más realistas según tipo de ruta en Chile
     double velocidadPromedio;
     
-    if (distanciaKm < 5) {
-      velocidadPromedio = 25; // Ciudad: 25 km/h (tráfico, semáforos)
-    } else if (distanciaKm < 15) {
-      velocidadPromedio = 35; // Urbano/suburbano: 35 km/h
+    if (distanciaKm < 3) {
+      velocidadPromedio = 15; // Centro ciudad: 15 km/h (muy congestionado)
+    } else if (distanciaKm < 8) {
+      velocidadPromedio = 20; // Ciudad: 20 km/h (tráfico, semáforos)
+    } else if (distanciaKm < 20) {
+      velocidadPromedio = 30; // Urbano/suburbano: 30 km/h
     } else if (distanciaKm < 50) {
-      velocidadPromedio = 60; // Regional: 60 km/h (carreteras secundarias)
-    } else if (distanciaKm < 200) {
-      velocidadPromedio = 80; // Interprovincial: 80 km/h (rutas principales)
+      velocidadPromedio = 55; // Regional: 55 km/h (carreteras secundarias)
+    } else if (distanciaKm < 150) {
+      velocidadPromedio = 75; // Interprovincial: 75 km/h (rutas principales)
     } else {
-      velocidadPromedio = 90; // Larga distancia: 90 km/h (autopistas)
+      velocidadPromedio = 85; // Larga distancia: 85 km/h (autopistas)
     }
     
     // Tiempo = distancia / velocidad
