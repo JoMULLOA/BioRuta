@@ -3,6 +3,7 @@ import 'dart:async';
 import '../models/chat_grupal_models.dart';
 import '../services/chat_grupal_service.dart';
 import '../services/socket_service.dart';
+import '../services/websocket_notification_service.dart';
 import '../widgets/mensaje_grupal_widget.dart';
 import '../widgets/participantes_header_widget.dart';
 import '../widgets/reportar_usuario_dialog.dart';
@@ -63,8 +64,10 @@ class ChatGrupalScreenState extends State<ChatGrupalScreen> {
   @override
   void initState() {
     super.initState();
+    print('[CHAT-GRUPAL] 🚀 INICIANDO CHAT GRUPAL - initState()');
     print('🚗🔄 Inicializando chat grupal para viaje: ${widget.idViaje}');
     _initializarDatos();
+    print('[CHAT-GRUPAL] 🚀 CHAT GRUPAL INICIADO COMPLETAMENTE');
   }
 
   Future<void> _initializarDatos() async {
@@ -163,6 +166,26 @@ class ChatGrupalScreenState extends State<ChatGrupalScreen> {
           setState(() {
             mensajes.add(mensajeEnriquecido);
           });
+          
+          // Mostrar notificación solo si el mensaje lo envió otro usuario
+          if (mensajeEnriquecido.emisorRut != userRut) {
+            print('[CHAT-GRUPAL] 🔍 VERIFICANDO CONDICIONES DE NOTIFICACIÓN GRUPAL:');
+            print('[CHAT-GRUPAL] 📧 Emisor del mensaje: ${mensajeEnriquecido.emisorRut}');
+            print('[CHAT-GRUPAL] 👤 Usuario autenticado: $userRut');
+            print('[CHAT-GRUPAL] ✅ CONDICIONES CUMPLIDAS - Mensaje recibido de otro usuario, mostrando notificación...');
+            final groupName = widget.nombreViaje ?? 'Chat Grupal';
+            WebSocketNotificationService.showLocalNotification(
+              title: '👥 $groupName',
+              body: '${mensajeEnriquecido.emisorNombre}: ${mensajeEnriquecido.contenido}',
+              payload: 'chat_grupal_${widget.idViaje}',
+            );
+          } else {
+            print('[CHAT-GRUPAL] ❌ NO MOSTRAR NOTIFICACIÓN GRUPAL:');
+            print('[CHAT-GRUPAL] 📧 Emisor del mensaje: ${mensajeEnriquecido.emisorRut}');
+            print('[CHAT-GRUPAL] 👤 Usuario autenticado: $userRut');
+            print('[CHAT-GRUPAL] 📝 Es mi propio mensaje');
+          }
+          
           _scrollToBottom();
         }
       } catch (e) {
@@ -175,6 +198,18 @@ class ChatGrupalScreenState extends State<ChatGrupalScreen> {
           setState(() {
             mensajes.add(mensaje);
           });
+          
+          // Mostrar notificación también en el fallback si no es del usuario actual
+          if (mensaje.emisorRut != userRut) {
+            print('[CHAT-GRUPAL] Mensaje fallback recibido de otro usuario, mostrando notificación...');
+            final groupName = widget.nombreViaje ?? 'Chat Grupal';
+            WebSocketNotificationService.showLocalNotification(
+              title: '👥 $groupName',
+              body: '${mensaje.emisorNombre}: ${mensaje.contenido}',
+              payload: 'chat_grupal_${widget.idViaje}',
+            );
+          }
+          
           _scrollToBottom();
         }
       }
@@ -546,6 +581,24 @@ class ChatGrupalScreenState extends State<ChatGrupalScreen> {
         ),
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
+          // Botón de prueba de notificaciones grupales
+          IconButton(
+            icon: Icon(Icons.notifications_active, color: Colors.amber),
+            onPressed: () async {
+              print('[CHAT-GRUPAL] 🧪 PRUEBA DE NOTIFICACIÓN GRUPAL INICIADA');
+              WebSocketNotificationService.showLocalNotification(
+                title: '👥 ${widget.nombreViaje ?? 'Chat Grupal'}',
+                body: 'Usuario de Prueba: Esta es una notificación grupal de prueba',
+                payload: 'test_chat_grupal_${widget.idViaje}',
+              );
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Notificación grupal de prueba enviada usando el servicio existente'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            },
+          ),
           // Botón para ver participantes y reportar
           IconButton(
             icon: Icon(Icons.people, color: Colors.white),

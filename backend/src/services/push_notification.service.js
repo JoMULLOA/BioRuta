@@ -209,6 +209,51 @@ class WebSocketNotificationService {
   }
 
   /**
+   * Enviar notificación de mensaje de chat individual
+   */
+  static async enviarNotificacionChatIndividual(io, rutReceptor, nombreEmisor, rutEmisor, mensaje) {
+    const mensajeCorto = mensaje.length > 50 ? mensaje.substring(0, 50) + '...' : mensaje;
+    
+    return await this.enviarNotificacionAUsuario(
+      io,
+      rutReceptor,
+      `💬 ${nombreEmisor}`,
+      mensajeCorto,
+      {
+        tipo: 'chat_individual',
+        rutEmisor: rutEmisor,
+        nombreEmisor: nombreEmisor,
+        mensaje: mensaje,
+        chatId: `${rutEmisor}_${rutReceptor}`,
+        accion: 'abrir_chat_individual'
+      }
+    );
+  }
+
+  /**
+   * Enviar notificación de mensaje de chat grupal
+   */
+  static async enviarNotificacionChatGrupal(io, rutReceptor, nombreEmisor, rutEmisor, mensaje, grupoId, nombreGrupo) {
+    const mensajeCorto = mensaje.length > 50 ? mensaje.substring(0, 50) + '...' : mensaje;
+    
+    return await this.enviarNotificacionAUsuario(
+      io,
+      rutReceptor,
+      `👥 ${nombreGrupo}`,
+      `${nombreEmisor}: ${mensajeCorto}`,
+      {
+        tipo: 'chat_grupal',
+        rutEmisor: rutEmisor,
+        nombreEmisor: nombreEmisor,
+        mensaje: mensaje,
+        grupoId: grupoId,
+        nombreGrupo: nombreGrupo,
+        accion: 'abrir_chat_grupal'
+      }
+    );
+  }
+
+  /**
    * Enviar notificación a múltiples usuarios por WebSocket
    */
   static async enviarNotificacionMasiva(io, rutUsuarios, titulo, mensaje, datos = {}) {

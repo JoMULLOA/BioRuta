@@ -6,6 +6,7 @@ import 'dart:convert';
 import 'dart:async';
 import '../config/confGlobal.dart';
 import '../services/socket_service.dart';
+import '../services/websocket_notification_service.dart';
 import '../utils/date_utils.dart' as date_utils;
 import '../widgets/reportar_usuario_dialog.dart';
 import '../models/reporte_model.dart';
@@ -65,7 +66,7 @@ class PaginaIndividualWebSocket extends StatefulWidget {
 }
 
 class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
-  // ...existing code...
+
 
   void _copyMessageToClipboard(String text) {
     Clipboard.setData(ClipboardData(text: text));
@@ -76,6 +77,7 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
       ),
     );
   }
+
   final TextEditingController _messageController = TextEditingController();
   final List<Message> _messages = [];
   final ScrollController _scrollController = ScrollController();
@@ -98,8 +100,10 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
   @override
   void initState() {
     super.initState();
+    print('[CHAT] 🚀 INICIANDO CHAT INDIVIDUAL - initState()');
     _socketService = SocketService.instance;
     _initializarDatos();
+    print('[CHAT] 🚀 CHAT INDIVIDUAL INICIADO COMPLETAMENTE');
   }
 
   @override
@@ -282,6 +286,31 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
                m.timestamp.difference(nuevoMensaje.timestamp).abs().inSeconds < 2))) {
             _messages.add(nuevoMensaje);
             _messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+            
+            // Mostrar notificación solo si el mensaje lo envió el otro usuario
+            if (nuevoMensaje.senderRut != _rutUsuarioAutenticadoReal && !nuevoMensaje.isDeleted) {
+              print('[CHAT] 🔍 VERIFICANDO CONDICIONES DE NOTIFICACIÓN:');
+              print('[CHAT] 📧 Emisor del mensaje: ${nuevoMensaje.senderRut}');
+              print('[CHAT] 👤 Usuario autenticado: $_rutUsuarioAutenticadoReal');
+              print('[CHAT] ❌ Mensaje eliminado: ${nuevoMensaje.isDeleted}');
+              print('[CHAT] ✅ CONDICIONES CUMPLIDAS - Mensaje recibido de otro usuario, mostrando notificación...');
+              
+              // 🔔 LLAMADA AL SERVICIO DE NOTIFICACIONES
+              print('[CHAT] 🔔 ENVIANDO NOTIFICACIÓN AL SERVICIO...');
+              WebSocketNotificationService.showLocalNotification(
+                title: '💬 ${widget.nombre}',
+                body: nuevoMensaje.text,
+                payload: 'chat_individual_${widget.rutAmigo}',
+              );
+              print('[CHAT] 🔔 NOTIFICACIÓN ENVIADA AL SERVICIO EXITOSAMENTE');
+            } else {
+              print('[CHAT] ❌ NO MOSTRAR NOTIFICACIÓN:');
+              print('[CHAT] 📧 Emisor del mensaje: ${nuevoMensaje.senderRut}');
+              print('[CHAT] 👤 Usuario autenticado: $_rutUsuarioAutenticadoReal');
+              print('[CHAT] 🗑️ Mensaje eliminado: ${nuevoMensaje.isDeleted}');
+              print('[CHAT] 📝 Es mi propio mensaje o mensaje eliminado');
+              print('[CHAT] ⚠️  USUARIOS IGUALES = ${nuevoMensaje.senderRut == _rutUsuarioAutenticadoReal}');
+            }
           }
         });
         
@@ -651,6 +680,24 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
           ],
         ),
         actions: [
+          // Botón de prueba de notificaciones
+          IconButton(
+            icon: const Icon(Icons.notifications_active, color: Colors.amber),
+            onPressed: () async {
+              print('[CHAT] 🧪 PRUEBA DE NOTIFICACIÓN INICIADA');
+              WebSocketNotificationService.showLocalNotification(
+                title: '🧪 Usuario de Prueba',
+                body: 'Esta es una notificación de prueba del chat individual',
+                payload: 'test_chat_individual',
+              );
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Notificación de prueba enviada usando el servicio existente'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.search, color: Colors.white),
             onPressed: () {
