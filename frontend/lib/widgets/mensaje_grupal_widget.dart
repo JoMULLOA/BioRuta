@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/chat_grupal_models.dart';
 import '../services/chat_grupal_service.dart';
+import 'location_message_widget.dart';
 
 class MensajeGrupalWidget extends StatefulWidget {
   final MensajeGrupal mensaje;
@@ -105,6 +106,22 @@ class MensajeGrupalWidgetState extends State<MensajeGrupalWidget> {
 
   @override
   Widget build(BuildContext context) {
+    print('🔧 Renderizando mensaje: tipo=${widget.mensaje.tipo}, locationData=${widget.mensaje.locationData}');
+    
+    // Si es un mensaje de ubicación, usar el widget especializado
+    if (widget.mensaje.tipo == 'location' && widget.mensaje.locationData != null) {
+      print('✅ Usando LocationMessageWidget');
+      return LocationMessageWidget(
+        latitude: widget.mensaje.locationData!['latitude'],
+        longitude: widget.mensaje.locationData!['longitude'],
+        senderName: widget.isOwn ? 'Tú' : widget.mensaje.emisorNombre,
+        timestamp: widget.mensaje.fecha,
+        isOwnMessage: widget.isOwn,
+      );
+    }
+
+    print('📝 Usando mensaje de texto normal');
+    // Mensaje de texto normal
     // Obtener colores del participante
     final colorParticipante = Color(
       ChatGrupalService.obtenerColorParticipante(widget.mensaje.emisorRut),

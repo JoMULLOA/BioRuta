@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'dart:convert';
 import '../models/chat_grupal_models.dart';
 import '../services/chat_grupal_service.dart';
 import '../services/socket_service.dart';
 import '../services/websocket_notification_service.dart';
+import '../services/location_service.dart';
 import '../widgets/mensaje_grupal_widget.dart';
 import '../widgets/participantes_header_widget.dart';
 import '../widgets/reportar_usuario_dialog.dart';
+import '../widgets/location_message_widget.dart';
 import '../models/reporte_model.dart';
 
 class ChatGrupalScreen extends StatefulWidget {
@@ -516,6 +519,67 @@ class ChatGrupalScreenState extends State<ChatGrupalScreen> {
     }
   }
 
+  /// Enviar ubicación actual al chat grupal
+  Future<void> _sendLocation() async {
+    // Mostrar diálogo de carga
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const AlertDialog(
+        content: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 16),
+            Text('Obteniendo ubicación...'),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      // Obtener ubicación actual
+      final locationData = await LocationService.getCurrentLocation();
+      
+      // Cerrar diálogo de carga
+      Navigator.of(context).pop();
+      
+      if (locationData == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se pudo obtener la ubicación. Verifica los permisos.')),
+        );
+        return;
+      }
+
+      // Crear mensaje de ubicación
+      final locationMessage = {
+        'type': 'location',
+        'latitude': locationData['latitude'],
+        'longitude': locationData['longitude'],
+        'accuracy': locationData['accuracy'],
+        'timestamp': locationData['timestamp'],
+      };
+
+      // Enviar mensaje de ubicación via servicio de chat grupal
+      print('🚗📍 Enviando ubicación: ${locationData['latitude']}, ${locationData['longitude']}');
+      ChatGrupalService.enviarMensajeGrupal(
+        widget.idViaje, 
+        json.encode(locationMessage),
+      );
+      
+    } catch (e) {
+      // Cerrar diálogo si aún está abierto
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+      
+      print('❌ Error enviando ubicación al chat grupal: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al enviar ubicación: $e')),
+      );
+    }
+  }
+
   void _editMessage(MensajeGrupal mensaje, String nuevoContenido) {
     ChatGrupalService.editarMensajeGrupal(
       widget.idViaje,
@@ -718,6 +782,22 @@ class ChatGrupalScreenState extends State<ChatGrupalScreen> {
                       ),
                       child: Row(
                         children: [
+                          // Botón de ubicación
+                          Container(
+                            decoration: BoxDecoration(
+                              color: principal.withOpacity(0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: IconButton(
+                              onPressed: _sendLocation,
+                              icon: Icon(
+                                Icons.location_on,
+                                color: principal,
+                              ),
+                              tooltip: 'Compartir ubicación',
+                            ),
+                          ),
+                          const SizedBox(width: 8),
                           Expanded(
                             child: Container(
                               decoration: BoxDecoration(
