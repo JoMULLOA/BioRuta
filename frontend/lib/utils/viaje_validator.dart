@@ -1,4 +1,5 @@
 import 'dart:math';
+import '../services/viaje_service.dart';
 
 /// Utility class para validar viajes y calcular duraciones estimadas
 class ViajeValidator {
@@ -25,6 +26,149 @@ class ViajeValidator {
     // Tiempo = distancia / velocidad
     final horas = distanciaKm / velocidadPromedio;
     return Duration(minutes: (horas * 60).round());
+  }
+
+  /// Formatear duración para mostrar al usuario
+  static String formatearDuracion(Duration duracion) {
+    if (duracion.inHours > 0) {
+      final horas = duracion.inHours;
+      final minutos = duracion.inMinutes % 60;
+      if (minutos > 0) {
+        return '${horas}h ${minutos}m';
+      } else {
+        return '${horas}h';
+      }
+    } else {
+      return '${duracion.inMinutes}m';
+    }
+  }
+
+  /// Validar viaje considerando tiempos de traslado inteligentes
+  static Future<Map<String, dynamic>> validarViajeConTiempo({
+    required DateTime fechaHoraIda,
+    DateTime? fechaHoraVuelta,
+    required double origenLat,
+    required double origenLng,
+    required double destinoLat,
+    required double destinoLng,
+    List<Map<String, dynamic>>? viajesActivos,
+  }) async {
+    
+    // Obtener viajes activos si no se proporcionan
+    viajesActivos ??= await ViajeService.obtenerViajesActivosUsuario();
+    
+    if (viajesActivos.isEmpty) {
+      return {
+        'success': true,
+        'message': 'No hay conflictos con otros viajes',
+      };
+    }
+    
+    // Calcular duración del nuevo viaje
+    final distanciaNuevoViaje = calcularDistanciaCarretera(origenLat, origenLng, destinoLat, destinoLng);
+    final duracionNuevoViaje = calcularDuracionEstimada(distanciaNuevoViaje);
+    final finNuevoViaje = fechaHoraIda.add(duracionNuevoViaje);
+    
+    for (final viajeExistente in viajesActivos) {
+      try {
+        // Convertir fecha UTC a hora chilena
+        final fechaUtc = DateTime.parse(viajeExistente['fecha_ida']);
+        final fechaViajeExistente = fechaUtc.subtract(const Duration(hours: 4));
+        
+        final origenExistenteLat = viajeExistente['origen']['ubicacion']['coordinates'][1];
+        final origenExistenteLng = viajeExistente['origen']['ubicacion']['coordinates'][0];
+        final destinoExistenteLat = viajeExistente['destino']['ubicacion']['coordinates'][1];
+        final destinoExistenteLng = viajeExistente['destino']['ubicacion']['coordinates'][0];
+        
+        // Calcular duración del viaje existente
+        final distanciaExistente = calcularDistanciaCarretera(
+          origenExistenteLat, origenExistenteLng, 
+          destinoExistenteLat, destinoExistenteLng
+        );
+        final duracionExistente = calcularDuracionEstimada(distanciaExistente);
+        final finViajeExistente = fechaViajeExistente.add(duracionExistente);
+        
+        // Verificar solapamiento temporal
+        final haySolapamiento = (fechaHoraIda.isBefore(finViajeExistente)) && 
+                               (finNuevoViaje.isAfter(fechaViajeExistente));
+        
+        if (haySolapamiento) {
+          return {
+            'success': false,
+            'message': 'Los viajes se solapan en el tiempo. No puedes estar en dos lugares a la vez.',
+            'tipoConflicto': 'solapamiento_temporal',
+            'viajeConflicto': viajeExistente,
+          };
+        }
+        
+        // Verificar tiempo de traslado
+        String? mensajeTraslado;
+        
+        // Caso A: Nuevo viaje DESPUÉS del existente
+        if (fechaHoraIda.isAfter(finViajeExistente)) {
+          final distanciaTraslado = calcularDistanciaCarretera(
+            destinoExistenteLat, destinoExistenteLng,
+            origenLat, origenLng
+          );
+          final tiempoTraslado = calcularDuracionEstimada(distanciaTraslado);
+          const tiempoBuffer = Duration(minutes: 10); // Buffer de 10 minutos
+          final tiempoTotalNecesario = Duration(
+            minutes: tiempoTraslado.inMinutes + tiempoBuffer.inMinutes
+          );
+          
+          final tiempoDisponible = fechaHoraIda.difference(finViajeExistente);
+          
+          if (tiempoDisponible < tiempoTotalNecesario) {
+            final destinoNombre = viajeExistente['destino']['nombre'] ?? 'Destino anterior';
+            
+            mensajeTraslado = 'No hay tiempo suficiente para trasladarse desde $destinoNombre '
+                             'al nuevo punto de origen. Necesitas ${formatearDuracion(tiempoTotalNecesario)} '
+                             'pero solo tienes ${formatearDuracion(tiempoDisponible)} disponibles.';
+          }
+        }
+        
+        // Caso B: Nuevo viaje ANTES del existente  
+        if (finNuevoViaje.isBefore(fechaViajeExistente)) {
+          final distanciaTraslado = calcularDistanciaCarretera(
+            destinoLat, destinoLng,
+            origenExistenteLat, origenExistenteLng
+          );
+          final tiempoTraslado = calcularDuracionEstimada(distanciaTraslado);
+          const tiempoBuffer = Duration(minutes: 10); // Buffer de 10 minutos
+          final tiempoTotalNecesario = Duration(
+            minutes: tiempoTraslado.inMinutes + tiempoBuffer.inMinutes
+          );
+          
+          final tiempoDisponible = fechaViajeExistente.difference(finNuevoViaje);
+          
+          if (tiempoDisponible < tiempoTotalNecesario) {
+            final origenSiguiente = viajeExistente['origen']['nombre'] ?? 'Próximo origen';
+            
+            mensajeTraslado = 'No hay tiempo suficiente para trasladarse al punto de origen '
+                             'del viaje siguiente ($origenSiguiente). Necesitas ${formatearDuracion(tiempoTotalNecesario)} '
+                             'pero solo tienes ${formatearDuracion(tiempoDisponible)} disponibles.';
+          }
+        }
+        
+        if (mensajeTraslado != null) {
+          return {
+            'success': false,
+            'message': mensajeTraslado,
+            'tipoConflicto': 'tiempo_traslado_insuficiente',
+            'viajeConflicto': viajeExistente,
+          };
+        }
+        
+      } catch (e) {
+        print('Error procesando viaje existente: $e');
+        continue;
+      }
+    }
+    
+    return {
+      'success': true,
+      'message': 'No hay conflictos de tiempo con otros viajes',
+    };
   }
 
   /// Calcular distancia por carretera usando factor de corrección (no línea recta)
@@ -164,19 +308,5 @@ class ViajeValidator {
     }
     
     return proximoTiempo;
-  }
-
-  /// Formatear duración en texto legible
-  static String formatearDuracion(Duration duracion) {
-    final horas = duracion.inHours;
-    final minutos = duracion.inMinutes % 60;
-    
-    if (horas == 0) {
-      return '$minutos minutos';
-    } else if (minutos == 0) {
-      return '$horas ${horas == 1 ? 'hora' : 'horas'}';
-    } else {
-      return '$horas ${horas == 1 ? 'hora' : 'horas'} y $minutos minutos';
-    }
   }
 }

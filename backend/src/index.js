@@ -22,6 +22,7 @@ import { cookieKey, HOST, PORT } from "./config/configEnv.js";
 import { connectDB } from "./config/configDb.js";
 import { createInitialData } from "./config/initialSetup.js";
 import { passportJwtSetup } from "./auth/passport.auth.js";
+import ViajeMonitoringService from "./services/viaje.monitoring.service.js";
 
 
 
@@ -84,15 +85,13 @@ async function setupServer() {
       console.log(`🌐 Accesible desde emulador Android en 10.0.2.2:${PORT}/api`);
       console.log(`🔌 Socket.IO disponible en ${HOST}:${PORT}/socket.io/`);
       
+      // Iniciar el monitoreo automático de viajes
+      ViajeMonitoringService.start();
     });
   } catch (error) {
     console.error("Error en index.js -> setupServer():", error);
   }
 }
-
-cron.schedule("* * * * *", async () => {
-});
-
 
 async function setupAPI() {
   try {
