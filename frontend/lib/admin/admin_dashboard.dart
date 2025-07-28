@@ -94,7 +94,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
           setState(() {
             _selectedIndex = index;
           });
-        },
+        }, // Ensure this closing brace matches the function or widget it belongs to
       ),
     );
   }
@@ -207,7 +207,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                             setState(() {
                               _selectedIndex = 1; // Navegar a estadísticas
                             });
-                          },
+                          }, // Ensure this closing brace matches the function or widget it belongs to
                         ),
                         const SizedBox(height: 12),
                         _buildActionButton(
@@ -1981,9 +1981,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
             ),
           ],
         ),
-      ),
-    );
-      },
+    ),
+      );
+    },
     );
   }
 
@@ -2204,6 +2204,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
   }
 
   void _mostrarReportesUsuario(Usuario usuario) {
+    // Variable para manejar el filtro seleccionado
+    String filtroEstadoSeleccionado = '';
+
     showDialog(
       context: context,
       builder: (context) => Dialog(
@@ -2211,163 +2214,243 @@ class _AdminDashboardState extends State<AdminDashboard> {
           width: MediaQuery.of(context).size.width * 0.9,
           height: MediaQuery.of(context).size.height * 0.8,
           padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header
-              Row(
+          child: StatefulBuilder(
+            builder: (context, setDialogState) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(
-                    Icons.report,
-                    color: Colors.red[600],
-                    size: 24,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Reportes de ${usuario.nombreCompleto}',
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF6B3B2D),
+                  // Header
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.report,
+                        color: Colors.red[600],
+                        size: 24,
                       ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Reportes de ${usuario.nombreCompleto}',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF6B3B2D),
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: const Icon(Icons.close),
+                      ),
+                    ],
+                  ),
+                  const Divider(),
+                  
+                  // Filtros de estado
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[50],
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey[200]!),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.filter_list,
+                          size: 16,
+                          color: Colors.grey[600],
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Filtrar por estado:',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            value: filtroEstadoSeleccionado.isEmpty ? null : filtroEstadoSeleccionado,
+                            hint: const Text('Todos los estados'),
+                            decoration: const InputDecoration(
+                              isDense: true,
+                              contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                              border: OutlineInputBorder(),
+                            ),
+                            isExpanded: true, // Prevent overflow
+                            onChanged: (String? newValue) {
+                              setDialogState(() {
+                                filtroEstadoSeleccionado = newValue ?? '';
+                              });
+                            },
+                            items: const [
+                              DropdownMenuItem(
+                                value: '',
+                                child: Text('Todos los estados'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'pendiente',
+                                child: Text('Pendientes'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'aceptado',
+                                child: Text('Aceptados'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'rechazado',
+                                child: Text('Rechazados'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  IconButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.close),
+                  
+                  const SizedBox(height: 8),
+              
+                  // Lista de reportes
+                  Expanded(
+                    child: FutureBuilder<Map<String, dynamic>>(
+                      future: ReporteService.obtenerReportesUsuario(rutUsuario: usuario.rut),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState == ConnectionState.waiting) {
+                          return const Center(
+                            child: CircularProgressIndicator(),
+                          );
+                        }
+                        
+                        if (snapshot.hasError) {
+                          return Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.error_outline,
+                                  size: 48,
+                                  color: Colors.grey[400],
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'Error al cargar reportes',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: Colors.grey[600],
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  snapshot.error.toString(),
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: Colors.grey[500],
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }
+                        
+                        final data = snapshot.data ?? {};
+                        final success = data['success'] ?? false;
+                        
+                        if (!success) {
+                          return Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.error_outline,
+                                  size: 48,
+                                  color: Colors.grey[400],
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'Error al cargar reportes',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: Colors.grey[600],
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  data['message'] ?? 'Error desconocido',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: Colors.grey[500],
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }
+                        
+                        final reportes = data['reportes'] as List<Reporte>? ?? [];
+                        
+                        // Aplicar filtro de estado
+                        final reportesFiltrados = filtroEstadoSeleccionado.isEmpty 
+                            ? reportes 
+                            : reportes.where((reporte) => 
+                                reporte.estado.toString().split('.').last == filtroEstadoSeleccionado
+                              ).toList();
+                        
+                        if (reportesFiltrados.isEmpty) {
+                          String mensajeVacio = filtroEstadoSeleccionado.isEmpty
+                              ? 'Este usuario no tiene reportes registrados'
+                              : 'No hay reportes con el estado seleccionado';
+                          
+                          return Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  filtroEstadoSeleccionado.isEmpty 
+                                      ? Icons.check_circle_outline 
+                                      : Icons.filter_list_off,
+                                  size: 48,
+                                  color: filtroEstadoSeleccionado.isEmpty 
+                                      ? Colors.green[400] 
+                                      : Colors.grey[400],
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  filtroEstadoSeleccionado.isEmpty ? 'Sin reportes' : 'Sin resultados',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  mensajeVacio,
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }
+                        
+                        return ListView.builder(
+                          itemCount: reportesFiltrados.length,
+                          itemBuilder: (context, index) {
+                            final reporte = reportesFiltrados[index];
+                            return _buildReporteCard(reporte);
+                          },
+                        );
+                      },
+                    ),
                   ),
                 ],
-              ),
-              const Divider(),
-              const SizedBox(height: 8),
-              
-              // Lista de reportes
-              Expanded(
-                child: FutureBuilder<Map<String, dynamic>>(
-                  future: ReporteService.obtenerReportesUsuario(rutUsuario: usuario.rut),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(
-                        child: CircularProgressIndicator(),
-                      );
-                    }
-                    
-                    if (snapshot.hasError) {
-                      return Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.error_outline,
-                              size: 48,
-                              color: Colors.grey[400],
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'Error al cargar reportes',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: Colors.grey[600],
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              snapshot.error.toString(),
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: Colors.grey[500],
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-                    
-                    final data = snapshot.data ?? {};
-                    final success = data['success'] ?? false;
-                    
-                    if (!success) {
-                      return Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.error_outline,
-                              size: 48,
-                              color: Colors.grey[400],
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'Error al cargar reportes',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: Colors.grey[600],
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              data['message'] ?? 'Error desconocido',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: Colors.grey[500],
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-                    
-                    final reportes = data['reportes'] as List<Reporte>? ?? [];
-                    
-                    if (reportes.isEmpty) {
-                      return Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.check_circle_outline,
-                              size: 48,
-                              color: Colors.green[400],
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'Sin reportes',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: Colors.grey[600],
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Este usuario no tiene reportes registrados',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: Colors.grey[500],
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-                    
-                    return ListView.builder(
-                      itemCount: reportes.length,
-                      itemBuilder: (context, index) {
-                        final reporte = reportes[index];
-                        return _buildReporteCard(reporte);
-                      },
-                    );
-                  },
-                ),
-              ),
-            ],
+              );
+            },
           ),
         ),
       ));
@@ -2674,5 +2757,19 @@ class _AdminDashboardState extends State<AdminDashboard> {
     }
     
     return '$formateado-$digito';
+  }
+
+  // Función para obtener el ícono del estado
+  IconData _getEstadoIcon(EstadoReporte estado) {
+    switch (estado) {
+      case EstadoReporte.pendiente:
+        return Icons.schedule;
+      case EstadoReporte.revisado:
+        return Icons.visibility;
+      case EstadoReporte.aceptado:
+        return Icons.check_circle;
+      case EstadoReporte.rechazado:
+        return Icons.cancel;
+    }
   }
 }
