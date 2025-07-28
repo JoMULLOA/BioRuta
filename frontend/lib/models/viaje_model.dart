@@ -306,6 +306,7 @@ class ViajeProximidad {
   final String usuarioRut;
   final DistanciasViaje distancias;
   final Conductor? conductor; // Agregamos información del conductor
+  final String? comentarios; // Agregamos comentarios del viaje
 
   ViajeProximidad({
     required this.id,
@@ -320,6 +321,7 @@ class ViajeProximidad {
     required this.usuarioRut,
     required this.distancias,
     this.conductor,
+    this.comentarios,
   });
 
   // Getter para extraer la hora de la fecha (en hora local de Chile)
@@ -338,7 +340,7 @@ class ViajeProximidad {
 
   factory ViajeProximidad.fromJson(Map<String, dynamic> json) {
     return ViajeProximidad(
-      id: json['id'] ?? '',
+      id: json['_id'] ?? json['id'] ?? '',  // Probar tanto _id como id
       origen: UbicacionViaje.fromJson(json['origen'] ?? {}),
       destino: UbicacionViaje.fromJson(json['destino'] ?? {}),
       fechaIda: DateTime.parse(json['fecha_ida']),
@@ -350,6 +352,7 @@ class ViajeProximidad {
       usuarioRut: json['usuario_rut'] ?? '',
       distancias: DistanciasViaje.fromJson(json['distancias'] ?? {}),
       conductor: json['conductor'] != null ? Conductor.fromJson(json['conductor']) : null,
+      comentarios: json['comentarios'], // Agregar parsing de comentarios
     );
   }
 

@@ -38,6 +38,15 @@ class _DetalleViajeConductorScreenState extends State<DetalleViajeConductorScree
     mostrarRutaRestante = RutaService.instance.tieneRutaActiva(viaje.id);
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Actualizar el estado del checkbox cada vez que la pantalla se vuelva visible
+    setState(() {
+      mostrarRutaRestante = RutaService.instance.tieneRutaActiva(viaje.id);
+    });
+  }
+
   Color _getEstadoColor(String estado) {
     switch (estado) {
       case 'activo':
@@ -84,10 +93,55 @@ class _DetalleViajeConductorScreenState extends State<DetalleViajeConductorScree
   }
 
   Future<void> _cambiarEstadoViaje(String nuevoEstado) async {
+    // Validación especial para iniciar viaje
+    if (nuevoEstado == 'en_curso') {
+      final pasajerosConfirmados = viaje.pasajeros.where((p) => p.estado == 'confirmado').toList();
+      
+      if (pasajerosConfirmados.isEmpty) {
+        await showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Row(
+                children: [
+                  Icon(Icons.warning, color: Colors.orange),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'No se puede iniciar el viaje',
+                      style: TextStyle(fontSize: 18),
+                    ),
+                  ),
+                ],
+              ),
+              content: const Text(
+                'No puedes iniciar el viaje sin pasajeros confirmados.\n\n'
+                'Necesitas al menos un pasajero confirmado para comenzar el viaje.',
+                style: TextStyle(fontSize: 16),
+              ),
+              actions: [
+                ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color(0xFF854937),
+                    foregroundColor: Colors.white,
+                    padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  ),
+                  child: const Text('Entendido'),
+                ),
+              ],
+            );
+          },
+        );
+        return; // Salir sin continuar con el cambio de estado
+      }
+    }
+
     String mensaje = '';
     switch (nuevoEstado) {
       case 'en_curso':
-        mensaje = '¿Quieres iniciar este viaje?';
+        final pasajerosConfirmados = viaje.pasajeros.where((p) => p.estado == 'confirmado').length;
+        mensaje = '¿Quieres iniciar este viaje con $pasajerosConfirmados pasajero(s) confirmado(s)?';
         break;
       case 'completado':
         mensaje = '¿Confirmas que el viaje ha sido completado?';
@@ -638,19 +692,31 @@ class _DetalleViajeConductorScreenState extends State<DetalleViajeConductorScree
     });
 
     if (mostrarRutaRestante) {
-      // Activar el seguimiento de ruta - funcionalidad simplificada
+      // Activar el seguimiento de ruta usando el servicio
+      RutaService.instance.activarRutaRestante(
+        viajeId: viaje.id,
+        destinoNombre: viaje.destino.nombre,
+        destinoLat: viaje.destino.latitud,
+        destinoLng: viaje.destino.longitud,
+        esConductor: true,
+      );
+      
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Seguimiento de ruta activado'),
+          content: Text('Seguimiento de ruta activado. El mapa mostrará la ruta restante.'),
           backgroundColor: Colors.green,
+          duration: Duration(seconds: 3),
         ),
       );
     } else {
       // Desactivar el seguimiento de ruta
+      RutaService.instance.desactivarRuta();
+      
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Seguimiento de ruta desactivado'),
           backgroundColor: Colors.orange,
+          duration: Duration(seconds: 2),
         ),
       );
     }

@@ -291,11 +291,42 @@ async function notificarAdministradores(peticion) {
   try {
     // Obtener todos los administradores
     const administradores = await userRepository.find({
-      where: { rol: "administrador", esActivo: true },
+      where: { rol: "administrador" },
     });
 
-    // Enviar notificación a cada administrador via WebSocket
-    administradores.forEach(admin => {
+    console.log(`📢 Encontrados ${administradores.length} administradores para notificar`);
+
+    // Importar servicios necesarios para notificaciones
+    const { crearNotificacionService } = await import('./notificacion.service.js');
+    const { getSocketInstance } = await import('../socket.js');
+    const WebSocketNotificationService = (await import('./push_notification.service.js')).default;
+
+    // Crear notificación del sistema y enviar WebSocket push para cada administrador
+    for (const admin of administradores) {
+      try {
+        // Crear notificación del sistema en la base de datos
+        await crearNotificacionService({
+          tipo: 'nueva_peticion_soporte',
+          titulo: 'Nueva solicitud de soporte',
+          mensaje: `${peticion.nombreUsuario} ha enviado una solicitud de chat de soporte`,
+          rutReceptor: admin.rut,
+          rutEmisor: peticion.rutUsuario,
+          datos: {
+            peticionId: peticion.id,
+            motivo: peticion.motivo,
+            prioridad: peticion.prioridad,
+            nombreUsuario: peticion.nombreUsuario,
+            emailUsuario: peticion.emailUsuario,
+            mensaje: peticion.mensaje
+          }
+        });
+
+        console.log(`✅ Notificación del sistema creada para administrador ${admin.rut}`);
+      } catch (notifError) {
+        console.error(`❌ Error creando notificación del sistema para admin ${admin.rut}:`, notifError);
+      }
+
+      // Enviar notificación WebSocket tradicional (para mantener compatibilidad)
       emitToUser(admin.rut, "nueva_peticion_supervision", {
         id: peticion.id,
         usuario: peticion.nombreUsuario,
@@ -304,7 +335,37 @@ async function notificarAdministradores(peticion) {
         fecha: peticion.fechaCreacion,
         mensaje: "Nueva petición de supervisión recibida",
       });
-    });
+    }
+
+    // Enviar notificación WebSocket push a todos los administradores
+    try {
+      const io = getSocketInstance();
+      if (io && administradores.length > 0) {
+        // Crear array de RUTs de administradores
+        const rutesAdministradores = administradores.map(admin => admin.rut);
+        
+        // Enviar notificación push masiva
+        await WebSocketNotificationService.enviarNotificacionSoporteAAdministradores(
+          io,
+          rutesAdministradores,
+          peticion.nombreUsuario,
+          peticion.rutUsuario,
+          {
+            peticionId: peticion.id,
+            motivo: peticion.motivo,
+            prioridad: peticion.prioridad,
+            mensaje: peticion.mensaje,
+            fechaCreacion: peticion.fechaCreacion
+          }
+        );
+
+        console.log(`📱 Notificación WebSocket push enviada a ${administradores.length} administradores`);
+      } else {
+        console.warn('⚠️ Socket.io no disponible para enviar notificación push');
+      }
+    } catch (wsError) {
+      console.error('❌ Error enviando notificación WebSocket push:', wsError);
+    }
 
     console.log(`📢 Notificación enviada a ${administradores.length} administradores`);
 

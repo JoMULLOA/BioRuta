@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // Agrega este import
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -78,6 +79,17 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
     );
   }
 >>>>>>> Stashed changes
+  // ...existing code...
+
+  void _copyMessageToClipboard(String text) {
+    Clipboard.setData(ClipboardData(text: text));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Mensaje copiado al portapapeles'),
+        duration: Duration(seconds: 1),
+      ),
+    );
+  }
   final TextEditingController _messageController = TextEditingController();
   final List<Message> _messages = [];
   final ScrollController _scrollController = ScrollController();
@@ -767,7 +779,14 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
               itemBuilder: (context, index) {
                 final message = _messages[index];
                 final isMe = message.senderRut == _rutUsuarioAutenticadoReal;
-                
+
+                // Colores personalizados
+                final cafeClaro = const Color(0xFFD7BFAE); // Café claro para mensaje propio
+                final cafeOscuro = const Color(0xFF854937); // Café oscuro para globo 'Tú'
+                final colorMensaje = isMe ? cafeClaro : Colors.grey[300];
+                final colorTextoMensaje = isMe ? Colors.black : Colors.black;
+                final colorHora = isMe ? Colors.black54 : Colors.black54;
+
                 return Container(
                   margin: const EdgeInsets.symmetric(vertical: 4),
                   child: Row(
@@ -776,7 +795,7 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
                       if (!isMe) ...[
                         CircleAvatar(
                           radius: 16,
-                          backgroundColor: const Color(0xFF2E8B57),
+                          backgroundColor: cafeOscuro,
                           child: Text(
                             widget.nombre.isNotEmpty ? widget.nombre[0] : '?',
                             style: const TextStyle(color: Colors.white, fontSize: 12),
@@ -790,7 +809,7 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
                           child: Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: isMe ? const Color(0xFF2E8B57) : Colors.grey[300],
+                              color: colorMensaje,
                               borderRadius: BorderRadius.circular(16),
                             ),
                             child: Column(
@@ -799,7 +818,7 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
                                 Text(
                                   message.isDeleted ? "Mensaje eliminado" : message.text,
                                   style: TextStyle(
-                                    color: isMe ? Colors.white : Colors.black,
+                                    color: colorTextoMensaje,
                                     fontStyle: message.isDeleted ? FontStyle.italic : FontStyle.normal,
                                   ),
                                 ),
@@ -810,7 +829,7 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
                                     Text(
                                       date_utils.DateUtils.obtenerHoraChile(message.timestamp),
                                       style: TextStyle(
-                                        color: isMe ? Colors.white70 : Colors.black54,
+                                        color: colorHora,
                                         fontSize: 10,
                                       ),
                                     ),
@@ -819,7 +838,7 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
                                       Text(
                                         '(editado)',
                                         style: TextStyle(
-                                          color: isMe ? Colors.white70 : Colors.black54,
+                                          color: colorHora,
                                           fontSize: 10,
                                           fontStyle: FontStyle.italic,
                                         ),
@@ -836,7 +855,7 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
                         const SizedBox(width: 8),
                         CircleAvatar(
                           radius: 16,
-                          backgroundColor: const Color(0xFF2E8B57),
+                          backgroundColor: cafeOscuro,
                           child: const Text(
                             'Tú',
                             style: TextStyle(color: Colors.white, fontSize: 10),
@@ -897,7 +916,6 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
 
   void _showMessageOptions(Message message) {
     if (message.isDeleted) return;
-    
     showModalBottomSheet(
       context: context,
       builder: (context) => Container(
@@ -905,6 +923,14 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            ListTile(
+              leading: const Icon(Icons.copy),
+              title: const Text('Copiar'),
+              onTap: () {
+                Navigator.pop(context);
+                _copyMessageToClipboard(message.text);
+              },
+            ),
             ListTile(
               leading: const Icon(Icons.edit),
               title: const Text('Editar mensaje'),

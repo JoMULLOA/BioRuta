@@ -4,11 +4,13 @@ import '../navbar_widget.dart';
 class NavbarParaSOS extends StatelessWidget {
   final int currentIndex;
   final Function(int) onTap;
+  final VoidCallback? onSOSLongPress; // Callback para long press en SOS
 
   const NavbarParaSOS({
     Key? key,
     required this.currentIndex,
     required this.onTap,
+    this.onSOSLongPress, // Callback opcional
   }) : super(key: key);
 
   @override
@@ -29,6 +31,7 @@ class NavbarParaSOS extends StatelessWidget {
         onTap(adjustedIndex);
       },
       showSOS: true, // Siempre mostrar SOS
+      onSOSLongPress: onSOSLongPress, // Pasar el callback
     );
   }
 }

@@ -14,24 +14,16 @@ class SOSScreen extends StatefulWidget {
   State<SOSScreen> createState() => _SOSScreenState();
 }
 
-class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
+class _SOSScreenState extends State<SOSScreen> {
   final EmergenciaService _emergenciaService = EmergenciaService();
   List<ContactoEmergencia> _contactos = [];
   bool _isLoading = true;
   bool _activandoEmergencia = false;
-  Map<String, dynamic> _estadoTracking = {};
   Map<String, dynamic>? _infoViaje; // Información del viaje activo para SOS
-  
-  // Animaciones para el botón SOS
-  late AnimationController _pulseController;
-  late AnimationController _scaleController;
-  late Animation<double> _pulseAnimation;
-  late Animation<double> _scaleAnimation;
 
   @override
   void initState() {
     super.initState();
-    _initAnimations();
     _cargarDatos();
     
     // Obtener información del viaje desde los argumentos del navigator
@@ -59,47 +51,15 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
     });
   }
 
-  void _initAnimations() {
-    _pulseController = AnimationController(
-      duration: const Duration(seconds: 2),
-      vsync: this,
-    );
-    
-    _scaleController = AnimationController(
-      duration: const Duration(milliseconds: 150),
-      vsync: this,
-    );
-
-    _pulseAnimation = Tween<double>(
-      begin: 1.0,
-      end: 1.2,
-    ).animate(CurvedAnimation(
-      parent: _pulseController,
-      curve: Curves.easeInOut,
-    ));
-
-    _scaleAnimation = Tween<double>(
-      begin: 1.0,
-      end: 0.95,
-    ).animate(CurvedAnimation(
-      parent: _scaleController,
-      curve: Curves.easeInOut,
-    ));
-
-    _pulseController.repeat(reverse: true);
-  }
-
   Future<void> _cargarDatos() async {
     setState(() => _isLoading = true);
     
     try {
       final contactos = await _emergenciaService.obtenerContactos();
       final tutorialCompletado = await _emergenciaService.tutorialCompletado();
-      final estadoTracking = await _emergenciaService.obtenerEstadoTracking();
       
       setState(() {
         _contactos = contactos;
-        _estadoTracking = estadoTracking;
         _isLoading = false;
       });
 
@@ -114,16 +74,8 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
   }
 
   Future<void> _actualizarEstadoTracking() async {
-    try {
-      final estadoTracking = await _emergenciaService.obtenerEstadoTracking();
-      if (mounted) {
-        setState(() {
-          _estadoTracking = estadoTracking;
-        });
-      }
-    } catch (e) {
-      debugPrint('Error actualizando estado tracking: $e');
-    }
+    // Método mantenido para compatibilidad pero sin funcionalidad
+    // ya que se eliminó el tracking de 8 horas
   }
 
   void _mostrarTutorial() {
@@ -144,24 +96,6 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
     ).then((_) => _cargarDatos());
   }
 
-  // Función principal para activar emergencia con longPress
-  void _onLongPressStart() {
-    HapticFeedback.heavyImpact();
-    _scaleController.forward();
-    
-    // Mostrar dialog de confirmación después de 2 segundos
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        _scaleController.reverse();
-        _mostrarDialogoConfirmacion();
-      }
-    });
-  }
-
-  void _onLongPressEnd() {
-    _scaleController.reverse();
-  }
-
   void _mostrarDialogoConfirmacion() {
     showDialog(
       context: context,
@@ -171,7 +105,7 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: Row(
             children: [
-              Icon(Icons.warning_amber_rounded, color: Colors.red.shade600, size: 28),
+              Icon(Icons.warning_amber_rounded, color: const Color(0xFF854937), size: 28),
               const SizedBox(width: 8),
               const Text('⚠️ Activar Emergencia'),
             ],
@@ -188,9 +122,9 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.red.shade50,
+                  color: const Color(0xFF854937).withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.red.shade200),
+                  border: Border.all(color: const Color(0xFF854937).withOpacity(0.3)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -199,7 +133,7 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
                       'Se enviará un mensaje de emergencia a:',
                       style: TextStyle(
                         fontWeight: FontWeight.w600,
-                        color: Colors.red.shade700,
+                        color: const Color(0xFF854937),
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -207,11 +141,11 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
                       padding: const EdgeInsets.symmetric(vertical: 2),
                       child: Row(
                         children: [
-                          Icon(Icons.person, size: 16, color: Colors.red.shade600),
+                          Icon(Icons.person, size: 16, color: const Color(0xFF854937)),
                           const SizedBox(width: 4),
                           Text(
                             '${contacto.nombre} (${contacto.telefono})',
-                            style: TextStyle(color: Colors.red.shade700),
+                            style: TextStyle(color: const Color(0xFF6B3B2D)),
                           ),
                         ],
                       ),
@@ -232,7 +166,7 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
                 _activarEmergencia();
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
+                backgroundColor: const Color(0xFF854937), // Usar color de la app
                 foregroundColor: Colors.white,
               ),
               child: const Text('Sí, activar'),
@@ -246,49 +180,11 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
   Future<void> _activarEmergencia() async {
     if (_activandoEmergencia) return;
     
-    // Mostrar opciones de emergencia
-    final opcion = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            Icon(Icons.warning, color: Colors.red.shade600),
-            const SizedBox(width: 8),
-            const Text('Tipo de Emergencia'),
-          ],
-        ),
-        content: const Text(
-          '¿Confirmas que deseas activar la alerta de emergencia? Se enviará tu ubicación actual a tus contactos de emergencia.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop('cancelar'),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(context).pop('normal'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red.shade700,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Activar Emergencia'),
-          ),
-          // Botón SOS + Ubicación 8h ocultado por solicitud del usuario
-        ],
-      ),
-    );
-
-    if (opcion == null || opcion == 'cancelar') return;
-    
     setState(() => _activandoEmergencia = true);
     
     try {
       // Simular nombre de usuario (en tu app real, obtenlo del estado global)
       const nombreUsuario = 'Usuario BioRuta';
-      
-      // Siempre usar tracking (envío a WhatsApp) ya que solo tenemos un botón
-      final conTracking = true;
       
       // Incluir información del viaje si está disponible
       Map<String, dynamic>? infoAdicional;
@@ -302,9 +198,10 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
         debugPrint('⚠️ [SOS] No hay información del viaje para enviar');
       }
       
+      // Activar emergencia directamente con WhatsApp (sin timer de 8 horas)
       await _emergenciaService.activarEmergencia(
         nombreUsuario, 
-        conTracking: conTracking,
+        conTracking: false, // Solo enviar una vez, sin tracking
         infoAdicional: infoAdicional,
       );
       
@@ -322,14 +219,14 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
               ],
             ),
             content: const Text(
-              'Se ha activado la alerta de emergencia. '
-              'Tus contactos han recibido tu ubicación y los detalles del viaje.',
+              '¡Alerta de emergencia enviada! '
+              'Tus contactos han recibido tu ubicación por WhatsApp.',
             ),
             actions: [
               ElevatedButton(
                 onPressed: () => Navigator.of(context).pop(),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
+                  backgroundColor: const Color(0xFF854937), // Usar color de la app
                   foregroundColor: Colors.white,
                 ),
                 child: const Text('Entendido'),
@@ -364,8 +261,6 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
 
   @override
   void dispose() {
-    _pulseController.dispose();
-    _scaleController.dispose();
     super.dispose();
   }
 
@@ -395,6 +290,7 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
       bottomNavigationBar: NavbarParaSOS(
         currentIndex: 3, // SOS estará en el índice 3 (en el medio)
         onTap: _onNavBarTap,
+        onSOSLongPress: _mostrarDialogoConfirmacion, // Callback para long press en navbar
       ),
     );
   }
@@ -426,8 +322,6 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
         children: [
           _buildStatusCard(),
           const SizedBox(height: 30),
-          _buildSOSButton(),
-          const SizedBox(height: 30),
           _buildContactosList(),
           const SizedBox(height: 20),
           _buildInstrucciones(),
@@ -446,7 +340,7 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
             Icon(
               Icons.contact_emergency,
               size: 80,
-              color: Colors.red.shade300,
+              color: const Color(0xFF854937).withOpacity(0.5),
             ),
             const SizedBox(height: 20),
             const Text(
@@ -473,7 +367,7 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
                 icon: const Icon(Icons.add),
                 label: const Text('Configurar Contactos'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red.shade600,
+                  backgroundColor: const Color(0xFF854937),
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -488,97 +382,6 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildStatusCard() {
-    final trackingActivo = _estadoTracking['activo'] == true;
-    
-    if (trackingActivo) {
-      final horasRestantes = _estadoTracking['horasRestantes'] ?? 0;
-      final minutosRestantes = _estadoTracking['minutosRestantes'] ?? 0;
-      
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.red.shade50,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.red.shade200),
-        ),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Icon(Icons.location_on, color: Colors.red.shade600, size: 24),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'SOS ACTIVO - Ubicación en Tiempo Real',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.red.shade800,
-                        ),
-                      ),
-                      Text(
-                        'Compartiendo ubicación cada 30 minutos',
-                        style: TextStyle(color: Colors.red.shade700),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Tiempo restante: ${horasRestantes}h ${minutosRestantes}m',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: Colors.red.shade700,
-                  ),
-                ),
-                ElevatedButton(
-                  onPressed: () async {
-                    final confirmar = await showDialog<bool>(
-                      context: context,
-                      builder: (context) => AlertDialog(
-                        title: const Text('Detener SOS'),
-                        content: const Text('¿Estás seguro que quieres detener el seguimiento de emergencia?'),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.of(context).pop(false),
-                            child: const Text('Cancelar'),
-                          ),
-                          ElevatedButton(
-                            onPressed: () => Navigator.of(context).pop(true),
-                            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                            child: const Text('Detener'),
-                          ),
-                        ],
-                      ),
-                    );
-                    
-                    if (confirmar == true) {
-                      await _emergenciaService.detenerTracking();
-                      _cargarDatos();
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red.shade600,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  ),
-                  child: const Text('Detener SOS'),
-                ),
-              ],
-            ),
-          ],
-        ),
-      );
-    }
-    
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -610,68 +413,6 @@ class _SOSScreenState extends State<SOSScreen> with TickerProviderStateMixin {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildSOSButton() {
-    return Center(
-      child: GestureDetector(
-        onLongPressStart: (_) => _onLongPressStart(),
-        onLongPressEnd: (_) => _onLongPressEnd(),
-        child: AnimatedBuilder(
-          animation: Listenable.merge([_pulseAnimation, _scaleAnimation]),
-          builder: (context, child) {
-            return Transform.scale(
-              scale: _scaleAnimation.value,
-              child: Transform.scale(
-                scale: _pulseAnimation.value,
-                child: Container(
-                  width: 200,
-                  height: 200,
-                  decoration: BoxDecoration(
-                    gradient: RadialGradient(
-                      colors: [
-                        Colors.red.shade400,
-                        Colors.red.shade700,
-                      ],
-                    ),
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.red.withOpacity(0.3),
-                        spreadRadius: 8,
-                        blurRadius: 20,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: const Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.emergency,
-                          size: 60,
-                          color: Colors.white,
-                        ),
-                        SizedBox(height: 8),
-                        Text(
-                          'SOS',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            );
-          },
-        ),
       ),
     );
   }

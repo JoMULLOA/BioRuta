@@ -14,7 +14,8 @@ import {
   abandonarViaje,
   obtenerViajesEnRadio,
   eliminarPasajero,
-  obtenerPrecioSugerido
+  obtenerPrecioSugerido,
+  ejecutarValidacionesAutomaticas
 } from "../controllers/viaje.controller.js";
 import { 
   viajeBodyValidation,
@@ -22,7 +23,10 @@ import {
   unirseViajeValidation,
   unirseViajeConPagoValidation,
   viajesMapaValidation,
-  viajesRadarValidation
+  viajesRadarValidation,
+  iniciarViajeValidation,
+  validarConflictoHorarioValidation,
+  cambioEstadoAutomaticoValidation
 } from "../validations/viaje.validation.js";
 import { authenticateJwt } from "../middlewares/authentication.middleware.js";
 import { validateBody, validateQuery } from "../middlewares/validation.middleware.js";
@@ -119,6 +123,15 @@ router.post(
   "/precio-sugerido",
   authenticateJwt,
   obtenerPrecioSugerido
+);
+
+
+// Ejecutar validaciones automáticas - GET /api/viajes/validaciones-automaticas
+// Ruta para ejecutar manualmente las validaciones (admin/debug)
+router.get(
+  "/validaciones-automaticas",
+  authenticateJwt,
+  ejecutarValidacionesAutomaticas
 );
 
 export default router;

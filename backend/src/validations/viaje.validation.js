@@ -127,3 +127,28 @@ export const viajesRadarValidation = Joi.object({
     'string.pattern.base': 'La fecha debe tener el formato YYYY-MM-DD'
   })
 });
+
+// Validación para iniciar viaje
+export const iniciarViajeValidation = Joi.object({
+  viajeId: Joi.string().required().messages({
+    'any.required': 'El ID del viaje es requerido'
+  })
+});
+
+// Validación para conflicto de horarios de usuario
+export const validarConflictoHorarioValidation = Joi.object({
+  fechaHoraIda: Joi.date().required(),
+  fechaHoraVuelta: Joi.date().allow(null),
+  usuarioId: Joi.string().required(),
+  viajeExcluidoId: Joi.string().allow(null) // Para excluir un viaje específico en ediciones
+});
+
+// Validación para cambio automático de estado
+export const cambioEstadoAutomaticoValidation = Joi.object({
+  viajeId: Joi.string().required(),
+  estadoAnterior: Joi.string().valid('activo', 'en_curso', 'completado', 'cancelado').required(),
+  estadoNuevo: Joi.string().valid('activo', 'en_curso', 'completado', 'cancelado').required(),
+  razon: Joi.string().max(255).required().messages({
+    'any.required': 'Se debe especificar la razón del cambio de estado'
+  })
+});

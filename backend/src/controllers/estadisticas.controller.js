@@ -1,10 +1,12 @@
 "use strict";
 import { AppDataSource } from "../config/configDb.js";
+import { Not, IsNull } from "typeorm";
 import User from "../entity/user.entity.js";
 import Vehiculo from "../entity/vehiculo.entity.js";
 import Amistad from "../entity/amistad.entity.js";
 import Notificacion from "../entity/notificacion.entity.js";
 import Mensaje from "../entity/mensaje.entity.js";
+import Transaccion from "../entity/transaccion.entity.js";
 import Viaje from "../entity/viaje.entity.js"; // MongoDB
 import { handleErrorClient, handleErrorServer, handleSuccess } from "../handlers/responseHandlers.js";
 
@@ -18,6 +20,7 @@ export async function obtenerEstadisticasGenerales(req, res) {
     const amistadRepository = AppDataSource.getRepository(Amistad);
     const notificacionRepository = AppDataSource.getRepository(Notificacion);
     const mensajeRepository = AppDataSource.getRepository(Mensaje);
+    const transaccionRepository = AppDataSource.getRepository(Transaccion);
 
     // Estadísticas básicas
     const [
@@ -34,7 +37,7 @@ export async function obtenerEstadisticasGenerales(req, res) {
     ] = await Promise.all([
       userRepository.count(),
       vehiculoRepository.count(),
-      pagoRepository.count(),
+      transaccionRepository.count(),
       amistadRepository.count(),
       notificacionRepository.count(),
       mensajeRepository.count(),
@@ -273,7 +276,7 @@ export async function obtenerAnalisisAvanzado(req, res) {
       vehiculoRepository.count(),
       Viaje.countDocuments(),
       Viaje.countDocuments({ estado: 'completado' }),
-      userRepository.count({ where: { clasificacion: { $ne: null } } })
+      userRepository.count({ where: { clasificacion: Not(IsNull()) } })
     ]);
 
     // Calcular métricas

@@ -1647,7 +1647,7 @@ class _MapPageState extends State<MapPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('🎯 Radar completado: ${_viajesEnRadio.length} viajes de hoy en ${_radioKm}km'),
+            content: Text('🎯 Radar completado: ${_viajesEnRadio.length} viajes de hoy en ${_radioKm} km'),
             duration: const Duration(seconds: 4),
             backgroundColor: _viajesEnRadio.isNotEmpty ? Colors.green : Colors.orange,
           ),

@@ -59,6 +59,15 @@ class ApiService {
           final data = jsonData['data'];
           final viajesList = data['viajes'] as List<dynamic>? ?? [];
           
+          print('🔍 Procesando ${viajesList.length} viajes:');
+          for (int i = 0; i < viajesList.length; i++) {
+            final viaje = viajesList[i];
+            print('  Viaje ${i + 1}:');
+            print('    - _id: ${viaje['_id']}');
+            print('    - id: ${viaje['id']}');
+            print('    - Keys disponibles: ${viaje.keys.toList()}');
+          }
+          
           return viajesList
               .map((viajeJson) => ViajeProximidad.fromJson(viajeJson))
               .toList();

@@ -57,6 +57,25 @@ class _MisViajesScreenState extends State<MisViajesScreen>
   }
 
   @override
+  void didUpdateWidget(MisViajesScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Recargar datos cuando el widget se actualiza
+    _cargarViajes();
+    _cargarSolicitudesPendientes();
+  }
+
+  // Método que se llama cuando la pantalla vuelve a estar visible
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Recargar datos cuando se regresa a esta pantalla
+    if (mounted) {
+      _cargarViajes();
+      _cargarSolicitudesPendientes();
+    }
+  }
+
+  @override
   void dispose() {
     // Remover listener antes de dispose para evitar llamadas a setState después del dispose
     _tabController.removeListener(_tabListener);
