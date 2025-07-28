@@ -208,6 +208,11 @@ class WebSocketNotificationService {
         _handleFriendRejectedNotification(data);
       });
       
+      _socket!.on('nueva_peticion_soporte', (data) {
+        print('🆘 nueva_peticion_soporte recibida: $data');
+        _handleSupportRequestNotification(data);
+      });
+      
       // DESHABILITADO: nueva_notificacion - Solo usamos eventos específicos para evitar duplicados
       // Los eventos específicos (solicitud_amistad, amistad_aceptada, etc.) manejan todas las notificaciones
       /*
@@ -673,6 +678,10 @@ class WebSocketNotificationService {
             case 'amistad_rechazada':
               _navigateToFriends();
               break;
+            case 'nueva_peticion_soporte':
+              print('📱 Tap en notificación de solicitud de soporte');
+              _navigateToAdminPanel();
+              break;
             default:
               _navigateToNotifications();
               break;
@@ -694,6 +703,12 @@ class WebSocketNotificationService {
   static void _navigateToFriends() {
     print('🔄 Navegando a pantalla de amigos...');
     NavigationService.navigateToFriends();
+  }
+  
+  /// Navegar al panel de administrador
+  static void _navigateToAdminPanel() {
+    print('🔄 Navegando al panel de administrador...');
+    NavigationService.navigateToAdminPanel();
   }
   
   /// Verificar si el servicio está conectado
@@ -744,6 +759,74 @@ class WebSocketNotificationService {
     } catch (e) {
       print('❌ Error verificando permisos: $e');
       return false;
+    }
+  }
+  
+  /// Manejar notificación de solicitud de soporte (para administradores)
+  static void _handleSupportRequestNotification(dynamic data) {
+    try {
+      print('🆘 *** PROCESANDO SOLICITUD DE SOPORTE ***: $data');
+      
+      // Verificar duplicados antes de procesar
+      final notificationId = _generateNotificationId(data);
+      if (_isNotificationProcessed(notificationId)) {
+        return; // Notificación duplicada, no procesar
+      }
+      
+      final notification = data is String ? json.decode(data) : data;
+      print('🆘 *** DATOS PARSEADOS SOPORTE ***: $notification');
+      
+      final nombreEmisor = notification['nombreEmisor'] ?? 'Usuario desconocido';
+      final rutEmisor = notification['rutEmisor'] ?? '';
+      final motivo = notification['motivo'] ?? 'Solicitud de soporte';
+      final prioridad = notification['prioridad'] ?? 'media';
+      final peticionId = notification['peticionId'] ?? '';
+      
+      // Emoji basado en prioridad
+      String emoji = '🆘';
+      switch (prioridad.toLowerCase()) {
+        case 'baja':
+          emoji = '💬';
+          break;
+        case 'media':
+          emoji = '🆘';
+          break;
+        case 'alta':
+          emoji = '🚨';
+          break;
+        case 'urgente':
+          emoji = '🔥';
+          break;
+      }
+      
+      print('🆘 *** MOSTRANDO NOTIFICACIÓN DE SOPORTE ***');
+      print('🆘 Emisor: $nombreEmisor (RUT: $rutEmisor)');
+      print('🆘 Motivo: $motivo | Prioridad: $prioridad');
+      
+      _showLocalNotification(
+        title: '$emoji Nueva solicitud de soporte',
+        body: '$nombreEmisor necesita soporte',
+        payload: json.encode({
+          'tipo': 'nueva_peticion_soporte',
+          'rutEmisor': rutEmisor,
+          'nombreEmisor': nombreEmisor,
+          'motivo': motivo,
+          'prioridad': prioridad,
+          'peticionId': peticionId,
+        }),
+      );
+      
+      print('✅ Notificación de solicitud de soporte procesada correctamente');
+    } catch (e) {
+      print('❌ Error procesando solicitud de soporte: $e');
+      print('❌ Data recibida: $data');
+      
+      // Fallback: mostrar notificación genérica
+      _showLocalNotification(
+        title: '🆘 Nueva solicitud de soporte',
+        body: 'Un usuario necesita asistencia de un administrador',
+        payload: json.encode({'tipo': 'nueva_peticion_soporte_fallback'}),
+      );
     }
   }
 }

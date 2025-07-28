@@ -15,6 +15,7 @@ import 'services/viaje_estado_service.dart';
 import 'services/navigation_service.dart';
 import 'Ranking/ranking.dart';
 import 'sos/sos_screen.dart';
+import 'admin/admin_dashboard.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -56,6 +57,19 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
       ),
       initialRoute: '/login', // Ruta inicial
+      onGenerateRoute: (settings) {
+        // Manejar rutas con argumentos personalizados
+        switch (settings.name) {
+          case '/admin':
+            final args = settings.arguments as Map<String, dynamic>?;
+            final initialTab = args?['initialTab'] as int?;
+            return MaterialPageRoute(
+              builder: (context) => AdminDashboard(initialTab: initialTab),
+            );
+          default:
+            return null; // Usar rutas predefinidas
+        }
+      },
       routes: {
         '/': (context) => const MisViajesScreen(), // Ruta principal ahora es mis viajes
         '/login': (context) => const LoginPage(),

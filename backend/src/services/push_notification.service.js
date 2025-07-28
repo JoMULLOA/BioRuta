@@ -252,6 +252,29 @@ class WebSocketNotificationService {
   }
 
   /**
+   * Enviar notificación de nueva solicitud de soporte a administradores
+   */
+  static async enviarNotificacionSoporteAAdministradores(io, rutesAdministradores, nombreUsuario, rutUsuario, datosPeticion) {
+    return await this.enviarNotificacionMasiva(
+      io,
+      rutesAdministradores,
+      '🆘 Nueva solicitud de soporte',
+      `${nombreUsuario} necesita soporte`,
+      {
+        tipo: 'nueva_peticion_soporte',
+        rutEmisor: rutUsuario,
+        nombreEmisor: nombreUsuario,
+        peticionId: datosPeticion.peticionId,
+        motivo: datosPeticion.motivo,
+        prioridad: datosPeticion.prioridad,
+        mensaje: datosPeticion.mensaje,
+        fechaCreacion: datosPeticion.fechaCreacion,
+        accion: 'abrir_panel_admin'
+      }
+    );
+  }
+
+  /**
    * Verificar si un usuario está conectado por WebSocket
    */
   static verificarUsuarioConectado(io, rutUsuario) {

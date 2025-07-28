@@ -9,14 +9,16 @@ import '../models/reporte_model.dart';
 import '../chat/pagina_individual.dart';
 
 class AdminDashboard extends StatefulWidget {
-  const AdminDashboard({super.key});
+  final int? initialTab;
+  
+  const AdminDashboard({super.key, this.initialTab});
 
   @override
   State<AdminDashboard> createState() => _AdminDashboardState();
 }
 
 class _AdminDashboardState extends State<AdminDashboard> {
-  int _selectedIndex = 0; // Dashboard es la primera pestaña
+  int _selectedIndex = 0; // Dashboard es la primera pestaña por defecto
   
   // Variables para estadísticas
   int _totalUsuarios = 0;
@@ -33,6 +35,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
   @override
   void initState() {
     super.initState();
+    // Si se especifica una pestaña inicial, usarla
+    if (widget.initialTab != null) {
+      _selectedIndex = widget.initialTab!;
+      print('🔄 AdminDashboard iniciado con pestaña: $_selectedIndex');
+    }
     _loadDashboardData();
   }
 
