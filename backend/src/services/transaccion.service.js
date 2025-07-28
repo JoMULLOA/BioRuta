@@ -105,11 +105,363 @@ export async function actualizarEstadoTransaccionService(id, nuevoEstado) {
 }
 
 /**
+ * Procesar devolución cuando un pasajero abandona el viaje
+ */
+export async function procesarDevolucionViaje({
+  pasajeroRut,
+  conductorRut,
+  viajeId
+}) {
+  try {
+    console.log(`💰 Procesando devolución de viaje - Pasajero: ${pasajeroRut}, Viaje: ${viajeId}`);
+    
+    const transaccionRepository = AppDataSource.getRepository("Transaccion");
+    
+    // Buscar la transacción de pago del pasajero para este viaje
+    const transaccionPago = await transaccionRepository.findOne({
+      where: { 
+        usuario_rut: pasajeroRut,
+        viaje_id: viajeId,
+        tipo: 'pago',
+        estado: 'completado'
+      },
+      order: { fecha: 'DESC' }
+    });
+
+    if (!transaccionPago) {
+      console.log(`⚠️ No se encontró transacción de pago para el pasajero ${pasajeroRut} en viaje ${viajeId}`);
+      return {
+        success: true,
+        message: 'No se encontró pago previo para devolver',
+        tipo: 'sin_pago'
+      };
+    }
+
+    const metodoPago = transaccionPago.metodo_pago;
+    const montoDevolucion = transaccionPago.monto;
+
+    console.log(`📄 Transacción encontrada: ${transaccionPago.id}, Método: ${metodoPago}, Monto: $${montoDevolucion}`);
+
+    if (metodoPago === 'efectivo') {
+      // Para efectivo: eliminar las transacciones pendientes
+      console.log(`💵 Procesando devolución en efectivo - eliminando transacciones pendientes`);
+      
+      // Buscar y eliminar transacciones pendientes relacionadas
+      const transaccionesPendientes = await transaccionRepository.find({
+        where: { 
+          viaje_id: viajeId,
+          metodo_pago: 'efectivo',
+          estado: 'pendiente'
+        }
+      });
+
+      for (const transaccion of transaccionesPendientes) {
+        if (transaccion.usuario_rut === pasajeroRut || transaccion.usuario_rut === conductorRut) {
+          await transaccionRepository.remove(transaccion);
+          console.log(`🗑️ Transacción pendiente eliminada: ${transaccion.id} - ${transaccion.tipo} para ${transaccion.usuario_rut}`);
+        }
+      }
+
+      // Crear registro de devolución para efectivo
+      const [transaccionDevolucion, errorDevolucion] = await crearTransaccionService({
+        usuario_rut: pasajeroRut,
+        tipo: 'devolucion',
+        concepto: `Devolución por abandono de viaje - ID: ${viajeId}`,
+        monto: montoDevolucion,
+        metodo_pago: 'efectivo',
+        estado: 'completado',
+        viaje_id: viajeId,
+        transaccion_id: `devolucion_${viajeId}_${Date.now()}`,
+        datos_adicionales: {
+          conductorRut: conductorRut,
+          motivoDevolucion: 'abandono_viaje',
+          transaccionOriginalId: transaccionPago.id,
+          metodoPagoOriginal: metodoPago
+        }
+      });
+
+      if (errorDevolucion) {
+        throw new Error(`Error al crear transacción de devolución: ${errorDevolucion}`);
+      }
+
+      return {
+        success: true,
+        message: `Devolución en efectivo procesada: $${montoDevolucion}`,
+        tipo: 'efectivo',
+        monto: montoDevolucion,
+        transaccionDevolucionId: transaccionDevolucion.id,
+        transaccionesEliminadas: transaccionesPendientes.length
+      };
+
+    } else if (metodoPago === 'saldo' || metodoPago === 'tarjeta') {
+      // Para saldo y tarjeta: devolver el dinero al saldo del pasajero
+      console.log(`💳 Procesando devolución ${metodoPago} - devolviendo al saldo`);
+      
+      // Obtener saldo actual del pasajero
+      const { getUserService } = await import('./user.service.js');
+      const [pasajero, errorPasajero] = await getUserService({ rut: pasajeroRut });
+      
+      if (errorPasajero || !pasajero) {
+        throw new Error('Error al obtener datos del pasajero');
+      }
+
+      let saldoActual = parseFloat(pasajero.saldo || 0);
+      
+      // Detectar y corregir saldos corruptos que excedan límites razonables
+      if (saldoActual > 99999999) {
+        console.error(`⚠️ Saldo corrupto detectado para ${pasajeroRut}: ${saldoActual}`);
+        console.log(`🔧 Corrigiendo saldo a valor razonable para procesar devolución`);
+        
+        // Establecer saldo a un valor razonable (saldo inicial por defecto)
+        saldoActual = 100000; // $100,000 - saldo inicial típico
+        
+        // Actualizar inmediatamente el saldo corregido
+        const saldoCorregido = await actualizarSaldoUsuario(pasajeroRut, saldoActual);
+        if (!saldoCorregido) {
+          console.error(`❌ Error al corregir saldo corrupto para ${pasajeroRut}`);
+          throw new Error('Error al corregir saldo corrupto del pasajero');
+        }
+        
+        console.log(`✅ Saldo corregido para ${pasajeroRut}: $${saldoActual}`);
+      }
+      
+      const nuevoSaldo = saldoActual + montoDevolucion;
+      
+      // Validar que el nuevo saldo no exceda el límite de PostgreSQL (10^8)
+      if (nuevoSaldo > 99999999) {
+        console.error(`⚠️ El nuevo saldo ${nuevoSaldo} excedería el límite de PostgreSQL`);
+        
+        // En lugar de fallar, establecer el saldo al máximo permitido
+        const saldoMaximo = 99999999;
+        console.log(`🔧 Estableciendo saldo al máximo permitido: $${saldoMaximo}`);
+        
+        // Procesar con el saldo máximo
+        const saldoCorregidoMaximo = await actualizarSaldoUsuario(pasajeroRut, saldoMaximo);
+        if (!saldoCorregidoMaximo) {
+          throw new Error('Error al establecer saldo al límite máximo');
+        }
+        
+        console.log(`✅ Saldo establecido al máximo permitido para ${pasajeroRut}: $${saldoMaximo}`);
+        
+        // Continuar con el proceso usando el saldo máximo
+        saldoActual = saldoMaximo - montoDevolucion; // Ajustar para que el cálculo sea correcto
+        const nuevoSaldoFinal = saldoMaximo;
+        
+        // Actualizar las variables para el resto del proceso
+        return await procesarDevolucionConSaldoCorregido(
+          pasajeroRut, 
+          conductorRut, 
+          viajeId, 
+          montoDevolucion, 
+          metodoPago, 
+          saldoActual, 
+          nuevoSaldoFinal,
+          transaccionPago
+        );
+      }
+
+      // Crear transacción de devolución
+      const [transaccionDevolucion, errorDevolucion] = await crearTransaccionService({
+        usuario_rut: pasajeroRut,
+        tipo: 'devolucion',
+        concepto: `Devolución por abandono de viaje - ID: ${viajeId}`,
+        monto: montoDevolucion,
+        metodo_pago: 'saldo',
+        estado: 'completado',
+        viaje_id: viajeId,
+        transaccion_id: `devolucion_${viajeId}_${Date.now()}`,
+        datos_adicionales: {
+          conductorRut: conductorRut,
+          motivoDevolucion: 'abandono_viaje',
+          transaccionOriginalId: transaccionPago.id,
+          metodoPagoOriginal: metodoPago,
+          saldoAnterior: saldoActual,
+          saldoNuevo: nuevoSaldo
+        }
+      });
+
+      if (errorDevolucion) {
+        throw new Error(`Error al crear transacción de devolución: ${errorDevolucion}`);
+      }
+
+      // Actualizar saldo del pasajero
+      const saldoActualizado = await actualizarSaldoUsuario(pasajeroRut, nuevoSaldo);
+      
+      if (!saldoActualizado) {
+        throw new Error('Error al actualizar saldo del pasajero');
+      }
+
+      // Procesar ajuste del conductor
+      await procesarAjusteConductor(conductorRut, viajeId, montoDevolucion, transaccionDevolucion);
+
+      console.log(`✅ Devolución al saldo completada: $${montoDevolucion} (Saldo: $${saldoActual} → $${nuevoSaldo})`);
+
+      return {
+        success: true,
+        message: `Devolución procesada: $${montoDevolucion} devueltos a tu saldo`,
+        tipo: metodoPago,
+        monto: montoDevolucion,
+        saldoAnterior: saldoActual,
+        saldoNuevo: nuevoSaldo,
+        transaccionDevolucionId: transaccionDevolucion.id
+      };
+
+    } else {
+      throw new Error(`Método de pago no soportado para devolución: ${metodoPago}`);
+    }
+
+  } catch (error) {
+    console.error("❌ Error al procesar devolución de viaje:", error);
+    return {
+      success: false,
+      message: error.message,
+      error: error.message
+    };
+  }
+}
+
+/**
+ * Procesar devolución con saldo corregido para casos de overflow
+ */
+async function procesarDevolucionConSaldoCorregido(
+  pasajeroRut, 
+  conductorRut, 
+  viajeId, 
+  montoDevolucion, 
+  metodoPago, 
+  saldoAnterior, 
+  saldoNuevo,
+  transaccionPago
+) {
+  try {
+    // Crear transacción de devolución
+    const [transaccionDevolucion, errorDevolucion] = await crearTransaccionService({
+      usuario_rut: pasajeroRut,
+      tipo: 'devolucion',
+      concepto: `Devolución por abandono de viaje (saldo corregido) - ID: ${viajeId}`,
+      monto: montoDevolucion,
+      metodo_pago: 'saldo',
+      estado: 'completado',
+      viaje_id: viajeId,
+      transaccion_id: `devolucion_corregida_${viajeId}_${Date.now()}`,
+      datos_adicionales: {
+        conductorRut: conductorRut,
+        motivoDevolucion: 'abandono_viaje',
+        transaccionOriginalId: transaccionPago.id,
+        metodoPagoOriginal: metodoPago,
+        saldoAnterior: saldoAnterior,
+        saldoNuevo: saldoNuevo,
+        saldoCorregidoPorOverflow: true
+      }
+    });
+
+    if (errorDevolucion) {
+      throw new Error(`Error al crear transacción de devolución: ${errorDevolucion}`);
+    }
+
+    // Procesar ajuste del conductor
+    await procesarAjusteConductor(conductorRut, viajeId, montoDevolucion, transaccionDevolucion);
+
+    console.log(`✅ Devolución con saldo corregido completada: $${montoDevolucion} (Saldo corregido a: $${saldoNuevo})`);
+
+    return {
+      success: true,
+      message: `Devolución procesada con saldo corregido: $${montoDevolucion} devueltos a tu saldo`,
+      tipo: metodoPago,
+      monto: montoDevolucion,
+      saldoAnterior: saldoAnterior,
+      saldoNuevo: saldoNuevo,
+      saldoCorregido: true,
+      transaccionDevolucionId: transaccionDevolucion.id
+    };
+
+  } catch (error) {
+    console.error("❌ Error al procesar devolución con saldo corregido:", error);
+    throw error;
+  }
+}
+
+/**
+ * Procesar ajuste del conductor cuando un pasajero abandona
+ */
+async function procesarAjusteConductor(conductorRut, viajeId, montoDevolucion, transaccionDevolucion) {
+  try {
+    const transaccionRepository = AppDataSource.getRepository("Transaccion");
+
+    // Buscar transacción de cobro del conductor
+    const transaccionCobro = await transaccionRepository.findOne({
+      where: { 
+        usuario_rut: conductorRut,
+        viaje_id: viajeId,
+        tipo: 'cobro',
+        estado: 'completado'
+      }
+    });
+
+    if (transaccionCobro) {
+      // Crear transacción de devolución para el conductor (ajuste por abandono)
+      const [transaccionDescuento, errorDescuento] = await crearTransaccionService({
+        usuario_rut: conductorRut,
+        tipo: 'devolucion',
+        concepto: `Ajuste por abandono de pasajero - Viaje ID: ${viajeId}`,
+        monto: -montoDevolucion, // Monto negativo para indicar descuento
+        metodo_pago: transaccionCobro.metodo_pago,
+        estado: 'completado',
+        viaje_id: viajeId,
+        transaccion_id: `ajuste_${viajeId}_${Date.now()}`,
+        datos_adicionales: {
+          motivoAjuste: 'abandono_pasajero',
+          transaccionCobroOriginalId: transaccionCobro.id,
+          transaccionDevolucionId: transaccionDevolucion.id
+        }
+      });
+
+      if (!errorDescuento) {
+        console.log(`💸 Transacción de ajuste creada para conductor: ${transaccionDescuento.id}`);
+        
+        // Actualizar saldo del conductor (restar el monto que había ganado)
+        const { getUserService } = await import('./user.service.js');
+        const [conductor, errorConductor] = await getUserService({ rut: conductorRut });
+        
+        if (!errorConductor && conductor) {
+          const saldoActualConductor = parseFloat(conductor.saldo || 0);
+          const nuevoSaldoConductor = saldoActualConductor - montoDevolucion; // Restar el monto
+          
+          console.log(`💰 Actualizando saldo del conductor ${conductorRut}: $${saldoActualConductor} → $${nuevoSaldoConductor}`);
+          
+          const saldoConductorActualizado = await actualizarSaldoUsuario(conductorRut, nuevoSaldoConductor);
+          
+          if (!saldoConductorActualizado) {
+            console.error(`⚠️ Error al actualizar saldo del conductor ${conductorRut}`);
+          } else {
+            console.log(`✅ Saldo del conductor actualizado correctamente: -$${montoDevolucion}`);
+          }
+        }
+      }
+    }
+  } catch (cobroError) {
+    console.warn(`⚠️ No se pudo procesar descuento para conductor: ${cobroError.message}`);
+  }
+}
+
+/**
  * Actualizar saldo de usuario
  */
 async function actualizarSaldoUsuario(usuarioRut, nuevoSaldo) {
   try {
     console.log(`💰 Actualizando saldo de ${usuarioRut} a $${nuevoSaldo}`);
+    
+    // Validar que el nuevo saldo no exceda el límite permitido
+    if (nuevoSaldo > 99999999) {
+      console.error(`❌ Error: Nuevo saldo ${nuevoSaldo} excede el límite permitido`);
+      return false;
+    }
+    
+    // Validar que el nuevo saldo no sea negativo
+    if (nuevoSaldo < 0) {
+      console.error(`❌ Error: Nuevo saldo ${nuevoSaldo} no puede ser negativo`);
+      return false;
+    }
     
     const [usuarioActualizado, error] = await updateUserService(
       { rut: usuarioRut },
@@ -586,3 +938,5 @@ export async function confirmarPagoEfectivo(transaccionId, usuarioQueConfirma) {
     };
   }
 }
+
+

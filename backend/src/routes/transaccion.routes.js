@@ -5,7 +5,8 @@ import {
   obtenerHistorial,
   procesarPago,
   confirmarPago,
-  confirmarPagoEfectivo
+  confirmarPagoEfectivo,
+  procesarDevolucion
 } from "../controllers/transaccion.controller.js";
 import { authenticateJwt } from "../middlewares/authentication.middleware.js";
 
@@ -28,5 +29,8 @@ router.patch("/confirmar/:transaccionId", confirmarPago);
 
 // Confirmar pago en efectivo (manual)
 router.patch("/confirmar-efectivo/:transaccionId", confirmarPagoEfectivo);
+
+// Procesar devolución por abandono de viaje
+router.post("/procesar-devolucion", procesarDevolucion);
 
 export default router;

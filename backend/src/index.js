@@ -77,7 +77,7 @@ async function setupServer() {
     initSocket(server); // Inicializa Socket.IO con el servidor
     
     // Hacer que la instancia de Socket.io esté disponible en los controladores
-    app.set('io', getSocketInstance);
+    app.set('io', getSocketInstance());
     
     // Inicio del servidor usando server.listen() para incluir Socket.IO
     server.listen(PORT, '0.0.0.0', () => {

@@ -16,6 +16,10 @@ class WebSocketNotificationService {
   static final Set<String> _processedNotifications = <String>{};
   static const int _maxCacheSize = 100; // Límite del cache
   
+  // Callbacks para eventos de solicitudes
+  static VoidCallback? _onTripRequestReceived;
+  static VoidCallback? _onTripRequestProcessed;
+  
   /// Generar ID único para la notificación basado en contenido
   static String _generateNotificationId(dynamic data) {
     try {
@@ -66,6 +70,16 @@ class WebSocketNotificationService {
       print('❌ Error inicializando notificaciones WebSocket: $e');
       throw e;
     }
+  }
+  
+  /// Registrar callback para cuando se reciba una nueva solicitud de viaje
+  static void setOnTripRequestReceived(VoidCallback? callback) {
+    _onTripRequestReceived = callback;
+  }
+  
+  /// Registrar callback para cuando se procese una solicitud de viaje
+  static void setOnTripRequestProcessed(VoidCallback? callback) {
+    _onTripRequestProcessed = callback;
   }
   
   /// Inicializar notificaciones locales de Flutter
@@ -198,6 +212,11 @@ class WebSocketNotificationService {
         _handleTripRejectedNotification(data);
       });
       
+      _socket!.on('pasajero_eliminado', (data) {
+        print('🚫 pasajero_eliminado recibida: $data');
+        _handlePassengerRemovedNotification(data);
+      });
+      
       _socket!.on('amistad_aceptada', (data) {
         print('🎉 amistad_aceptada recibida: $data');
         _handleFriendAcceptedNotification(data);
@@ -300,6 +319,9 @@ class WebSocketNotificationService {
           'viajeId': notification['viajeId'],
         }),
       );
+      
+      // Llamar al callback si está registrado
+      _onTripRequestReceived?.call();
       
       print('✅ Notificación de solicitud de viaje procesada correctamente');
     } catch (e) {
@@ -460,6 +482,9 @@ class WebSocketNotificationService {
         }),
       );
       
+      // Llamar al callback para actualizar la UI del conductor
+      _onTripRequestProcessed?.call();
+      
       print('✅ *** NOTIFICACIÓN DE VIAJE ACEPTADO PROCESADA CORRECTAMENTE ***');
     } catch (e) {
       print('❌ *** ERROR PROCESANDO VIAJE ACEPTADO ***: $e');
@@ -506,6 +531,9 @@ class WebSocketNotificationService {
         }),
       );
       
+      // Llamar al callback para actualizar la UI del conductor
+      _onTripRequestProcessed?.call();
+      
       print('✅ *** NOTIFICACIÓN DE VIAJE RECHAZADO PROCESADA CORRECTAMENTE ***');
     } catch (e) {
       print('❌ *** ERROR PROCESANDO VIAJE RECHAZADO ***: $e');
@@ -516,6 +544,79 @@ class WebSocketNotificationService {
         title: '😔 Solicitud rechazada',
         body: 'Tu solicitud de viaje fue rechazada',
         payload: json.encode({'tipo': 'ride_rejected_fallback'}),
+      );
+    }
+  }
+  
+  /// Manejar notificación de pasajero eliminado del viaje
+  static void _handlePassengerRemovedNotification(dynamic data) {
+    try {
+      print('🚫 *** PROCESANDO PASAJERO ELIMINADO ***: $data');
+      
+      final notification = data is String ? json.decode(data) : data;
+      print('🚫 *** DATOS PARSEADOS PASAJERO ELIMINADO ***: $notification');
+      
+      final nombreConductor = notification['nombreEmisor'] ?? 'El conductor';
+      final origen = notification['origen'] ?? '';
+      final destino = notification['destino'] ?? '';
+      final reembolsoProcesado = notification['reembolsoProcesado'] ?? false;
+      final mensajeDevolucion = notification['mensajeDevolucion'] ?? '';
+      
+      String bodyMessage;
+      if (reembolsoProcesado) {
+        bodyMessage = '$nombreConductor te eliminó del viaje de $origen a $destino. $mensajeDevolucion';
+      } else {
+        bodyMessage = '$nombreConductor te eliminó del viaje de $origen a $destino.';
+      }
+      
+      print('🚫 *** MOSTRANDO NOTIFICACIÓN DE PASAJERO ELIMINADO por: $nombreConductor ***');
+      
+      // SIEMPRE mostrar diálogo in-app para notificación inmediata (sin verificar duplicados)
+      _showInAppDialogNotification(
+        '🚫 Eliminado de viaje',
+        bodyMessage,
+        action: 'passenger_eliminated'
+      );
+      
+      // SIEMPRE mostrar notificación del sistema para eliminación de pasajero (crítica)
+      _showLocalNotification(
+        title: '🚫 Eliminado de viaje',
+        body: bodyMessage,
+        payload: json.encode({
+          'tipo': 'pasajero_eliminado',
+          'rutEmisor': notification['rutEmisor'],
+          'nombreEmisor': nombreConductor,
+          'origen': origen,
+          'destino': destino,
+          'reembolsoProcesado': reembolsoProcesado,
+          'mensajeDevolucion': mensajeDevolucion,
+          'viajeId': notification['viajeId'],
+        }),
+      );
+      
+      // Registrar como procesada para evitar procesamiento múltiple de otros aspectos
+      final notificationId = _generateNotificationId(data);
+      _processedNotifications.add(notificationId);
+      
+      // Llamar al callback para actualizar la UI si es necesario
+      _onTripRequestProcessed?.call();
+      
+      print('✅ *** NOTIFICACIÓN DE PASAJERO ELIMINADO PROCESADA CORRECTAMENTE ***');
+    } catch (e) {
+      print('❌ *** ERROR PROCESANDO PASAJERO ELIMINADO ***: $e');
+      print('❌ *** DATA RECIBIDA ***: $data');
+      
+      // Notificación de respaldo
+      _showInAppDialogNotification(
+        '🚫 Eliminado de viaje',
+        'Fuiste eliminado de un viaje',
+        action: 'passenger_eliminated'
+      );
+      
+      _showLocalNotification(
+        title: '🚫 Eliminado de viaje',
+        body: 'Fuiste eliminado de un viaje',
+        payload: json.encode({'tipo': 'pasajero_eliminado_fallback'}),
       );
     }
   }
@@ -531,6 +632,25 @@ class WebSocketNotificationService {
       body: body,
       payload: payload,
     );
+  }
+  
+  /// Callback para mostrar diálogos in-app (debe ser configurado por la aplicación)
+  static Function(String title, String message, {String? action})? _showInAppDialog;
+  
+  /// Configurar callback para mostrar diálogos in-app
+  static void setInAppDialogCallback(Function(String title, String message, {String? action}) callback) {
+    _showInAppDialog = callback;
+    print('✅ Callback de diálogo in-app configurado');
+  }
+  
+  /// Mostrar diálogo in-app si hay callback configurado
+  static void _showInAppDialogNotification(String title, String message, {String? action}) {
+    if (_showInAppDialog != null) {
+      print('🔔 Mostrando diálogo in-app: $title - $message');
+      _showInAppDialog!(title, message, action: action);
+    } else {
+      print('⚠️ No hay callback configurado para diálogos in-app');
+    }
   }
   
   /// Mostrar notificación local
@@ -686,6 +806,17 @@ class WebSocketNotificationService {
         } else {
           // Manejar otros tipos de notificaciones
           switch (data['tipo']) {
+            case 'solicitud_viaje':
+            case 'solicitud_viaje_fallback':
+              print('🚗 Tap en notificación de solicitud de viaje');
+              final viajeId = data['viajeId'];
+              if (viajeId != null) {
+                _navigateToTripDetail(viajeId);
+              } else {
+                print('⚠️ No se encontró viajeId en la notificación');
+                _navigateToNotifications();
+              }
+              break;
             case 'amistad_aceptada':
             case 'amistad_rechazada':
               _navigateToFriends();
@@ -762,6 +893,12 @@ class WebSocketNotificationService {
   static void _navigateToAdminPanel() {
     print('🔄 Navegando al panel de administrador...');
     NavigationService.navigateToAdminPanel();
+  }
+
+  /// Navegar al detalle del viaje específico
+  static void _navigateToTripDetail(String viajeId) {
+    print('🔄 Navegando al detalle del viaje: $viajeId');
+    NavigationService.navigateToTripDetail(viajeId);
   }
   
   /// Verificar si el servicio está conectado

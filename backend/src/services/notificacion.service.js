@@ -254,7 +254,7 @@ export async function responderSolicitudViajeService(notificacionId, aceptar, ru
         await crearNotificacionService({
           tipo: 'ride_accepted',
           titulo: '¡Tu viaje fue aceptado!',
-          mensaje: `El conductor aceptó tu solicitud para el viaje de ${viaje.origen.nombre} a ${viaje.destino.nombre}`,
+          mensaje: `El conductor aceptó tu solicitud para el viaje`,
           rutReceptor: notificacion.rutEmisor, // El pasajero recibe la notificación
           rutEmisor: rutUsuario, // El conductor es quien acepta
           viajeId: notificacion.viajeId,
@@ -400,6 +400,151 @@ export async function responderSolicitudViajeService(notificacionId, aceptar, ru
   } catch (error) {
     console.error("Error en responderSolicitudViajeService:", error);
     return [null, "Error al procesar la respuesta"];
+  }
+}
+
+/**
+ * Manejar cuando un pasajero abandona el viaje
+ */
+export async function manejarAbandonoViaje(viajeId, pasajeroRut) {
+  try {
+    console.log(`🚪 Procesando abandono de viaje - Pasajero: ${pasajeroRut}, Viaje: ${viajeId}`);
+    
+    // Importar el modelo de viaje de MongoDB
+    const { default: Viaje } = await import('../entity/viaje.entity.js');
+    
+    // Buscar el viaje en MongoDB
+    const viaje = await Viaje.findById(viajeId);
+    if (!viaje) {
+      throw new Error("Viaje no encontrado");
+    }
+
+    // Verificar que el pasajero está en el viaje
+    const indicePasajero = viaje.pasajeros.findIndex(p => p.usuario_rut === pasajeroRut);
+    if (indicePasajero === -1) {
+      throw new Error("El pasajero no está registrado en este viaje");
+    }
+
+    // Remover al pasajero del viaje
+    const pasajeroData = viaje.pasajeros[indicePasajero];
+    viaje.pasajeros.splice(indicePasajero, 1);
+    viaje.fecha_actualizacion = new Date();
+    await viaje.save();
+
+    console.log(`✅ Pasajero ${pasajeroRut} removido del viaje ${viajeId}`);
+
+    // Procesar devolución de dinero
+    let resultadoDevolucion = null;
+    try {
+      const { procesarDevolucionViaje } = await import('./transaccion.service.js');
+      resultadoDevolucion = await procesarDevolucionViaje({
+        pasajeroRut,
+        conductorRut: viaje.conductor_rut,
+        viajeId
+      });
+      
+      if (resultadoDevolucion.success) {
+        console.log(`💰 Devolución procesada exitosamente: ${resultadoDevolucion.message}`);
+      } else {
+        console.warn(`⚠️ Problema con la devolución: ${resultadoDevolucion.message}`);
+      }
+    } catch (devolucionError) {
+      console.error(`❌ Error al procesar devolución:`, devolucionError);
+      // No fallar todo el proceso por error en devolución
+    }
+
+    // Enviar notificación al conductor
+    try {
+      console.log(`📱 Enviando notificación de abandono al conductor ${viaje.conductor_rut}`);
+      
+      // Obtener información del pasajero que abandona
+      const { getUserService } = await import('./user.service.js');
+      const [pasajero, errorPasajero] = await getUserService({ rut: pasajeroRut });
+      
+      await crearNotificacionService({
+        tipo: 'pasajero_abandono',
+        titulo: 'Pasajero abandonó el viaje',
+        mensaje: `${pasajero ? pasajero.nombreCompleto : 'Un pasajero'} ha abandonado tu viaje de ${viaje.origen.nombre} a ${viaje.destino.nombre}`,
+        rutReceptor: viaje.conductor_rut,
+        rutEmisor: pasajeroRut,
+        viajeId: viajeId,
+        datos: {
+          pasajeroRut: pasajeroRut,
+          pasajeroNombre: pasajero ? pasajero.nombreCompleto : 'Usuario',
+          origen: viaje.origen.nombre,
+          destino: viaje.destino.nombre,
+          fecha: viaje.fecha_ida,
+          hora: viaje.hora_ida,
+          plazasLiberadas: 1,
+          nuevasPlazasDisponibles: viaje.maxPasajeros - viaje.pasajeros.length,
+          devolucion: resultadoDevolucion
+        }
+      });
+
+      // Enviar notificación WebSocket push inmediatamente
+      try {
+        const { getSocketInstance } = await import('../socket.js');
+        const WebSocketNotificationService = (await import('./push_notification.service.js')).default;
+        
+        const io = getSocketInstance();
+        if (io) {
+          const datosParaWebSocket = {
+            viajeId: viajeId,
+            pasajeroRut: pasajeroRut,
+            pasajeroNombre: pasajero ? pasajero.nombreCompleto : 'Usuario',
+            origen: viaje.origen.nombre,
+            destino: viaje.destino.nombre,
+            fechaViaje: viaje.fecha_ida,
+            horaViaje: viaje.hora_ida,
+            plazasLiberadas: 1,
+            nuevasPlazasDisponibles: viaje.maxPasajeros - viaje.pasajeros.length
+          };
+
+          await WebSocketNotificationService.enviarPasajeroAbandono(
+            io,
+            viaje.conductor_rut,
+            pasajero ? pasajero.nombreCompleto : 'Usuario',
+            pasajeroRut,
+            datosParaWebSocket
+          );
+          
+          console.log(`🔔 Notificación WebSocket de abandono enviada al conductor ${viaje.conductor_rut}`);
+        } else {
+          console.warn('⚠️ Socket.io no disponible para enviar notificación de abandono');
+        }
+      } catch (wsError) {
+        console.error('❌ Error enviando notificación WebSocket de abandono:', wsError);
+      }
+      
+      console.log(`✅ Notificación de abandono enviada al conductor ${viaje.conductor_rut}`);
+    } catch (notifError) {
+      console.error(`❌ Error enviando notificación de abandono:`, notifError);
+      // No fallar todo el proceso por error en notificación
+    }
+
+    // Intentar remover al pasajero del chat grupal
+    try {
+      const { removerParticipante } = await import('../services/chatGrupal.service.js');
+      await removerParticipante(viajeId, pasajeroRut);
+      console.log(`✅ Pasajero ${pasajeroRut} removido del chat grupal del viaje ${viajeId}`);
+    } catch (chatError) {
+      console.error(`❌ Error al remover pasajero del chat grupal:`, chatError);
+      // No fallar todo el proceso por error en chat
+    }
+
+    return {
+      success: true,
+      message: "Pasajero removido del viaje exitosamente",
+      viajeId: viajeId,
+      pasajeroRut: pasajeroRut,
+      plazasLiberadas: 1,
+      nuevasPlazasDisponibles: viaje.maxPasajeros - viaje.pasajeros.length,
+      devolucion: resultadoDevolucion
+    };
+
+  } catch (error) {
+    console.error("Error en manejarAbandonoViaje:", error);
+    throw error;
   }
 }
 

@@ -1022,9 +1022,10 @@ class _SaldoTarjetasScreenState extends State<SaldoTarjetasScreen>
     // Para mostrar correctamente: 
     // - Pago: monto negativo (-), flecha hacia abajo, rojo
     // - Cobro: monto positivo (+), flecha hacia arriba, verde
-    // - Devolución: monto positivo (+), flecha circular, azul
+    // - Devolución: puede ser positiva (pasajero recibe) o negativa (conductor pierde)
     bool esPositivo = false;
     double montoMostrar = monto;
+    final String concepto = transaccion['concepto']?.toLowerCase() ?? '';
     
     switch (tipo.toLowerCase()) {
       case 'pago':
@@ -1036,8 +1037,14 @@ class _SaldoTarjetasScreenState extends State<SaldoTarjetasScreen>
         montoMostrar = monto.abs(); // Asegurar que sea positivo
         break;
       case 'devolucion':
-        esPositivo = true; // Positivo para el que recibe devolución
-        montoMostrar = monto.abs(); // Asegurar que sea positivo
+        // Verificar si es un ajuste por abandono (negativo para conductor) o devolución normal (positivo para pasajero)
+        if (concepto.contains('ajuste por abandono') || concepto.contains('ajuste por eliminación') || monto < 0) {
+          esPositivo = false; // Negativo para ajustes del conductor
+          montoMostrar = -monto.abs(); // Asegurar que sea negativo
+        } else {
+          esPositivo = true; // Positivo para devoluciones al pasajero
+          montoMostrar = monto.abs(); // Asegurar que sea positivo
+        }
         break;
     }
     
@@ -1074,11 +1081,11 @@ class _SaldoTarjetasScreenState extends State<SaldoTarjetasScreen>
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: _getTipoTransaccionColor(tipo),
+                    color: _getTipoTransaccionColor(tipo, concepto: concepto, monto: monto),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
-                    _getTipoTransaccionIcon(tipo),
+                    _getTipoTransaccionIcon(tipo, concepto: concepto, monto: monto),
                     color: Colors.white,
                     size: 20,
                   ),
@@ -1240,27 +1247,39 @@ class _SaldoTarjetasScreenState extends State<SaldoTarjetasScreen>
     return cardContent;
   }
 
-  Color _getTipoTransaccionColor(String tipo) {
+  Color _getTipoTransaccionColor(String tipo, {String concepto = '', double monto = 0}) {
     switch (tipo.toLowerCase()) {
       case 'cobro':
         return Colors.green; // Verde para dinero recibido
       case 'pago':
         return Colors.red; // Rojo para dinero gastado
       case 'devolucion':
-        return Colors.blue; // Azul para devoluciones
+        // Si es un ajuste por abandono o monto negativo, usar rojo (pérdida)
+        if (concepto.toLowerCase().contains('ajuste por abandono') || 
+            concepto.toLowerCase().contains('ajuste por eliminación') || 
+            monto < 0) {
+          return Colors.red; // Rojo para ajustes de conductor (pérdida de dinero)
+        }
+        return Colors.blue; // Azul para devoluciones normales (ganancia de dinero)
       default:
         return const Color(0xFF8D4F3A);
     }
   }
 
-  IconData _getTipoTransaccionIcon(String tipo) {
+  IconData _getTipoTransaccionIcon(String tipo, {String concepto = '', double monto = 0}) {
     switch (tipo.toLowerCase()) {
       case 'cobro':
         return Icons.arrow_upward; // Flecha hacia arriba para dinero recibido
       case 'pago':
         return Icons.arrow_downward; // Flecha hacia abajo para dinero gastado  
       case 'devolucion':
-        return Icons.refresh; // Flecha circular para devoluciones
+        // Si es un ajuste por abandono o monto negativo, usar flecha hacia abajo
+        if (concepto.toLowerCase().contains('ajuste por abandono') || 
+            concepto.toLowerCase().contains('ajuste por eliminación') || 
+            monto < 0) {
+          return Icons.arrow_downward; // Flecha hacia abajo para ajustes del conductor
+        }
+        return Icons.refresh; // Flecha circular para devoluciones normales
       default:
         return Icons.swap_horiz;
     }

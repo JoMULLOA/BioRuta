@@ -4,7 +4,8 @@ import {
   obtenerHistorialTransaccionesService,
   procesarPagoViaje,
   confirmarPagoTarjeta,
-  confirmarPagoEfectivo as confirmarPagoEfectivoService 
+  confirmarPagoEfectivo as confirmarPagoEfectivoService,
+  procesarDevolucionViaje 
 } from "../services/transaccion.service.js";
 import { 
   handleErrorClient, 
@@ -186,6 +187,44 @@ export async function confirmarPagoEfectivo(req, res) {
     });
   } catch (error) {
     console.error("Error en confirmarPagoEfectivo:", error);
+    handleErrorServer(res, 500, "Error interno del servidor");
+  }
+}
+
+/**
+ * Controlador para procesar devolución cuando un pasajero abandona el viaje
+ */
+export async function procesarDevolucion(req, res) {
+  try {
+    const {
+      pasajeroRut,
+      conductorRut,
+      viajeId
+    } = req.body;
+
+    // Validaciones básicas
+    if (!pasajeroRut || !conductorRut || !viajeId) {
+      return handleErrorClient(res, 400, "Faltan campos obligatorios para procesar la devolución");
+    }
+
+    const resultado = await procesarDevolucionViaje({
+      pasajeroRut,
+      conductorRut,
+      viajeId
+    });
+
+    if (!resultado.success) {
+      return handleErrorClient(res, 400, resultado.message);
+    }
+
+    handleSuccess(res, 200, resultado.message, {
+      tipo: resultado.tipo,
+      monto: resultado.monto,
+      transaccionDevolucionId: resultado.transaccionDevolucionId,
+      saldoNuevo: resultado.saldoNuevo
+    });
+  } catch (error) {
+    console.error("Error en procesarDevolucion:", error);
     handleErrorServer(res, 500, "Error interno del servidor");
   }
 }

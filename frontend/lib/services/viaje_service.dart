@@ -723,7 +723,7 @@ class ViajeService {
       }
 
       final response = await http.post(
-        Uri.parse('$baseUrl/viajes/$viajeId/abandonar'),
+        Uri.parse('$baseUrl/notificaciones/viaje/$viajeId/abandonar'),
         headers: headers,
       );
 
@@ -732,7 +732,10 @@ class ViajeService {
       if (response.statusCode == 200 && data['success'] == true) {
         return {
           'success': true,
-          'message': data['message'] ?? 'Has abandonado el viaje exitosamente'
+          'message': data['message'] ?? 'Has abandonado el viaje exitosamente',
+          'devolucion': data['data']?['devolucion'],
+          'plazasLiberadas': data['data']?['plazasLiberadas'],
+          'nuevasPlazasDisponibles': data['data']?['nuevasPlazasDisponibles']
         };
       } else {
         return {

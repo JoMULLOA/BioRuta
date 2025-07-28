@@ -26,6 +26,37 @@ void main() async {
   try {
     // Inicializar sistema de notificaciones WebSocket
     await WebSocketNotificationService.initialize();
+    
+    // Configurar callback para diálogos in-app
+    WebSocketNotificationService.setInAppDialogCallback((title, message, {action}) {
+      final context = NavigationService.navigatorKey.currentContext;
+      if (context != null) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (BuildContext dialogContext) => AlertDialog(
+            title: Text(title),
+            content: Text(message),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(dialogContext).pop();
+                  if (action == 'passenger_eliminated') {
+                    // Redirigir a la pantalla de mis viajes después de eliminar
+                    Navigator.of(context).pushNamedAndRemoveUntil(
+                      '/mis-viajes',
+                      (route) => false,
+                    );
+                  }
+                },
+                child: const Text('Entendido'),
+              ),
+            ],
+          ),
+        );
+      }
+    });
+    
     print('🔔 Sistema de notificaciones WebSocket inicializado');
   } catch (e) {
     print('❌ Error inicializando notificaciones: $e');

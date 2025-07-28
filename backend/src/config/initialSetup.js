@@ -30,11 +30,11 @@ async function createInitialData() {
         rol: "estudiante",
         puntuacion: 5,
         clasificacion : 2,
-        saldo: 999999,
+        saldo: 100000,
         tarjetas: []
       });
       await userRepository.save(user1);
-      console.log("* => Usuario 1 creado exitosamente (Saldo inicial: $25,000)");
+      console.log("* => Usuario 1 creado exitosamente (Saldo inicial: $100,000)");
 
       user2 = userRepository.create({
         rut: "11.222.333-5",
@@ -46,11 +46,11 @@ async function createInitialData() {
         rol: "estudiante",
         puntuacion: 3,
         clasificacion : 1,
-        saldo: 999999,
+        saldo: 100000,
         tarjetas: []
       });
       await userRepository.save(user2);
-      console.log("* => Usuario 2 creado exitosamente (Saldo inicial: $25,000)");
+      console.log("* => Usuario 2 creado exitosamente (Saldo inicial: $100,000)");
 
       user3 = userRepository.create({
         rut: "23.444.555-6",
@@ -62,11 +62,11 @@ async function createInitialData() {
         rol: "estudiante",
         puntuacion: 4,
         clasificacion : 2,
-        saldo: 999999,
+        saldo: 100000,
         tarjetas: []
       });
       await userRepository.save(user3);
-      console.log("* => Usuario 3 creado exitosamente (Saldo inicial: $25,000)");
+      console.log("* => Usuario 3 creado exitosamente (Saldo inicial: $100,000)");
 
       // Crear un usuario administrador
       const adminUser = userRepository.create({

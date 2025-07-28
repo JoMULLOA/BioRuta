@@ -2332,6 +2332,27 @@ export async function abandonarViaje(req, res) {
     const pasajeroAEliminar = viaje.pasajeros[pasajeroIndex];
     console.log(`🗑️ Eliminando pasajero: RUT="${pasajeroAEliminar.usuario_rut}" Estado="${pasajeroAEliminar.estado}"`);
 
+    // Procesar la devolución antes de remover al pasajero
+    try {
+      console.log(`💰 Procesando devolución para pasajero ${userRut}`);
+      
+      // Importar el servicio de transacciones
+      const { procesarDevolucionViaje } = await import("../services/transaccion.service.js");
+      
+      // Procesar la devolución del pago
+      await procesarDevolucionViaje({
+        pasajeroRut: userRut,
+        conductorRut: viaje.usuario_rut,
+        viajeId: viajeId
+      });
+      console.log(`✅ Devolución procesada exitosamente para ${userRut}`);
+      
+    } catch (devolucionError) {
+      console.error(`⚠️ Error al procesar devolución:`, devolucionError.message);
+      // Continuar con el abandono aunque falle la devolución
+      // Se puede manejar manualmente después
+    }
+
     // Remover al usuario de la lista de pasajeros
     viaje.pasajeros.splice(pasajeroIndex, 1);
     
@@ -2353,10 +2374,50 @@ export async function abandonarViaje(req, res) {
       // No fallar el abandono si falla el chat
     }
 
+    // Notificar al conductor sobre el abandono
+    try {
+      console.log(`📢 Enviando notificación al conductor ${viaje.usuario_rut}`);
+      
+      // Importar el servicio de notificaciones push
+      const { enviarPasajeroAbandono } = await import("../services/push_notification.service.js");
+      
+      // Obtener información del pasajero que abandonó
+      const { getUserService } = await import("../services/user.service.js");
+      const [pasajeroInfo] = await getUserService({ rut: userRut });
+      
+      // Crear datos del viaje para la notificación
+      const datosViaje = {
+        viajeId: viaje._id,
+        origen: viaje.origen.nombre,
+        destino: viaje.destino.nombre,
+        fechaViaje: viaje.fecha_ida,
+        horaViaje: viaje.hora_ida,
+        plazasLiberadas: pasajeroAEliminar.pasajeros_solicitados || 1,
+        nuevasPlazasDisponibles: viaje.maxPasajeros - viaje.pasajeros.length
+      };
+      
+      // Obtener socket.io instance
+      const io = req.app.get('io');
+      if (io) {
+        await enviarPasajeroAbandono(
+          io, 
+          viaje.usuario_rut, 
+          pasajeroInfo?.nombre || 'Pasajero', 
+          userRut, 
+          datosViaje
+        );
+        console.log(`✅ Notificación de abandono enviada al conductor`);
+      }
+      
+    } catch (notificationError) {
+      console.error(`⚠️ Error al enviar notificación al conductor:`, notificationError.message);
+      // No fallar el abandono si falla la notificación
+    }
+
     console.log(`✅ Usuario ${userRut} abandonó el viaje ${viajeId} exitosamente`);
     console.log(`📊 Pasajeros restantes: ${viaje.pasajeros.length}/${viaje.maxPasajeros}`);
 
-    handleSuccess(res, 200, "Has abandonado el viaje exitosamente", {
+    handleSuccess(res, 200, "Has abandonado el viaje exitosamente. Se ha procesado la devolución correspondiente.", {
       viajeId: viaje._id,
       pasajerosRestantes: viaje.pasajeros.length,
       plazasDisponibles: viaje.maxPasajeros - viaje.pasajeros.length
@@ -2637,36 +2698,37 @@ export async function eliminarPasajero(req, res) {
     const pasajeroAEliminar = viaje.pasajeros[pasajeroIndex];
     console.log(`🗑️ Eliminando pasajero: RUT="${pasajeroAEliminar.usuario_rut}" Estado="${pasajeroAEliminar.estado}"`);
 
-    // Verificar si necesitamos procesar un reembolso
+    // Procesar la devolución antes de remover al pasajero
     let reembolsoProcesado = false;
+    let mensajeDevolucion = '';
+    
     if (pasajeroAEliminar.estado === 'confirmado') {
       try {
-        // Buscar información de pago del pasajero
-        const { AppDataSource } = await import('../config/configDb.js');
-        const { default: Notificacion } = await import('../entity/notificacion.entity.js');
+        console.log(`💰 Procesando devolución para pasajero eliminado ${usuarioRut}`);
         
-        const notificacionRepository = AppDataSource.getRepository(Notificacion);
+        // Importar el servicio de transacciones
+        const { procesarDevolucionViaje } = await import("../services/transaccion.service.js");
         
-        const solicitud = await notificacionRepository.findOne({
-          where: {
-            rutEmisor: usuarioRut,
-            rutReceptor: conductorRut,
-            tipo: 'solicitud_viaje',
-            viajeId: viajeId
-          }
+        // Procesar la devolución del pago
+        const resultadoDevolucion = await procesarDevolucionViaje({
+          pasajeroRut: usuarioRut,
+          conductorRut: conductorRut,
+          viajeId: viajeId
         });
-
-        if (solicitud && solicitud.datos && solicitud.datos.pago) {
-          console.log(`💰 Procesando reembolso para pasajero ${usuarioRut}: ${JSON.stringify(solicitud.datos.pago)}`);
-          
-          // Aquí se implementaría la lógica de reembolso con MercadoPago
-          // Por ahora, simular que el reembolso se procesa exitosamente
+        
+        if (resultadoDevolucion.success) {
           reembolsoProcesado = true;
-          console.log(`✅ Reembolso procesado exitosamente para ${usuarioRut}`);
+          mensajeDevolucion = resultadoDevolucion.message || 'Devolución procesada exitosamente';
+          console.log(`✅ Devolución procesada exitosamente para ${usuarioRut}: ${mensajeDevolucion}`);
+        } else {
+          console.log(`⚠️ No se pudo procesar devolución: ${resultadoDevolucion.message}`);
+          mensajeDevolucion = resultadoDevolucion.message || 'No se encontró pago previo';
         }
-      } catch (reembolsoError) {
-        console.error(`⚠️ Error procesando reembolso:`, reembolsoError.message);
-        // Continuar con la eliminación aunque falle el reembolso
+        
+      } catch (devolucionError) {
+        console.error(`⚠️ Error al procesar devolución:`, devolucionError.message);
+        mensajeDevolucion = 'Error al procesar devolución';
+        // Continuar con la eliminación aunque falle la devolución
       }
     }
 
@@ -2693,22 +2755,75 @@ export async function eliminarPasajero(req, res) {
 
     // Crear notificación para el pasajero eliminado
     try {
-      const { crearNotificacion } = await import('../services/notificacion.service.js');
+      const { crearNotificacionService } = await import('../services/notificacion.service.js');
       
-      await crearNotificacion({
+      // Obtener información del conductor
+      const { getUserService } = await import("../services/user.service.js");
+      const [conductorInfo] = await getUserService({ rut: conductorRut });
+      const nombreConductor = conductorInfo?.nombreCompleto || 'El conductor';
+      
+      const mensajeNotificacion = reembolsoProcesado 
+        ? `${nombreConductor} te ha eliminado del viaje. ${mensajeDevolucion}`
+        : `${nombreConductor} te ha eliminado del viaje.`;
+      
+      await crearNotificacionService({
         rutEmisor: conductorRut,
         rutReceptor: usuarioRut,
         tipo: 'pasajero_eliminado',
         titulo: 'Eliminado de viaje',
-        mensaje: `Has sido eliminado del viaje por el conductor.${reembolsoProcesado ? ' Se ha procesado tu reembolso.' : ''}`,
+        mensaje: mensajeNotificacion,
         viajeId: viajeId,
         datos: {
           viajeId: viajeId,
-          reembolsoProcesado: reembolsoProcesado
+          conductorRut: conductorRut,
+          conductorNombre: nombreConductor,
+          reembolsoProcesado: reembolsoProcesado,
+          mensajeDevolucion: mensajeDevolucion,
+          origen: viaje.origen.nombre,
+          destino: viaje.destino.nombre
         }
       });
       
       console.log(`📧 Notificación de eliminación enviada a ${usuarioRut}`);
+      
+      // Enviar notificación push inmediatamente
+      try {
+        const pushService = await import("../services/push_notification.service.js");
+        
+        if (!pushService || !pushService.enviarPasajeroEliminado) {
+          console.error('⚠️ Error: servicio de push notification no disponible o función no encontrada');
+          throw new Error('Servicio de notificaciones no disponible');
+        }
+        
+        // Obtener socket.io instance
+        const io = req.app.get('io');
+        if (io) {
+          const datosViaje = {
+            viajeId: viajeId,
+            origen: viaje.origen.nombre,
+            destino: viaje.destino.nombre,
+            fechaViaje: viaje.fecha_ida,
+            horaViaje: viaje.hora_ida
+          };
+          
+          await pushService.enviarPasajeroEliminado(
+            io,
+            usuarioRut,  // RUT del pasajero que fue eliminado
+            nombreConductor,  // Nombre del conductor
+            conductorRut,  // RUT del conductor
+            datosViaje,  // Datos del viaje
+            reembolsoProcesado,  // Si se procesó reembolso
+            mensajeDevolucion  // Mensaje de devolución
+          );
+        } else {
+          console.warn('Socket.IO no disponible para notificación push');
+        }
+        console.log(`� Notificación push enviada a ${usuarioRut}`);
+      } catch (pushError) {
+        console.error(`⚠️ Error enviando notificación push:`, pushError.message);
+        console.error(`⚠️ Stack trace:`, pushError.stack);
+      }
+      
     } catch (notificacionError) {
       console.error(`⚠️ Error creando notificación:`, notificacionError.message);
       // No fallar la eliminación si falla la notificación
@@ -2722,7 +2837,8 @@ export async function eliminarPasajero(req, res) {
       usuarioEliminado: usuarioRut,
       pasajerosRestantes: viaje.pasajeros.length,
       plazasDisponibles: viaje.maxPasajeros - viaje.pasajeros.length,
-      reembolsoProcesado: reembolsoProcesado
+      reembolsoProcesado: reembolsoProcesado,
+      mensajeDevolucion: mensajeDevolucion
     });
 
   } catch (error) {

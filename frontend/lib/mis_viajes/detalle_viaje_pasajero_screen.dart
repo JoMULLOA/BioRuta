@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/viaje_model.dart';
 import '../services/ruta_service.dart';
+import '../services/viaje_service.dart';
 import '../utils/map_launcher.dart';
 import '../chat/chat_grupal.dart';
 import 'dart:convert';
@@ -27,7 +28,6 @@ class _DetalleViajePasajeroScreenState extends State<DetalleViajePasajeroScreen>
   
   // Variable para almacenar la calificación del conductor
   double _calificacionConductor = 0;
-  bool _calificacionGuardada = false;
   bool _yaSeVerificoCalificacion = false;
 
   @override
@@ -173,10 +173,6 @@ class _DetalleViajePasajeroScreenState extends State<DetalleViajePasajeroScreen>
           final keyCalificacion = 'calificacion_conductor_${viaje.id}_${viaje.conductor?.rut}';
           await prefs.setBool(keyCalificacion, true);
           
-          setState(() {
-            _calificacionGuardada = true;
-          });
-          
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
@@ -198,6 +194,96 @@ class _DetalleViajePasajeroScreenState extends State<DetalleViajePasajeroScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('❌ Error al guardar la calificación: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _abandonarViaje() async {
+    // Mostrar diálogo de confirmación
+    final bool? confirmar = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('¿Abandonar viaje?'),
+          content: const Text(
+            'Si abandonas este viaje, se procesará automáticamente la devolución del dinero pagado según el método de pago utilizado.\n\n'
+            '¿Estás seguro de que deseas continuar?'
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancelar'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.red,
+              ),
+              child: const Text('Abandonar'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmar != true) return;
+
+    try {
+      // Mostrar indicador de carga
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Procesando abandono del viaje...'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+
+      final resultado = await ViajeService.abandonarViaje(viaje.id);
+
+      if (mounted) {
+        if (resultado['success'] == true) {
+          // Mostrar mensaje de éxito con información de devolución
+          String mensaje = resultado['message'] ?? 'Has abandonado el viaje exitosamente';
+          
+          if (resultado['devolucion'] != null && resultado['devolucion']['success'] == true) {
+            final devolucion = resultado['devolucion'];
+            if (devolucion['tipo'] == 'efectivo') {
+              mensaje += '\n\nSe han eliminado las transacciones pendientes en efectivo.';
+            } else {
+              mensaje += '\n\nSe ha procesado la devolución de \$${devolucion['monto']} a tu saldo.';
+            }
+          }
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(mensaje),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 5),
+            ),
+          );
+
+          // Regresar a la pantalla anterior
+          Navigator.of(context).pop();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(resultado['message'] ?? 'Error al abandonar el viaje'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 3),
           ),
@@ -917,6 +1003,30 @@ class _DetalleViajePasajeroScreenState extends State<DetalleViajePasajeroScreen>
 
             // Información según el estado
             _buildInformacionEstado(),
+            
+            const SizedBox(height: 24),
+
+            // Botón para abandonar viaje (solo visible si está confirmado y viaje activo/en curso)
+            if ((viaje.estado == 'activo' || viaje.estado == 'en_curso') &&
+                viaje.pasajeros.isNotEmpty &&
+                viaje.pasajeros.first.estado == 'confirmado')
+              Container(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: _abandonarViaje,
+                  icon: const Icon(Icons.exit_to_app),
+                  label: const Text('Abandonar Viaje'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red[600],
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 2,
+                  ),
+                ),
+              ),
           ],
         ),
       ),

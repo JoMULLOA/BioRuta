@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/viaje_service.dart';
-import '../services/notificacion_service.dart';
+import '../services/websocket_notification_service.dart';
 import '../models/viaje_model.dart';
 import '../widgets/navbar_con_sos_dinamico.dart';
+import '../widgets/solicitudes_button_widget.dart';
 import 'detalle_viaje_conductor_screen.dart';
 import 'detalle_viaje_pasajero_screen.dart';
-import 'solicitudes_pasajeros_modal.dart';
 
 class MisViajesScreen extends StatefulWidget {
   const MisViajesScreen({super.key});
@@ -24,7 +24,6 @@ class _MisViajesScreenState extends State<MisViajesScreen>
   bool cargando = true;
   bool _isBuilding = false;  // Flag para prevenir builds múltiples
   int _selectedIndex = 0; // Mis viajes ahora está en índice 0
-  int numeroSolicitudesPendientes = 0;
   late TabController _tabController;
   
   // Variable para rastrear el listener
@@ -52,8 +51,20 @@ class _MisViajesScreenState extends State<MisViajesScreen>
     };
     _tabController.addListener(_tabListener);
     
+    // Registrar listeners para cambios en solicitudes
+    WebSocketNotificationService.setOnTripRequestReceived(() {
+      if (mounted) {
+        _cargarViajes();
+      }
+    });
+    
+    WebSocketNotificationService.setOnTripRequestProcessed(() {
+      if (mounted) {
+        _cargarViajes();
+      }
+    });
+    
     _cargarViajes();
-    _cargarSolicitudesPendientes();
   }
 
   @override
@@ -61,7 +72,6 @@ class _MisViajesScreenState extends State<MisViajesScreen>
     super.didUpdateWidget(oldWidget);
     // Recargar datos cuando el widget se actualiza
     _cargarViajes();
-    _cargarSolicitudesPendientes();
   }
 
   // Método que se llama cuando la pantalla vuelve a estar visible
@@ -71,7 +81,6 @@ class _MisViajesScreenState extends State<MisViajesScreen>
     // Recargar datos cuando se regresa a esta pantalla
     if (mounted) {
       _cargarViajes();
-      _cargarSolicitudesPendientes();
     }
   }
 
@@ -80,6 +89,11 @@ class _MisViajesScreenState extends State<MisViajesScreen>
     // Remover listener antes de dispose para evitar llamadas a setState después del dispose
     _tabController.removeListener(_tabListener);
     _tabController.dispose();
+    
+    // Limpiar callbacks de notificaciones
+    WebSocketNotificationService.setOnTripRequestReceived(null);
+    WebSocketNotificationService.setOnTripRequestProcessed(null);
+    
     super.dispose();
   }
 
@@ -133,32 +147,72 @@ Future<void> _cargarViajes() async {
 void _aplicarFiltrosPeriodo() {
   final ahora = DateTime.now();
   DateTime fechaInicio;
+  DateTime? fechaFin;
   
   switch (_periodoSeleccionado) {
     case 'Hoy':
       fechaInicio = DateTime(ahora.year, ahora.month, ahora.day);
+      fechaFin = DateTime(ahora.year, ahora.month, ahora.day, 23, 59, 59);
+      break;
+    case 'Mañana':
+      final manana = ahora.add(const Duration(days: 1));
+      fechaInicio = DateTime(manana.year, manana.month, manana.day);
+      fechaFin = DateTime(manana.year, manana.month, manana.day, 23, 59, 59);
       break;
     case 'Esta semana':
       final diasHastaLunes = (ahora.weekday - 1) % 7;
       fechaInicio = DateTime(ahora.year, ahora.month, ahora.day - diasHastaLunes);
+      fechaFin = fechaInicio.add(const Duration(days: 6, hours: 23, minutes: 59, seconds: 59));
+      break;
+    case 'Próxima semana':
+      final diasHastaLunes = (ahora.weekday - 1) % 7;
+      fechaInicio = DateTime(ahora.year, ahora.month, ahora.day - diasHastaLunes + 7);
+      fechaFin = fechaInicio.add(const Duration(days: 6, hours: 23, minutes: 59, seconds: 59));
       break;
     case 'Este mes':
       fechaInicio = DateTime(ahora.year, ahora.month, 1);
+      fechaFin = DateTime(ahora.year, ahora.month + 1, 0, 23, 59, 59);
       break;
+    case 'Próximo mes':
+      fechaInicio = DateTime(ahora.year, ahora.month + 1, 1);
+      fechaFin = DateTime(ahora.year, ahora.month + 2, 0, 23, 59, 59);
+      break;
+    case 'Pasados':
+      // Para viajes pasados, filtrar por estado "completado" en lugar de fecha
+      viajesCreados = viajesCreadosOriginales.where((viaje) {
+        return viaje.estado.toLowerCase() == 'completado';
+      }).toList();
+      
+      viajesUnidos = viajesUnidosOriginales.where((viaje) {
+        return viaje.estado.toLowerCase() == 'completado';
+      }).toList();
+      return;
     default: // 'Todos'
       viajesCreados = List.from(viajesCreadosOriginales);
       viajesUnidos = List.from(viajesUnidosOriginales);
       return;
   }
   
-  // Filtrar viajes creados
+  // Filtrar viajes creados por fecha (para todos los filtros excepto 'Pasados' y 'Todos')
   viajesCreados = viajesCreadosOriginales.where((viaje) {
-    return viaje.fechaIda.isAfter(fechaInicio.subtract(const Duration(days: 1)));
+    final fechaViaje = viaje.fechaIda;
+    if (fechaFin != null) {
+      return fechaViaje.isAfter(fechaInicio.subtract(const Duration(seconds: 1))) && 
+             fechaViaje.isBefore(fechaFin.add(const Duration(seconds: 1)));
+    } else {
+      return fechaViaje.isAfter(fechaInicio.subtract(const Duration(seconds: 1)));
+    }
   }).toList();
   
-  // Filtrar viajes unidos
+  // Filtrar viajes unidos por fecha (para todos los filtros excepto 'Pasados' y 'Todos')
   viajesUnidos = viajesUnidosOriginales.where((viaje) {
-    return viaje.fechaIda.isAfter(fechaInicio.subtract(const Duration(days: 1)));
+    final fechaViaje = viaje.fechaIda;
+    if (fechaFin != null) {
+      return fechaViaje.isAfter(fechaInicio.subtract(const Duration(seconds: 1))) && 
+             fechaViaje.isBefore(fechaFin.add(const Duration(seconds: 1)));
+    } else {
+      return fechaViaje.isAfter(fechaInicio.subtract(const Duration(seconds: 1)));
+    }
   }).toList();
 }
 
@@ -169,54 +223,6 @@ void _cambiarPeriodo(String nuevoPeriodo) {
   setState(() {
     _periodoSeleccionado = nuevoPeriodo;
     _aplicarFiltrosPeriodo();
-  });
-}
-
-Future<void> _cargarSolicitudesPendientes() async {
-  try {
-    final numero = await NotificacionService.obtenerNumeroNotificacionesPendientes();
-    if (mounted) {
-      setState(() {
-        numeroSolicitudesPendientes = numero;
-      });
-    }
-  } catch (e) {
-    print('Error al cargar solicitudes pendientes: $e');
-  }
-}
-
-void _mostrarSolicitudesPasajeros() {
-  showModalBottomSheet(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    builder: (context) => SolicitudesPasajerosModal(
-      onSolicitudProcesada: () {
-        // Verificar que el widget sigue montado antes de recargar
-        if (mounted) {
-          // Recargar solicitudes pendientes para actualizar el badge
-          _cargarSolicitudesPendientes();
-          
-          // Recargar viajes para mostrar los cambios en las listas
-          _cargarViajes();
-          
-          // Notificar al sistema global que los marcadores deben actualizarse
-          // Esto permitirá que el mapa se entere cuando se regrese a esa pantalla
-          debugPrint('📱 Solicitud procesada - estado de viajes actualizado');
-        }
-      },
-      onContadorCambiado: () {
-        // Actualizar el contador cuando haya cambios automáticos
-        if (mounted) {
-          _cargarSolicitudesPendientes();
-        }
-      },
-    ),
-  ).then((_) {
-    // Recargar solicitudes al cerrar el modal solo si el widget sigue montado
-    if (mounted) {
-      _cargarSolicitudesPendientes();
-    }
   });
 }
 
@@ -254,7 +260,21 @@ void _mostrarSolicitudesPasajeros() {
     return Scaffold(
       backgroundColor: const Color(0xFFF2EEED),
       appBar: AppBar(
-        title: const Text('Mis Viajes'),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const Text('Mis Viajes'),
+            if (_periodoSeleccionado != 'Todos')
+              Text(
+                _periodoSeleccionado,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.normal,
+                  color: Color(0xFFEDCAB6),
+                ),
+              ),
+          ],
+        ),
         backgroundColor: const Color(0xFF8D4F3A),
         foregroundColor: Colors.white,
         elevation: 0,
@@ -273,19 +293,35 @@ void _mostrarSolicitudesPasajeros() {
               itemBuilder: (BuildContext context) => [
                 const PopupMenuItem(
                   value: 'Todos',
-                  child: Text('Todos', style: TextStyle(color: Colors.white)),
+                  child: Text('📅 Todos', style: TextStyle(color: Colors.white)),
                 ),
                 const PopupMenuItem(
                   value: 'Hoy',
-                  child: Text('Hoy', style: TextStyle(color: Colors.white)),
+                  child: Text('📍 Hoy', style: TextStyle(color: Colors.white)),
+                ),
+                const PopupMenuItem(
+                  value: 'Mañana',
+                  child: Text('⏭️ Mañana', style: TextStyle(color: Colors.white)),
                 ),
                 const PopupMenuItem(
                   value: 'Esta semana',
-                  child: Text('Esta semana', style: TextStyle(color: Colors.white)),
+                  child: Text('📋 Esta semana', style: TextStyle(color: Colors.white)),
+                ),
+                const PopupMenuItem(
+                  value: 'Próxima semana',
+                  child: Text('⏯️ Próxima semana', style: TextStyle(color: Colors.white)),
                 ),
                 const PopupMenuItem(
                   value: 'Este mes',
-                  child: Text('Este mes', style: TextStyle(color: Colors.white)),
+                  child: Text('🗓️ Este mes', style: TextStyle(color: Colors.white)),
+                ),
+                const PopupMenuItem(
+                  value: 'Próximo mes',
+                  child: Text('📆 Próximo mes', style: TextStyle(color: Colors.white)),
+                ),
+                const PopupMenuItem(
+                  value: 'Pasados',
+                  child: Text('⏮️ Viajes pasados', style: TextStyle(color: Colors.white)),
                 ),
               ],
             ),
@@ -335,56 +371,48 @@ void _mostrarSolicitudesPasajeros() {
   Widget? _buildFloatingActionButton() {
     // Solo mostrar el FAB en la pestaña "Mis Publicaciones" y si hay viajes creados
     return _tabController.index == 0 && viajesCreados.isNotEmpty
-        ? FloatingActionButton.extended(
-            onPressed: _mostrarSolicitudesPasajeros,
-            backgroundColor: const Color(0xFF854937),
-            foregroundColor: Colors.white,
-            icon: Stack(
-              children: [
-                const Icon(Icons.notifications),
-                if (numeroSolicitudesPendientes > 0)
-                  Positioned(
-                    right: 0,
-                    top: 0,
-                    child: Container(
-                      padding: const EdgeInsets.all(2),
-                      decoration: BoxDecoration(
-                        color: Colors.red,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      constraints: const BoxConstraints(
-                        minWidth: 16,
-                        minHeight: 16,
-                      ),
-                      child: Text(
-                        '$numeroSolicitudesPendientes',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            label: Text(
-              'Solicitudes${numeroSolicitudesPendientes > 0 ? ' ($numeroSolicitudesPendientes)' : ''}',
-            ),
+        ? SolicitudesButtonWidget(
+            showAsFloatingButton: true,
+            onSolicitudProcesada: () {
+              if (mounted) {
+                _cargarViajes();
+              }
+            },
+            onContadorCambiado: () {
+              if (mounted) {
+                setState(() {});
+              }
+            },
           )
         : null;
   }
 
   Widget _buildViajesCreados() {
     if (viajesCreados.isEmpty) {
-      final String mensaje = _periodoSeleccionado == 'Todos' 
-          ? 'No has publicado ningún viaje'
-          : 'No tienes viajes publicados $_periodoSeleccionado'.toLowerCase();
-          
-      final String submensaje = _periodoSeleccionado == 'Todos'
-          ? 'Publica tu primer viaje para empezar a compartir'
-          : 'Cambia el filtro de período o publica un nuevo viaje';
+      String mensaje;
+      String submensaje;
+      
+      switch (_periodoSeleccionado) {
+        case 'Todos':
+          mensaje = 'No has publicado ningún viaje';
+          submensaje = 'Publica tu primer viaje para empezar a compartir';
+          break;
+        case 'Hoy':
+          mensaje = 'No tienes viajes publicados para hoy';
+          submensaje = 'Publica un viaje para hoy o cambia el filtro';
+          break;
+        case 'Mañana':
+          mensaje = 'No tienes viajes publicados para mañana';
+          submensaje = 'Planifica un viaje para mañana o cambia el filtro';
+          break;
+        case 'Pasados':
+          mensaje = 'No tienes viajes completados';
+          submensaje = 'Los viajes que hayas completado aparecerán aquí';
+          break;
+        default:
+          mensaje = 'No tienes viajes publicados $_periodoSeleccionado'.toLowerCase();
+          submensaje = 'Cambia el filtro de período o publica un nuevo viaje';
+      }
           
       return Center(
         child: Column(
@@ -464,13 +492,30 @@ void _mostrarSolicitudesPasajeros() {
 
   Widget _buildViajesUnidos() {
     if (viajesUnidos.isEmpty) {
-      final String mensaje = _periodoSeleccionado == 'Todos' 
-          ? 'No te has unido a ningún viaje'
-          : 'No tienes viajes unidos $_periodoSeleccionado'.toLowerCase();
-          
-      final String submensaje = _periodoSeleccionado == 'Todos'
-          ? 'Busca viajes disponibles en el mapa para unirte'
-          : 'Cambia el filtro de período o busca nuevos viajes';
+      String mensaje;
+      String submensaje;
+      
+      switch (_periodoSeleccionado) {
+        case 'Todos':
+          mensaje = 'No te has unido a ningún viaje';
+          submensaje = 'Busca viajes disponibles en el mapa para unirte';
+          break;
+        case 'Hoy':
+          mensaje = 'No tienes viajes para hoy';
+          submensaje = 'Busca viajes para hoy en el mapa';
+          break;
+        case 'Mañana':
+          mensaje = 'No tienes viajes para mañana';
+          submensaje = 'Busca viajes para mañana en el mapa';
+          break;
+        case 'Pasados':
+          mensaje = 'No tienes viajes completados';
+          submensaje = 'Los viajes que hayas completado aparecerán aquí';
+          break;
+        default:
+          mensaje = 'No tienes viajes unidos $_periodoSeleccionado'.toLowerCase();
+          submensaje = 'Cambia el filtro de período o busca nuevos viajes';
+      }
           
       return Center(
         child: Column(

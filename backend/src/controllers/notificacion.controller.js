@@ -3,7 +3,8 @@ import {
   obtenerNotificacionesService,
   contarNotificacionesPendientesService,
   marcarComoLeidaService,
-  responderSolicitudViajeService
+  responderSolicitudViajeService,
+  manejarAbandonoViaje
 } from "../services/notificacion.service.js";
 import {
   handleErrorClient,
@@ -78,6 +79,30 @@ export async function responderSolicitudViaje(req, res) {
     handleSuccess(res, 200, resultado.mensaje, resultado);
   } catch (error) {
     console.error("Error en responderSolicitudViaje:", error);
+    handleErrorServer(res, 500, error.message);
+  }
+}
+
+export async function abandonarViaje(req, res) {
+  try {
+    const { viajeId } = req.params;
+    const pasajeroRut = req.user.rut;
+
+    if (!viajeId) {
+      return handleErrorClient(res, 400, "ID de viaje requerido");
+    }
+
+    const resultado = await manejarAbandonoViaje(viajeId, pasajeroRut);
+
+    handleSuccess(res, 200, resultado.message, {
+      viajeId: resultado.viajeId,
+      pasajeroRut: resultado.pasajeroRut,
+      plazasLiberadas: resultado.plazasLiberadas,
+      nuevasPlazasDisponibles: resultado.nuevasPlazasDisponibles,
+      devolucion: resultado.devolucion
+    });
+  } catch (error) {
+    console.error("Error en abandonarViaje:", error);
     handleErrorServer(res, 500, error.message);
   }
 }

@@ -341,3 +341,13 @@ export async function obtenerChatGrupal(idViajeMongo) {
     throw new Error(`Error al obtener chat grupal: ${error.message}`);
   }
 }
+
+/**
+ * Alias para eliminarParticipante - remover participante del chat grupal
+ * @param {string} idViajeMongo - ID del viaje en MongoDB
+ * @param {string} rutParticipante - RUT del participante a remover
+ * @returns {Promise<Object>} Chat grupal actualizado
+ */
+export async function removerParticipante(idViajeMongo, rutParticipante) {
+  return await eliminarParticipante(idViajeMongo, rutParticipante);
+}

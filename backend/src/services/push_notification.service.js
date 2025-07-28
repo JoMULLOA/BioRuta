@@ -9,11 +9,90 @@ class WebSocketNotificationService {
   /**
    * Enviar notificación WebSocket a un usuario específico
    */
+    /**
+   * Enviar notificación cuando un pasajero abandona el viaje
+   */
+  static async enviarPasajeroAbandono(io, rutConductor, nombrePasajero, rutPasajero, datosViaje) {
+    return await this.enviarNotificacionAUsuario(
+      io,
+      rutConductor,
+      '👋 Pasajero abandonó el viaje',
+      `${nombrePasajero} ha abandonado tu viaje de ${datosViaje.origen} a ${datosViaje.destino}`,
+      {
+        tipo: 'pasajero_abandono',
+        rutEmisor: rutPasajero,
+        nombreEmisor: nombrePasajero,
+        viajeId: datosViaje.viajeId,
+        origen: datosViaje.origen,
+        destino: datosViaje.destino,
+        fechaViaje: datosViaje.fechaViaje,
+        horaViaje: datosViaje.horaViaje,
+        plazasLiberadas: datosViaje.plazasLiberadas,
+        nuevasPlazasDisponibles: datosViaje.nuevasPlazasDisponibles,
+        accion: 'actualizar_viaje'
+      }
+    );
+  }
+
+  /**
+   * Enviar notificación cuando un conductor elimina a un pasajero del viaje
+   */
+  static async enviarPasajeroEliminado(io, rutPasajero, nombreConductor, rutConductor, datosViaje, reembolsoProcesado, mensajeDevolucion) {
+    const mensajeCompleto = reembolsoProcesado 
+      ? `${nombreConductor} te ha eliminado del viaje. ${mensajeDevolucion}`
+      : `${nombreConductor} te ha eliminado del viaje.`;
+
+    return await this.enviarNotificacionAUsuario(
+      io,
+      rutPasajero,
+      '🚫 Eliminado de viaje',
+      mensajeCompleto,
+      {
+        tipo: 'pasajero_eliminado',
+        rutEmisor: rutConductor,
+        nombreEmisor: nombreConductor,
+        viajeId: datosViaje.viajeId,
+        origen: datosViaje.origen,
+        destino: datosViaje.destino,
+        fechaViaje: datosViaje.fechaViaje,
+        horaViaje: datosViaje.horaViaje,
+        reembolsoProcesado: reembolsoProcesado,
+        mensajeDevolucion: mensajeDevolucion,
+        accion: 'eliminar_viaje'
+      }
+    );
+  }
+
+  /**
+   * Verificar si un usuario está conectado via WebSocket
+   */
+  static verificarUsuarioConectado(io, rutUsuario) {
+    if (!io) return false;
+    
+    const sockets = io.sockets.sockets;
+    for (const [socketId, socket] of sockets) {
+      if (socket.data?.rutUsuario === rutUsuario) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Enviar notificación a un usuario específico
+   */
   static async enviarNotificacionAUsuario(io, rutUsuario, titulo, mensaje, datos = {}) {
     try {
       if (!io) {
         console.warn('⚠️ Socket.io no está disponible');
         return { success: false, error: 'Socket.io no disponible' };
+      }
+
+      if (!io.to || typeof io.to !== 'function') {
+        console.error('⚠️ Socket.io instance no válida - io.to no es una función');
+        console.error('⚠️ Tipo de io:', typeof io);
+        console.error('⚠️ io.to:', io.to);
+        return { success: false, error: 'Socket.io instance inválida' };
       }
 
       if (!rutUsuario) {
@@ -320,6 +399,31 @@ class WebSocketNotificationService {
   }
 
   /**
+   * Enviar notificación cuando un pasajero abandona el viaje
+   */
+  static async enviarPasajeroAbandono(io, rutConductor, nombrePasajero, rutPasajero, datosViaje) {
+    return await this.enviarNotificacionAUsuario(
+      io,
+      rutConductor,
+      '👋 Pasajero abandonó el viaje',
+      `${nombrePasajero} ha abandonado tu viaje de ${datosViaje.origen} a ${datosViaje.destino}`,
+      {
+        tipo: 'pasajero_abandono',
+        rutEmisor: rutPasajero,
+        nombreEmisor: nombrePasajero,
+        viajeId: datosViaje.viajeId,
+        origen: datosViaje.origen,
+        destino: datosViaje.destino,
+        fechaViaje: datosViaje.fechaViaje,
+        horaViaje: datosViaje.horaViaje,
+        plazasLiberadas: datosViaje.plazasLiberadas,
+        nuevasPlazasDisponibles: datosViaje.nuevasPlazasDisponibles,
+        accion: 'actualizar_viaje'
+      }
+    );
+  }
+
+  /**
    * Verificar si un usuario está conectado por WebSocket
    */
   static verificarUsuarioConectado(io, rutUsuario) {
@@ -337,3 +441,9 @@ class WebSocketNotificationService {
 }
 
 export default WebSocketNotificationService;
+
+// Exportaciones específicas para compatibilidad
+export const enviarPasajeroAbandono = WebSocketNotificationService.enviarPasajeroAbandono;
+export const enviarPasajeroEliminado = WebSocketNotificationService.enviarPasajeroEliminado;
+export const enviarNotificacionAUsuario = WebSocketNotificationService.enviarNotificacionAUsuario;
+export const verificarUsuarioConectado = WebSocketNotificationService.verificarUsuarioConectado;
