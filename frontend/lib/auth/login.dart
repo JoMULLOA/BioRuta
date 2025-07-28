@@ -253,9 +253,54 @@ class _LoginPageState extends State<LoginPage> {
         }
       } else {
         final Map<String, dynamic> data = jsonDecode(response.body);
-        final error = data["error"] ?? data["message"] ?? response.body;
+        
+        // Mejorar el manejo de errores para mostrar mensajes específicos de validación
+        String errorMessage = "Error desconocido";
+        
+        // 1. PRIMERO verificar si hay detalles específicos de validación (aquí está el mensaje real)
+        if (data.containsKey("details") && data["details"] != null) {
+          errorMessage = data["details"].toString();
+        }
+        // 2. Verificar si hay un mensaje directo
+        else if (data.containsKey("message") && data["message"] != null) {
+          errorMessage = data["message"];
+        }
+        // 3. Verificar si hay un error general 
+        else if (data.containsKey("error") && data["error"] != null) {
+          var errorData = data["error"];
+          
+          // Si el error es un objeto con mensaje específico
+          if (errorData is Map && errorData.containsKey("message")) {
+            errorMessage = errorData["message"];
+          }
+          // Si el error es un string directo
+          else if (errorData is String) {
+            errorMessage = errorData;
+          }
+          // Si el error tiene dataInfo (estructura del backend)
+          else if (errorData is Map && errorData.containsKey("dataInfo")) {
+            String field = errorData["dataInfo"] ?? "";
+            String msg = errorData["message"] ?? "";
+            errorMessage = field.isEmpty ? msg : "$field: $msg";
+          }
+          else {
+            errorMessage = errorData.toString();
+          }
+        }
+        // 4. Fallback al cuerpo completo de la respuesta
+        else {
+          errorMessage = response.body;
+        }
+        
+        print('❌ Error de login: $errorMessage');
+        print('📄 Estructura completa del error: $data');
+        
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("❌ $error")),
+          SnackBar(
+            content: Text("❌ $errorMessage"),
+            duration: const Duration(seconds: 4),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } catch (e) {
