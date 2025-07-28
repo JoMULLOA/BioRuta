@@ -9,6 +9,12 @@ import {
   notificarParticipanteEliminado, 
   notificarChatGrupalFinalizado 
 } from "../socket.js";
+import { 
+  validarConflictoHorarios, 
+  validarInicioViaje,
+  validarCambioEstadoAutomatico,
+  aplicarCambioEstadoAutomatico
+} from "../services/viaje.validation.service.js";
 import fetch from 'node-fetch';
 
 // Obtener repositorios de PostgreSQL
@@ -2660,5 +2666,34 @@ export async function eliminarPasajero(req, res) {
   } catch (error) {
     console.error("❌ Error al eliminar pasajero:", error);
     handleErrorServer(res, 500, "Error interno del servidor");
+  }
+}
+
+/**
+ * Ejecutar validaciones automáticas de viajes (endpoint para WebSocket y cron jobs)
+ */
+export async function ejecutarValidacionesAutomaticas(req, res) {
+  try {
+    console.log('🔄 Ejecutando validaciones automáticas de viajes...');
+    
+    // Importar la función de procesamiento
+    const { procesarCambiosEstadoAutomaticos } = await import('../services/viaje.validation.service.js');
+    
+    const resultado = await procesarCambiosEstadoAutomaticos();
+    
+    if (resultado.exito) {
+      handleSuccess(res, 200, "Validaciones automáticas ejecutadas correctamente", {
+        procesados: resultado.procesados,
+        cancelados: resultado.cancelados,
+        iniciados: resultado.iniciados,
+        timestamp: new Date().toISOString()
+      });
+    } else {
+      handleErrorServer(res, 500, resultado.mensaje || "Error en validaciones automáticas");
+    }
+
+  } catch (error) {
+    console.error('❌ Error en validaciones automáticas:', error);
+    handleErrorServer(res, 500, "Error interno en validaciones automáticas");
   }
 }
