@@ -14,7 +14,8 @@ import {
   validarInicioViaje,
   validarCambioEstadoAutomatico,
   aplicarCambioEstadoAutomatico,
-  validarConflictosConTiempo
+  validarConflictosConTiempo,
+  validarPublicacionConductor
 } from "../services/viaje.validation.service.js";
 import fetch from 'node-fetch';
 
@@ -128,6 +129,20 @@ export async function crearViaje(req, res) {
     }
 
     console.log("✅ DEBUG - Fechas y horas válidas");
+
+    // 🚗 VALIDACIÓN: Verificar si el conductor puede publicar durante viajes unidos
+    const validacionConductor = await validarPublicacionConductor(req.user.rut, {
+      fechaHoraIda,
+      origen: { lat: origen.lat, lon: origen.lon },
+      destino: { lat: destino.lat, lon: destino.lon }
+    });
+
+    if (!validacionConductor.valido) {
+      console.log("❌ VALIDACIÓN CONDUCTOR FALLIDA:", validacionConductor.razon);
+      return handleErrorClient(res, 400, validacionConductor.razon);
+    }
+
+    console.log("✅ Validación de conductor pasada");
 
     // Calcular kilómetros de la ruta entre origen y destino
     const kilometrosRuta = calcularDistanciaKm(origen.lat, origen.lon, destino.lat, destino.lon);

@@ -84,6 +84,77 @@ function calcularTiempoEstimado(distanciaKm) {
 }
 
 /**
+ * Validar si un conductor puede publicar un viaje durante el tiempo estimado de viajes a los que está unido
+ * @param {String} usuarioRut - RUT del usuario (conductor)
+ * @param {Object} nuevoViaje - Datos del nuevo viaje {fechaHoraIda, origen, destino}
+ * @returns {Object} - Resultado de la validación
+ */
+export async function validarPublicacionConductor(usuarioRut, nuevoViaje) {
+  try {
+    console.log('🚗 Validando publicación de conductor durante viajes unidos...');
+    
+    // Obtener viajes donde el usuario está como PASAJERO (unidos)
+    const viajesComoUnido = await Viaje.find({
+      'pasajeros.usuario_rut': usuarioRut,
+      'pasajeros.estado': { $in: ['confirmado', 'pendiente'] },
+      estado: { $in: ['activo', 'en_curso'] }
+    });
+    
+    const nuevaFechaIda = convertirFechaChile(nuevoViaje.fechaHoraIda);
+    const nuevoOrigenLat = nuevoViaje.origen.lat;
+    const nuevoOrigenLng = nuevoViaje.origen.lon;
+    const nuevoDestinoLat = nuevoViaje.destino.lat;
+    const nuevoDestinoLng = nuevoViaje.destino.lon;
+    
+    // Calcular duración estimada del nuevo viaje
+    const distanciaNueva = calcularDistanciaCarretera(nuevoOrigenLat, nuevoOrigenLng, nuevoDestinoLat, nuevoDestinoLng);
+    const duracionNueva = calcularTiempoEstimado(distanciaNueva);
+    const finNuevoViaje = new Date(nuevaFechaIda.getTime() + (duracionNueva * 60 * 1000));
+    
+    for (const viajeUnido of viajesComoUnido) {
+      const fechaInicioUnido = convertirFechaChile(viajeUnido.fecha_ida);
+      
+      // Calcular duración del viaje al que está unido
+      const distanciaUnido = calcularDistanciaCarretera(
+        viajeUnido.origen.lat, viajeUnido.origen.lon,
+        viajeUnido.destino.lat, viajeUnido.destino.lon
+      );
+      const duracionUnido = calcularTiempoEstimado(distanciaUnido);
+      const finViajeUnido = new Date(fechaInicioUnido.getTime() + (duracionUnido * 60 * 1000));
+      
+      // Verificar solapamiento temporal
+      const inicioNuevo = nuevaFechaIda.getTime();
+      const finNuevo = finNuevoViaje.getTime();
+      const inicioUnido = fechaInicioUnido.getTime();
+      const finUnido = finViajeUnido.getTime();
+      
+      const haySolapamiento = (inicioNuevo < finUnido) && (finNuevo > inicioUnido);
+      
+      if (haySolapamiento) {
+        // Corregir horario sumando 4 horas para mostrar hora de Chile correcta
+        const fechaMostrar = new Date(fechaInicioUnido.getTime() + (4 * 60 * 60 * 1000));
+        
+        return {
+          valido: false,
+          razon: `No puedes publicar un viaje durante el horario de un viaje al que estás unido. Viaje del ${fechaMostrar.toLocaleDateString('es-CL')} a las ${fechaMostrar.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}`,
+          tipoConflicto: 'conductor_unido_a_viaje',
+          viajeConflicto: viajeUnido._id
+        };
+      }
+    }
+    
+    return { valido: true };
+    
+  } catch (error) {
+    console.error('Error al validar publicación de conductor:', error);
+    return {
+      valido: false,
+      razon: 'Error interno al validar conflictos de conductor'
+    };
+  }
+}
+
+/**
  * Validar conflictos de viajes considerando tiempos de traslado
  * @param {String} usuarioRut - RUT del usuario
  * @param {Object} nuevoViaje - Datos del nuevo viaje {fechaHoraIda, origen, destino}
@@ -149,9 +220,12 @@ export async function validarConflictosConTiempo(usuarioRut, nuevoViaje, viajeEx
       const haySolapamiento = (inicioNuevo < finExistente) && (finNuevo > inicioExistente);
 
       if (haySolapamiento) {
+        // Corregir horario sumando 4 horas para mostrar hora de Chile correcta
+        const fechaMostrar = new Date(fechaExistente.getTime() + (4 * 60 * 60 * 1000));
+        
         return {
           valido: false,
-          razon: `Conflicto temporal: El nuevo viaje se solapa con un viaje existente del ${fechaExistente.toLocaleDateString('es-CL')} a las ${fechaExistente.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}`,
+          razon: `Conflicto temporal: El nuevo viaje se solapa con un viaje existente del ${fechaMostrar.toLocaleDateString('es-CL')} a las ${fechaMostrar.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}`,
           tipoConflicto: 'solapamiento_temporal',
           viajeConflicto: viajeExistente._id
         };

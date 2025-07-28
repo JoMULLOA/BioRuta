@@ -8,6 +8,7 @@ import '../widgets/navbar_con_sos_dinamico.dart';
 import '../widgets/radar_animation_widget.dart';
 import '../widgets/metodo_pago_modal.dart';
 import '../widgets/animacion_viaje_aceptado.dart';
+import '../widgets/conflicto_temporal_widgets.dart';
 import '../services/notificacion_service.dart';
 import '../models/direccion_sugerida.dart';
 import '../models/marcador_viaje_model.dart';
@@ -1220,19 +1221,52 @@ class _MapPageState extends State<MapPage> {
       if (mounted) {
         // Mensaje específico para el nuevo flujo de notificaciones con pago
         String mensaje = resultado['message'] ?? 'Solicitud enviada';
+        
         if (resultado['success'] == true) {
           mensaje = 'Solicitud enviada al conductor con información de pago. Espera su respuesta en tus notificaciones.';
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(mensaje),
+              backgroundColor: const Color(0xFF854937),
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        } else {
+          // Verificar si es un conflicto temporal
+          final tipoConflicto = _detectarTipoConflicto(mensaje);
+          
+          print('🔥 DEBUG (unirseAlViaje) - Respuesta completa del backend: $resultado');
+          print('🔥 DEBUG (unirseAlViaje) - Mensaje de error recibido: "$mensaje"');
+          
+          if (tipoConflicto != null) {
+            print('✅ DEBUG (unirseAlViaje) - Mostrando dialog de conflicto temporal');
+            // Mostrar dialog mejorado para conflictos temporales
+            showDialog(
+              context: context,
+              builder: (context) => ConflictoTemporalDialog(
+                tipoConflicto: tipoConflicto,
+                mensaje: mensaje,
+                detallesConflicto: {
+                  'viajeConflicto': marcador.id,
+                  if (resultado.containsKey('tiempoDisponible'))
+                    'tiempoDisponible': resultado['tiempoDisponible'],
+                  if (resultado.containsKey('tiempoNecesario'))
+                    'tiempoNecesario': resultado['tiempoNecesario'],
+                },
+              ),
+            );
+          } else {
+            print('❌ DEBUG (unirseAlViaje) - Mostrando SnackBar normal para error: "$mensaje"');
+            // Mostrar SnackBar normal para otros errores
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(mensaje),
+                backgroundColor: Colors.red,
+                duration: const Duration(seconds: 4),
+              ),
+            );
+          }
         }
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(mensaje),
-            backgroundColor: resultado['success'] == true 
-                ? const Color(0xFF854937) 
-                : Colors.red,
-            duration: const Duration(seconds: 4),
-          ),
-        );
       }
 
       // No recargar marcadores inmediatamente ya que el pasajero no se une directamente
@@ -2026,13 +2060,42 @@ class _MapPageState extends State<MapPage> {
             ),
           );
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('❌ ${resultado['message']}'),
-              backgroundColor: Colors.red,
-              duration: const Duration(seconds: 3),
-            ),
-          );
+          // Verificar si es un conflicto temporal
+          final message = resultado['message'] ?? 'Error desconocido';
+          
+          print('🔥 DEBUG - Respuesta completa del backend: $resultado');
+          print('🔥 DEBUG - Mensaje de error recibido: "$message"');
+          
+          final tipoConflicto = _detectarTipoConflicto(message);
+          
+          if (tipoConflicto != null) {
+            print('✅ DEBUG - Mostrando dialog de conflicto temporal');
+            // Mostrar dialog mejorado para conflictos temporales
+            showDialog(
+              context: context,
+              builder: (context) => ConflictoTemporalDialog(
+                tipoConflicto: tipoConflicto,
+                mensaje: message,
+                detallesConflicto: {
+                  'viajeConflicto': viaje['id'].toString(),
+                  if (resultado.containsKey('tiempoDisponible'))
+                    'tiempoDisponible': resultado['tiempoDisponible'],
+                  if (resultado.containsKey('tiempoNecesario'))
+                    'tiempoNecesario': resultado['tiempoNecesario'],
+                },
+              ),
+            );
+          } else {
+            print('❌ DEBUG - Mostrando SnackBar normal para error: "$message"');
+            // Mostrar SnackBar normal para otros errores
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('❌ $message'),
+                backgroundColor: Colors.red,
+                duration: const Duration(seconds: 3),
+              ),
+            );
+          }
         }
       }
     } catch (e) {
@@ -2046,6 +2109,43 @@ class _MapPageState extends State<MapPage> {
         );
       }
     }
+  }
+
+  String? _detectarTipoConflicto(String mensaje) {
+    final mensajeLower = mensaje.toLowerCase();
+    
+    print('🔍 DEBUG - Detectando tipo de conflicto para mensaje: "$mensaje"');
+    
+    // Detectar conflicto temporal/solapamiento
+    if (mensajeLower.contains('conflicto temporal') || 
+        mensajeLower.contains('se solapa') ||
+        mensajeLower.contains('solapamiento') ||
+        mensajeLower.contains('viaje existente') ||
+        mensajeLower.contains('nuevo viaje se solapa')) {
+      print('✅ DEBUG - Detectado como: solapamiento_temporal');
+      return 'solapamiento_temporal';
+    }
+    
+    // Detectar conductor unido a viaje
+    if (mensajeLower.contains('no puedes publicar') ||
+        mensajeLower.contains('conductor') && mensajeLower.contains('unido') ||
+        mensajeLower.contains('horario de un viaje') ||
+        mensajeLower.contains('estás unido')) {
+      print('✅ DEBUG - Detectado como: conductor_unido_a_viaje');
+      return 'conductor_unido_a_viaje';
+    }
+    
+    // Detectar tiempo de traslado insuficiente
+    if (mensajeLower.contains('tiempo insuficiente') ||
+        mensajeLower.contains('traslado') ||
+        mensajeLower.contains('no hay tiempo suficiente') ||
+        mensajeLower.contains('tiempo de viaje')) {
+      print('✅ DEBUG - Detectado como: tiempo_traslado_insuficiente');
+      return 'tiempo_traslado_insuficiente';
+    }
+    
+    print('❌ DEBUG - No se detectó tipo de conflicto específico');
+    return null;
   }
 
   /// Limpiar marcadores de radar del mapa
