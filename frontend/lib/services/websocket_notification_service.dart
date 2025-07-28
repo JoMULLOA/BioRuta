@@ -218,6 +218,8 @@ class WebSocketNotificationService {
       _socket!.on('chat_grupal', (data) {
         print('👥 chat_grupal recibida: $data');
         _handleChatGrupalNotification(data);
+      });
+      
       _socket!.on('nueva_peticion_soporte', (data) {
         print('🆘 nueva_peticion_soporte recibida: $data');
         _handleSupportRequestNotification(data);
@@ -754,6 +756,8 @@ class WebSocketNotificationService {
       print('❌ Error navegando a chat grupal: $e');
       _navigateToNotifications();
     }
+  }
+  
   /// Navegar al panel de administrador
   static void _navigateToAdminPanel() {
     print('🔄 Navegando al panel de administrador...');

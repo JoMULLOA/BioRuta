@@ -66,8 +66,7 @@ class PaginaIndividualWebSocket extends StatefulWidget {
 }
 
 class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
-<<<<<<< Updated upstream
-=======
+
 
   void _copyMessageToClipboard(String text) {
     Clipboard.setData(ClipboardData(text: text));
@@ -78,18 +77,7 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
       ),
     );
   }
->>>>>>> Stashed changes
-  // ...existing code...
 
-  void _copyMessageToClipboard(String text) {
-    Clipboard.setData(ClipboardData(text: text));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Mensaje copiado al portapapeles'),
-        duration: Duration(seconds: 1),
-      ),
-    );
-  }
   final TextEditingController _messageController = TextEditingController();
   final List<Message> _messages = [];
   final ScrollController _scrollController = ScrollController();
