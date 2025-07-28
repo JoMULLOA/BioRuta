@@ -184,55 +184,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
                     const SizedBox(height: 24),
 
-                    // Estadísticas Principales
-                    const Text(
-                      'Estadísticas Generales',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF6B3B2D),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Grid de estadísticas
-                    GridView.count(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 16,
-                      mainAxisSpacing: 16,
-                      childAspectRatio: 1.8, // Aumentar para dar más espacio horizontal
-                      children: [
-                        _buildStatCard(
-                          'Total Usuarios',
-                          _totalUsuarios.toString(),
-                          Icons.people,
-                          Colors.blue,
-                        ),
-                        _buildStatCard(
-                          'Viajes Hoy',
-                          _viajesHoy.toString(),
-                          Icons.directions_car,
-                          Colors.green,
-                        ),
-                        _buildStatCard(
-                          'Usuarios Activos',
-                          _usuariosActivos.toString(),
-                          Icons.people_alt,
-                          Colors.orange,
-                        ),
-                        _buildStatCard(
-                          'Sistema',
-                          'Activo',
-                          Icons.check_circle,
-                          Colors.teal,
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 24),
-
                     // Acciones Rápidas
                     const Text(
                       'Acciones Rápidas',
@@ -255,6 +206,30 @@ class _AdminDashboardState extends State<AdminDashboard> {
                           () {
                             setState(() {
                               _selectedIndex = 1; // Navegar a estadísticas
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        _buildActionButton(
+                          'Gestión de Usuarios',
+                          'Administrar usuarios registrados en el sistema',
+                          Icons.people_alt,
+                          Colors.blue,
+                          () {
+                            setState(() {
+                              _selectedIndex = 2; // Navegar a usuarios
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        _buildActionButton(
+                          'Centro de Soporte',
+                          'Gestionar peticiones y solicitudes de usuarios',
+                          Icons.support_agent,
+                          Colors.teal,
+                          () {
+                            setState(() {
+                              _selectedIndex = 3; // Navegar a soporte
                             });
                           },
                         ),
@@ -1641,8 +1616,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
             ),
           ],
         ),
-      ),
-    );
+      ));
   }
 
   Widget _buildActionButton(
