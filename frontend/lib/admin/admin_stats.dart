@@ -152,18 +152,18 @@ class _AdminStatsState extends State<AdminStats> with TickerProviderStateMixin {
             )
           : _errorMessage.isNotEmpty
               ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.error_outline,
-                        size: 64,
-                        color: Colors.red[400],
-                      ),
-                      const SizedBox(height: 16),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 32),
-                        child: Text(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(32),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.error_outline,
+                          size: 64,
+                          color: Colors.red[400],
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
                           _errorMessage,
                           textAlign: TextAlign.center,
                           style: TextStyle(
@@ -171,17 +171,17 @@ class _AdminStatsState extends State<AdminStats> with TickerProviderStateMixin {
                             fontSize: 16,
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 24),
-                      ElevatedButton(
-                        onPressed: _loadStatistics,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: primario,
-                          foregroundColor: Colors.white,
+                        const SizedBox(height: 24),
+                        ElevatedButton(
+                          onPressed: _loadStatistics,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: primario,
+                            foregroundColor: Colors.white,
+                          ),
+                          child: const Text('Reintentar'),
                         ),
-                        child: const Text('Reintentar'),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 )
               : RefreshIndicator(
@@ -252,6 +252,9 @@ class _AdminStatsState extends State<AdminStats> with TickerProviderStateMixin {
                         
                         // Estadísticas adicionales
                         _buildEstadisticasAdicionales(primario, secundario),
+                        
+                        // Espacio adicional al final para evitar que el último elemento quede pegado al borde
+                        const SizedBox(height: 32),
                       ],
                     ),
                   ),
@@ -278,7 +281,7 @@ class _AdminStatsState extends State<AdminStats> with TickerProviderStateMixin {
           physics: const NeverScrollableScrollPhysics(),
           crossAxisSpacing: 12,
           mainAxisSpacing: 12,
-          childAspectRatio: 1.5,
+          childAspectRatio: 1.8, // Aumentar para dar más espacio horizontal
           children: [
             _buildMetricCard(
               'Total Usuarios',
@@ -333,28 +336,40 @@ class _AdminStatsState extends State<AdminStats> with TickerProviderStateMixin {
         ],
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12), // Reducir padding
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min, // Ajustar al contenido
           children: [
-            Icon(icon, size: 32, color: color),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: color,
+            Flexible(
+              child: Icon(icon, size: 28, color: color), // Reducir tamaño del ícono
+            ),
+            const SizedBox(height: 6), // Reducir espacio
+            Flexible(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 22, // Reducir tamaño de fuente
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                  ),
+                ),
               ),
             ),
             const SizedBox(height: 4),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 12,
-                color: color.withOpacity(0.8),
-                fontWeight: FontWeight.w500,
+            Flexible(
+              child: Text(
+                title,
+                textAlign: TextAlign.center,
+                maxLines: 2, // Permitir 2 líneas
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 10, // Reducir tamaño de fuente
+                  color: color.withOpacity(0.8),
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
           ],

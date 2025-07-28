@@ -195,7 +195,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       crossAxisCount: 2,
                       crossAxisSpacing: 16,
                       mainAxisSpacing: 16,
-                      childAspectRatio: 1.5,
+                      childAspectRatio: 1.8, // Aumentar para dar más espacio horizontal
                       children: [
                         _buildStatCard(
                           'Total Usuarios',
@@ -1596,29 +1596,41 @@ class _AdminDashboardState extends State<AdminDashboard> {
         ],
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12), // Reducir padding
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min, // Ajustar al contenido
           children: [
-            Icon(icon, color: color, size: 32),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: color,
+            Flexible(
+              child: Icon(icon, size: 28, color: color), // Reducir tamaño del ícono
+            ),
+            const SizedBox(height: 6), // Reducir espacio
+            Flexible(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 22, // Reducir tamaño de fuente
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                  ),
+                ),
               ),
             ),
             const SizedBox(height: 4),
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 12,
-                color: Colors.grey,
-                fontWeight: FontWeight.w500,
+            Flexible(
+              child: Text(
+                title,
+                textAlign: TextAlign.center,
+                maxLines: 2, // Permitir 2 líneas
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 10, // Reducir tamaño de fuente
+                  color: Colors.grey,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
-              textAlign: TextAlign.center,
             ),
           ],
         ),
@@ -2377,8 +2389,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
             ],
           ),
         ),
-      ),
-    );
+      ));
   }
 
   Widget _buildReporteCard(Reporte reporte) {
