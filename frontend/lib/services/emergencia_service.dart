@@ -463,11 +463,10 @@ Mensaje enviado automáticamente desde BioRuta - App de viajes compartidos.
 $nombreUsuario ha activado el sistema de emergencia SOS.
 
 📍 UBICACIÓN EN TIEMPO REAL:
-Se compartirá la ubicación cada 30 minutos durante las próximas 8 horas.
 
 Ubicación actual: https://maps.google.com/?q=${posicion.latitude},${posicion.longitude}$infoViajeTexto
 
-⚠️ IMPORTANTE: Este es un mensaje de emergencia automático. Por favor contacta inmediatamente a $nombreUsuario.
+⚠️ IMPORTANTE: Este es un mensaje de emergencia rapido enviado por $nombreUsuario. Por favor contacta inmediatamente a $nombreUsuario.
 
 Mensaje enviado desde BioRuta - App de viajes compartidos.
     ''';
@@ -579,7 +578,7 @@ BioRuta - Sistema de Emergencia
       final mensaje = '''
 ✅ TRACKING DE EMERGENCIA FINALIZADO
 
-El sistema de seguimiento de ubicación de 8 horas ha terminado.
+El sistema de emergencia a finalizado.
 
 Si aún necesitas asistencia, por favor contacta directamente.
 
@@ -645,6 +644,166 @@ BioRuta - Sistema de Emergencia
     if (estado['activo'] == true) {
       _iniciarTimerTracking(nombreUsuario);
       debugPrint('Servicio de tracking reiniciado exitosamente');
+    }
+  }
+
+  // Método estático para mostrar diálogo de confirmación de emergencia desde cualquier pantalla
+  static Future<void> mostrarDialogoEmergenciaGlobal(BuildContext context, {Map<String, dynamic>? infoViaje}) async {
+    if (!context.mounted) return;
+
+    final emergenciaService = EmergenciaService();
+    
+    try {
+      // Verificar si hay contactos configurados
+      final contactos = await emergenciaService.obtenerContactos();
+      
+      if (contactos.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No tienes contactos de emergencia configurados. Ve a la pantalla SOS para configurarlos.'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 4),
+          ),
+        );
+        return;
+      }
+
+      // Mostrar diálogo de confirmación
+      final confirmar = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Row(
+              children: [
+                Icon(Icons.warning_amber_rounded, color: const Color(0xFF854937), size: 28),
+                const SizedBox(width: 8),
+                const Text('⚠️ Activar Emergencia'),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  '¿Estás seguro que quieres activar el modo de emergencia?',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF854937).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFF854937).withOpacity(0.3)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Se enviará un mensaje de emergencia a:',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF854937),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      ...contactos.map((contacto) => Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 2),
+                        child: Row(
+                          children: [
+                            Icon(Icons.person, size: 16, color: const Color(0xFF854937)),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${contacto.nombre} (${contacto.telefono})',
+                              style: TextStyle(color: const Color(0xFF6B3B2D)),
+                            ),
+                          ],
+                        ),
+                      )).toList(),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancelar'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF854937),
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Sí, activar'),
+              ),
+            ],
+          );
+        },
+      );
+
+      if (confirmar != true) return;
+
+      // Activar emergencia
+      const nombreUsuario = 'Usuario BioRuta';
+      
+      Map<String, dynamic>? infoAdicional;
+      if (infoViaje != null) {
+        infoAdicional = {
+          'viaje': infoViaje,
+        };
+      }
+
+      await emergenciaService.activarEmergencia(
+        nombreUsuario,
+        conTracking: false, // Solo enviar una vez
+        infoAdicional: infoAdicional,
+      );
+
+      // Mostrar confirmación de éxito
+      if (context.mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.green.shade600),
+                const SizedBox(width: 8),
+                const Text('Emergencia Activada'),
+              ],
+            ),
+            content: const Text(
+              '¡Alerta de emergencia enviada! '
+              'Tus contactos han recibido tu ubicación por WhatsApp.',
+            ),
+            actions: [
+              ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF854937),
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Entendido'),
+              ),
+            ],
+          ),
+        );
+      }
+
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al activar emergencia: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
     }
   }
 }
