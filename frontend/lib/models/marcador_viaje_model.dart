@@ -59,7 +59,6 @@ class UbicacionMarcador {
 
 class DetallesViaje {
   final DateTime fecha;
-  final String hora;
   final double precio;
   final int plazasDisponibles;
   final VehiculoMarcador? vehiculo;
@@ -67,17 +66,22 @@ class DetallesViaje {
 
   DetallesViaje({
     required this.fecha,
-    required this.hora,
     required this.precio,
     required this.plazasDisponibles,
     this.vehiculo,
     this.conductor,
   });
 
+  /// Getter para extraer la hora de la fecha en formato HH:mm (en hora local de Chile)
+  String get hora {
+    // Convertir UTC a hora de Chile (UTC-4)
+    final fechaChile = fecha.subtract(const Duration(hours: 4));
+    return '${fechaChile.hour.toString().padLeft(2, '0')}:${fechaChile.minute.toString().padLeft(2, '0')}';
+  }
+
   factory DetallesViaje.fromJson(Map<String, dynamic> json) {
     return DetallesViaje(
       fecha: DateTime.parse(json['fecha']),
-      hora: json['hora'] ?? '',
       precio: (json['precio'] ?? 0).toDouble(),
       plazasDisponibles: json['plazas_disponibles'] ?? 0,
       vehiculo: json['vehiculo'] != null 
@@ -92,7 +96,6 @@ class DetallesViaje {
   Map<String, dynamic> toJson() {
     return {
       'fecha': fecha.toIso8601String(),
-      'hora': hora,
       'precio': precio,
       'plazas_disponibles': plazasDisponibles,
       if (vehiculo != null) 'vehiculo': vehiculo!.toJson(),

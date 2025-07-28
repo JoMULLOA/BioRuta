@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import '../config/confGlobal.dart';
 import '../utils/token_manager.dart';
 
@@ -67,14 +68,32 @@ class UserService {
   /// Obtener información del usuario actual
   static Future<Map<String, dynamic>?> obtenerPerfilUsuario() async {
     try {
+      // Obtener email desde SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      final email = prefs.getString('user_email');
+      
+      if (email == null) {
+        return null;
+      }
+      
+      final headers = await _getHeaders();
+      
       final response = await http.get(
-        Uri.parse('$baseUrl/users/detail/'),
-        headers: await _getHeaders(),
+        Uri.parse('$baseUrl/user/busqueda?email=$email'),
+        headers: {
+          ...headers,
+          'Cache-Control': 'no-cache',
+        },
       );
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        return data['data'];
+        
+        if (data['success'] == true && data['data'] != null) {
+          return data['data'];
+        } else {
+          return null;
+        }
       } else {
         return null;
       }

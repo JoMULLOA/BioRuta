@@ -6,6 +6,8 @@ import '../config/confGlobal.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/amistad_service.dart'; // Importar servicio de amistad
 import '../helpers/notificacion_helpers.dart'; // Importar helpers de notificación
+import '../widgets/reportar_usuario_dialog.dart';
+import '../models/reporte_model.dart';
 
 class ranking extends StatefulWidget {
   @override
@@ -91,10 +93,10 @@ class _RankingState extends State<ranking> {
     return Scaffold(
       backgroundColor: fondo,
       appBar: AppBar(
-        backgroundColor: fondo,
+        title: const Text('Ranking'),
+        backgroundColor: secundario,
+        foregroundColor: Colors.white,
         elevation: 0,
-        title: Text('Ranking', style: TextStyle(color: principal)),
-        iconTheme: IconThemeData(color: principal),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
@@ -203,7 +205,7 @@ class _RankingState extends State<ranking> {
                   
                   if (_isClasificaciones) {
                     return _buildRankingItem(
-                      user['nombreCompleto'], 
+                      user, 
                       user['clasificacion']?.toDouble() ?? 0.0, 
                       index + 1,
                       isCurrentUser,
@@ -211,7 +213,7 @@ class _RankingState extends State<ranking> {
                     );
                   } else {
                     return _buildRankingItem(
-                      user['nombreCompleto'], 
+                      user, 
                       user['puntuacion']?.toDouble() ?? 0.0, 
                       index + 1,
                       isCurrentUser,
@@ -258,7 +260,10 @@ class _RankingState extends State<ranking> {
     );
   }
 
-  Widget _buildRankingItem(String nombre, double valor, int posicion, bool isCurrentUser, bool isClasificacion) {
+  Widget _buildRankingItem(Map<String, dynamic> userData, double valor, int posicion, bool isCurrentUser, bool isClasificacion) {
+    final String nombre = userData['nombreCompleto'] ?? '';
+    final String rutUsuario = userData['rut'] ?? '';
+    
     IconData icono;
     Color color;
     Color? marcoColor;
@@ -317,7 +322,8 @@ class _RankingState extends State<ranking> {
           child: Container(
             decoration: _buildContainerDecoration(isCurrentUser, marcoColor, posicion),
             child: ListTile(
-              onTap: isCurrentUser ? null : () => _mostrarDialogoSolicitudAmistad(context, nombre, _rankingData[_rankingData.indexWhere((user) => user['nombreCompleto'] == nombre)]),
+              onTap: isCurrentUser ? null : () => _mostrarDialogoSolicitudAmistad(context, nombre, userData),
+              onLongPress: isCurrentUser ? null : () => _mostrarDialogoReporte(context, rutUsuario, nombre),
               contentPadding: EdgeInsets.symmetric(
                 horizontal: isCurrentUser ? 20.0 : 16.0,
                 vertical: isCurrentUser ? 8.0 : 4.0,
@@ -592,6 +598,20 @@ class _RankingState extends State<ranking> {
               ),
             ),
           ],
+        );
+      },
+    );
+  }
+
+  // Función para mostrar el diálogo de reporte
+  void _mostrarDialogoReporte(BuildContext context, String rutUsuario, String nombreUsuario) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return ReportarUsuarioDialog(
+          usuarioReportado: rutUsuario,
+          nombreUsuario: nombreUsuario,
+          tipoReporte: TipoReporte.ranking,
         );
       },
     );

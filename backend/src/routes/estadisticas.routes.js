@@ -6,7 +6,6 @@ import {
   obtenerViajesPorMes,
   obtenerClasificacionUsuarios,
   obtenerDestinosPopulares,
-  obtenerEstadisticasPagos,
   obtenerAnalisisAvanzado
 } from "../controllers/estadisticas.controller.js";
 import { authenticateJwt } from "../middlewares/authentication.middleware.js";
@@ -24,7 +23,6 @@ router.get("/puntuaciones", obtenerDistribucionPuntuaciones);
 router.get("/viajes-mes", obtenerViajesPorMes);
 router.get("/clasificacion", obtenerClasificacionUsuarios);
 router.get("/destinos", obtenerDestinosPopulares);
-router.get("/pagos", obtenerEstadisticasPagos);
 router.get("/analisis", obtenerAnalisisAvanzado);
 
 export default router;

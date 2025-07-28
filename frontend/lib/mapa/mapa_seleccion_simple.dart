@@ -11,11 +11,13 @@ import '../buscar/barra_busqueda_widget.dart';
 class MapaSeleccionPage extends StatefulWidget {
   final String tituloSeleccion;
   final bool esOrigen;
+  final DireccionSugerida? origenSeleccionado; // Para calcular tiempo cuando es destino
 
   const MapaSeleccionPage({
     super.key,
     required this.tituloSeleccion,
     required this.esOrigen,
+    this.origenSeleccionado, // Opcional: solo se usa cuando esOrigen == false
   });
 
   @override
@@ -23,7 +25,7 @@ class MapaSeleccionPage extends StatefulWidget {
 }
 
 class _MapaSeleccionPageState extends State<MapaSeleccionPage> {
-  late MapController controller;
+  MapController? controller;
   final TextEditingController busquedaController = TextEditingController();
   List<DireccionSugerida> _sugerencias = [];
   bool _mostrandoSugerencias = false;
@@ -35,13 +37,26 @@ class _MapaSeleccionPageState extends State<MapaSeleccionPage> {
   @override
   void initState() {
     super.initState();
-    controller = MapController.withUserPosition(
-      trackUserLocation: const UserTrackingOption(
-        enableTracking: true,
-        unFollowUser: false,
-      ),
-    );
-    _inicializarUbicacion();
+    _inicializarController();
+  }
+
+  Future<void> _inicializarController() async {
+    try {
+      controller = MapController.withUserPosition(
+        trackUserLocation: const UserTrackingOption(
+          enableTracking: true,
+          unFollowUser: false,
+        ),
+      );
+      
+      setState(() {
+        // Controller inicializado
+      });
+      
+      _inicializarUbicacion();
+    } catch (e) {
+      debugPrint("Error al inicializar MapController: $e");
+    }
   }
 
   Future<void> _inicializarUbicacion() async {
@@ -59,8 +74,10 @@ class _MapaSeleccionPageState extends State<MapaSeleccionPage> {
   }
 
   Future<void> _centrarEnMiUbicacion() async {
+    if (controller == null) return;
+    
     try {
-      GeoPoint miPosicion = await controller.myLocation();
+      GeoPoint miPosicion = await controller!.myLocation();
       String region = await BusquedaService.identificarRegion(miPosicion);
       double zoomNivel = UbicacionService.obtenerZoomParaRegion(region);
       
@@ -68,18 +85,22 @@ class _MapaSeleccionPageState extends State<MapaSeleccionPage> {
         _regionActual = region;
       });
 
-      await controller.moveTo(miPosicion);
-      await controller.setZoom(zoomLevel: zoomNivel);
+      await controller!.moveTo(miPosicion);
+      await controller!.setZoom(zoomLevel: zoomNivel);
       
-      // Si es origen, automáticamente seleccionar la ubicación actual
-      if (widget.esOrigen) {
-        _seleccionarUbicacionActual();
-      }
+      // Solo para búsqueda se puede seleccionar automáticamente la ubicación actual
+      // Para publicar viajes (origen), el usuario debe seleccionar una dirección específica
+      // if (widget.esOrigen) {
+      //   _seleccionarUbicacionActual();
+      // }
     } catch (e) {
       debugPrint("❌ Error al centrar en ubicación: $e");
     }
   }
 
+  // Función deshabilitada: No permitir "Mi ubicación actual" como origen al publicar viajes
+  // Para búsquedas sí se permite, pero para publicar viajes el usuario debe ser específico
+  /*
   Future<void> _seleccionarUbicacionActual() async {
     try {
       GeoPoint miPosicion = await controller.myLocation();
@@ -99,6 +120,7 @@ class _MapaSeleccionPageState extends State<MapaSeleccionPage> {
       debugPrint("❌ Error al obtener ubicación actual: $e");
     }
   }
+  */
 
   Future<void> _buscarSugerencias(String query) async {
     if (query.length < 3) {
@@ -120,11 +142,20 @@ class _MapaSeleccionPageState extends State<MapaSeleccionPage> {
       
       String regionActual = _regionActual;
 
-      final sugerenciasRegionales = await BusquedaService.buscarConRegion(query, regionActual);
+      // Pasar información sobre si es origen o destino para el cálculo de tiempo
+      final sugerenciasRegionales = await BusquedaService.buscarConRegion(
+        query, 
+        regionActual, 
+        esOrigen: widget.esOrigen
+      );
       todasLasSugerencias.addAll(sugerenciasRegionales);
 
       if (todasLasSugerencias.length < 5) {
-        final sugerenciasGenerales = await BusquedaService.buscarGeneral(query, 5 - todasLasSugerencias.length);
+        final sugerenciasGenerales = await BusquedaService.buscarGeneral(
+          query, 
+          5 - todasLasSugerencias.length,
+          esOrigen: widget.esOrigen
+        );
         
         for (var sugerencia in sugerenciasGenerales) {
           bool esDuplicado = todasLasSugerencias.any((existente) =>
@@ -137,14 +168,27 @@ class _MapaSeleccionPageState extends State<MapaSeleccionPage> {
         }
       }
 
-      if (todasLasSugerencias.isNotEmpty) {
-        GeoPoint ubicacionActual = await controller.myLocation();
-        BusquedaService.calcularDistancias(todasLasSugerencias, ubicacionActual);
+      if (todasLasSugerencias.isNotEmpty && controller != null) {
+        GeoPoint ubicacionActual = await controller!.myLocation();
         
+        // Usar función apropiada según si tenemos origen seleccionado
+        if (widget.origenSeleccionado != null) {
+          BusquedaService.calcularDistanciasConOrigen(
+            todasLasSugerencias, 
+            ubicacionActual,
+            widget.origenSeleccionado
+          );
+        } else {
+          BusquedaService.calcularDistancias(todasLasSugerencias, ubicacionActual);
+        }
+        
+        // Separar por tipo y ordenar por relevancia
         final regionales = todasLasSugerencias.where((s) => s.esRegional).toList()
-          ..sort((a, b) => a.distancia.compareTo(b.distancia));
+          ..sort((a, b) => a.displayName.compareTo(b.displayName)); // Orden alfabético
         
-        final generales = todasLasSugerencias.where((s) => !s.esRegional).toList();
+        final generales = todasLasSugerencias.where((s) => !s.esRegional).toList()
+          ..sort((a, b) => a.displayName.compareTo(b.displayName)); // Orden alfabético
+        
         final sugerenciasFinales = [...regionales, ...generales];
         
         if (mounted) {
@@ -160,6 +204,8 @@ class _MapaSeleccionPageState extends State<MapaSeleccionPage> {
   }
 
   Future<void> _seleccionarSugerencia(DireccionSugerida sugerencia) async {
+    if (controller == null) return;
+    
     setState(() {
       _ubicacionSeleccionada = sugerencia;
       busquedaController.text = sugerencia.displayName;
@@ -167,23 +213,25 @@ class _MapaSeleccionPageState extends State<MapaSeleccionPage> {
     });
 
     final punto = GeoPoint(latitude: sugerencia.lat, longitude: sugerencia.lon);
-    await controller.moveTo(punto);
+    await controller!.moveTo(punto);
     await _colocarMarcador(punto, sugerencia.displayName);
   }
 
   Future<void> _colocarMarcador(GeoPoint punto, String descripcion) async {
+    if (controller == null) return;
+    
     try {
       // Limpiar marcadores previos
       if (_marcadorColocado) {
-        await controller.removeMarker(punto);
+        await controller!.removeMarker(punto);
       }
 
-      await controller.addMarker(
+      await controller!.addMarker(
         punto,
         markerIcon: MarkerIcon(
           icon: Icon(
             widget.esOrigen ? Icons.my_location : Icons.place,
-            color: widget.esOrigen ? const Color(0xFF854937) : const Color(0xFFEDCAB6),
+            color: widget.esOrigen ? const Color(0xFF8D4F3A) : const Color(0xFFEDCAB6),
             size: 56,
           ),
         ),
@@ -230,7 +278,7 @@ class _MapaSeleccionPageState extends State<MapaSeleccionPage> {
             ),
           ],
         ),
-        backgroundColor: const Color(0xFF854937),
+        backgroundColor: const Color(0xFF8D4F3A),
         foregroundColor: Colors.white,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -247,7 +295,15 @@ class _MapaSeleccionPageState extends State<MapaSeleccionPage> {
       ),
       body: Stack(
         children: [
-          MapaWidget(controller: controller),
+          // Mostrar mapa solo cuando esté inicializado
+          if (controller != null)
+            MapaWidget(controller: controller!)
+          else
+            const Center(
+              child: CircularProgressIndicator(
+                color: Color(0xFF8D4F3A),
+              ),
+            ),
           
           // Barra de búsqueda con sugerencias
           Positioned(
@@ -278,18 +334,19 @@ class _MapaSeleccionPageState extends State<MapaSeleccionPage> {
               onSugerenciaTap: _seleccionarSugerencia,
             ),
           ),          // Botón de centrar en mi ubicación
-          Positioned(
-            top: 80,
-            right: 12,
-            child: FloatingActionButton.small(
-              heroTag: 'centrar',
-              onPressed: _centrarEnMiUbicacion,
-              tooltip: 'Centrar en mi ubicación',
-              backgroundColor: const Color(0xFF854937),
-              foregroundColor: Colors.white,
-              child: const Icon(Icons.my_location),
+          if (controller != null)
+            Positioned(
+              top: 80,
+              right: 12,
+              child: FloatingActionButton.small(
+                heroTag: 'centrar',
+                onPressed: _centrarEnMiUbicacion,
+                tooltip: 'Centrar en mi ubicación',
+                backgroundColor: const Color(0xFF8D4F3A),
+                foregroundColor: Colors.white,
+                child: const Icon(Icons.my_location),
+              ),
             ),
-          ),
 
           // Botón de confirmación flotante
           if (_ubicacionSeleccionada != null)            Positioned(
@@ -299,7 +356,7 @@ class _MapaSeleccionPageState extends State<MapaSeleccionPage> {
               child: Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF854937),
+                  color: const Color(0xFF8D4F3A),
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(

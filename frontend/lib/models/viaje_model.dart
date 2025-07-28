@@ -5,9 +5,7 @@ class Viaje {
   final UbicacionViaje origen;
   final UbicacionViaje destino;
   final DateTime fechaIda;
-  final String horaIda;
   final DateTime? fechaVuelta;
-  final String? horaVuelta;
   final bool viajeIdaVuelta;
   final int maxPasajeros;
   final bool soloMujeres;
@@ -37,9 +35,7 @@ class Viaje {
     required this.origen,
     required this.destino,
     required this.fechaIda,
-    required this.horaIda,
     this.fechaVuelta,
-    this.horaVuelta,
     required this.viajeIdaVuelta,
     required this.maxPasajeros,
     required this.soloMujeres,
@@ -59,6 +55,34 @@ class Viaje {
     this.esUnido,
   });
 
+  // Getters para extraer la hora de las fechas (en hora local de Chile)
+  String get horaIda {
+    // Convertir UTC a hora de Chile (UTC-4)
+    final fechaChile = fechaIda.subtract(const Duration(hours: 4));
+    return '${fechaChile.hour.toString().padLeft(2, '0')}:${fechaChile.minute.toString().padLeft(2, '0')}';
+  }
+
+  String? get horaVuelta {
+    if (fechaVuelta == null) return null;
+    // Convertir UTC a hora de Chile (UTC-4)
+    final fechaChile = fechaVuelta!.subtract(const Duration(hours: 4));
+    return '${fechaChile.hour.toString().padLeft(2, '0')}:${fechaChile.minute.toString().padLeft(2, '0')}';
+  }
+
+  // Getters para formatear las fechas (en hora local de Chile)
+  String get fechaIdaFormateada {
+    // Convertir UTC a hora de Chile (UTC-4)
+    final fechaChile = fechaIda.subtract(const Duration(hours: 4));
+    return '${fechaChile.day}/${fechaChile.month}/${fechaChile.year}';
+  }
+
+  String? get fechaVueltaFormateada {
+    if (fechaVuelta == null) return null;
+    // Convertir UTC a hora de Chile (UTC-4)
+    final fechaChile = fechaVuelta!.subtract(const Duration(hours: 4));
+    return '${fechaChile.day}/${fechaChile.month}/${fechaChile.year}';
+  }
+
   factory Viaje.fromJson(Map<String, dynamic> json) {
     return Viaje(
       id: json['_id'] ?? '',
@@ -67,11 +91,9 @@ class Viaje {
       origen: UbicacionViaje.fromJson(json['origen']),
       destino: UbicacionViaje.fromJson(json['destino']),
       fechaIda: DateTime.parse(json['fecha_ida']),
-      horaIda: json['hora_ida'] ?? '',
       fechaVuelta: json['fecha_vuelta'] != null 
         ? DateTime.parse(json['fecha_vuelta']) 
         : null,
-      horaVuelta: json['hora_vuelta'],
       viajeIdaVuelta: json['viaje_ida_vuelta'] ?? false,
       maxPasajeros: json['max_pasajeros'] ?? 0,
       soloMujeres: json['solo_mujeres'] ?? false,
@@ -110,9 +132,7 @@ class Viaje {
       'origen': origen.toJson(),
       'destino': destino.toJson(),
       'fecha_ida': fechaIda.toIso8601String(),
-      'hora_ida': horaIda,
       'fecha_vuelta': fechaVuelta?.toIso8601String(),
-      'hora_vuelta': horaVuelta,
       'viaje_ida_vuelta': viajeIdaVuelta,
       'max_pasajeros': maxPasajeros,
       'solo_mujeres': soloMujeres,
@@ -277,8 +297,7 @@ class ViajeProximidad {
   final String id;
   final UbicacionViaje origen;
   final UbicacionViaje destino;
-  final String fechaIda;
-  final String horaIda;
+  final DateTime fechaIda; // Cambiado a DateTime
   final double precio;
   final int plazasDisponibles;
   final int maxPasajeros;
@@ -287,13 +306,13 @@ class ViajeProximidad {
   final String usuarioRut;
   final DistanciasViaje distancias;
   final Conductor? conductor; // Agregamos información del conductor
+  final String? comentarios; // Agregamos comentarios del viaje
 
   ViajeProximidad({
     required this.id,
     required this.origen,
     required this.destino,
     required this.fechaIda,
-    required this.horaIda,
     required this.precio,
     required this.plazasDisponibles,
     required this.maxPasajeros,
@@ -302,15 +321,29 @@ class ViajeProximidad {
     required this.usuarioRut,
     required this.distancias,
     this.conductor,
+    this.comentarios,
   });
+
+  // Getter para extraer la hora de la fecha (en hora local de Chile)
+  String get horaIda {
+    // Convertir UTC a hora de Chile (UTC-4)
+    final fechaChile = fechaIda.subtract(const Duration(hours: 4));
+    return '${fechaChile.hour.toString().padLeft(2, '0')}:${fechaChile.minute.toString().padLeft(2, '0')}';
+  }
+
+  // Getter para formatear la fecha (en hora local de Chile)
+  String get fechaIdaFormateada {
+    // Convertir UTC a hora de Chile (UTC-4)
+    final fechaChile = fechaIda.subtract(const Duration(hours: 4));
+    return '${fechaChile.day}/${fechaChile.month}/${fechaChile.year}';
+  }
 
   factory ViajeProximidad.fromJson(Map<String, dynamic> json) {
     return ViajeProximidad(
-      id: json['id'] ?? '',
+      id: json['_id'] ?? json['id'] ?? '',  // Probar tanto _id como id
       origen: UbicacionViaje.fromJson(json['origen'] ?? {}),
       destino: UbicacionViaje.fromJson(json['destino'] ?? {}),
-      fechaIda: json['fecha_ida'] ?? '',
-      horaIda: json['hora_ida'] ?? '',
+      fechaIda: DateTime.parse(json['fecha_ida']),
       precio: (json['precio'] ?? 0).toDouble(),
       plazasDisponibles: json['plazas_disponibles'] ?? 0,
       maxPasajeros: json['max_pasajeros'] ?? 0,
@@ -319,6 +352,7 @@ class ViajeProximidad {
       usuarioRut: json['usuario_rut'] ?? '',
       distancias: DistanciasViaje.fromJson(json['distancias'] ?? {}),
       conductor: json['conductor'] != null ? Conductor.fromJson(json['conductor']) : null,
+      comentarios: json['comentarios'], // Agregar parsing de comentarios
     );
   }
 
@@ -327,8 +361,7 @@ class ViajeProximidad {
       'id': id,
       'origen': origen.toJson(),
       'destino': destino.toJson(),
-      'fecha_ida': fechaIda,
-      'hora_ida': horaIda,
+      'fecha_ida': fechaIda.toIso8601String(),
       'precio': precio,
       'plazas_disponibles': plazasDisponibles,
       'max_pasajeros': maxPasajeros,

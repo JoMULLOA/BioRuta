@@ -53,6 +53,9 @@ class Notificacion {
   String? get solicitanteNombre => datos?['solicitanteNombre'];
   String? get origen => datos?['origen'];
   String? get destino => datos?['destino'];
+  double? get precio => datos?['precio']?.toDouble();
+  String? get fechaViaje => datos?['fechaViaje'];
+  String? get horaViaje => datos?['horaViaje'];
   
   bool get esSolicitudViaje => tipo == 'solicitud_viaje';
 }

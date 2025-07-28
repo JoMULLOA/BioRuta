@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:async';
 import '../services/socket_service.dart';
+import '../utils/date_utils.dart' as date_utils;
 
 // Clase Message para chat grupal
 class GroupMessage {
@@ -499,7 +500,7 @@ class _ChatGrupalViajeState extends State<ChatGrupalViaje> {
                   ),
                 ),
                 Text(
-                  '${message.timestamp.hour.toString().padLeft(2, '0')}:${message.timestamp.minute.toString().padLeft(2, '0')}',
+                  date_utils.DateUtils.obtenerHoraChile(message.timestamp),
                   style: TextStyle(
                     fontSize: 10,
                     color: Colors.grey[600],

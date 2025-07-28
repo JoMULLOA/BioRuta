@@ -5,7 +5,8 @@ import {
   obtenerNotificaciones,
   contarNotificacionesPendientes,
   marcarComoLeida,
-  responderSolicitudViaje
+  responderSolicitudViaje,
+  abandonarViaje
 } from "../controllers/notificacion.controller.js";
 
 const router = express.Router();
@@ -19,5 +20,6 @@ router.get("/pendientes", obtenerNotificaciones); // Alias para compatibilidad c
 router.get("/count", contarNotificacionesPendientes);
 router.patch("/:id/leer", marcarComoLeida);
 router.post("/:id/responder", responderSolicitudViaje);
+router.post("/viaje/:viajeId/abandonar", abandonarViaje);
 
 export default router;

@@ -5,16 +5,22 @@ import 'pagina_individual.dart'; // Cambiar a la versión WebSocket
 import 'chat_grupal.dart'; // Importar chat grupal
 import '../models/user_models.dart';
 import '../models/chat_grupal_models.dart'; // Importar modelos de chat grupal
+import '../models/viaje_chat_model.dart'; // Importar modelo de viaje chat
 import '../services/amistad_service.dart'; // Importar el servicio de amistad
 import '../services/chat_grupal_service.dart'; // Importar servicio de chat grupal
+
 class Chat extends StatefulWidget {
   @override
   ChatState createState() => ChatState();
 }
 
-class ChatState extends State<Chat> {
+class ChatState extends State<Chat> with TickerProviderStateMixin {
+  // --- TabController para las pestañas ---
+  late TabController _tabController;
+
   // --- Variables de Estado para la UI ---
   List<User> amigosDisponibles = [];
+  List<ViajeChat> viajesDisponibles = [];
   bool isLoading = true;
   String? errorMessage;
   int _selectedIndex = 3;
@@ -32,8 +38,18 @@ class ChatState extends State<Chat> {
   @override
   void initState() {
     super.initState();
+    // Inicializar TabController
+    _tabController = TabController(length: 2, vsync: this);
+    
     // Primero carga el token y el RUT, luego carga los amigos
     _initChatScreen();
+  }
+
+  @override
+  void dispose() {
+    // Cancelar cualquier operación pendiente
+    _tabController.dispose();
+    super.dispose();
   }
 
   Future<void> _initChatScreen() async {
@@ -43,12 +59,15 @@ class ChatState extends State<Chat> {
       await Future.wait([
         _cargarAmigosDisponibles(),
         _cargarViajeActivo(),
+        _cargarViajesParaChat(),
       ]);
     } else {
-      setState(() {
-        isLoading = false;
-        errorMessage = 'Error: No se pudo cargar el token o el RUT del usuario. Por favor, reinicia la sesión.';
-      });
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+          errorMessage = 'Error: No se pudo cargar el token o el RUT del usuario. Por favor, reinicia la sesión.';
+        });
+      }
       print('ERROR: Token o RUT nulo al iniciar ChatScreen.');
     }
   }
@@ -64,10 +83,12 @@ class ChatState extends State<Chat> {
 
     } catch (e) {
       print('ERROR: Error al cargar token/rut de SecureStorage: $e');
-      setState(() {
-        errorMessage = 'Error al cargar datos de sesión: $e';
-        isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          errorMessage = 'Error al cargar datos de sesión: $e';
+          isLoading = false;
+        });
+      }
     }
   }
 
@@ -77,9 +98,11 @@ class ChatState extends State<Chat> {
       // Usar directamente ChatGrupalService para evitar conflictos
       final viajeActivo = await ChatGrupalService.obtenerViajeActivo();
       
-      setState(() {
-        _viajeActivo = viajeActivo;
-      });
+      if (mounted) {
+        setState(() {
+          _viajeActivo = viajeActivo;
+        });
+      }
       
       print('🚗 Viaje activo cargado: ${viajeActivo.estaActivo}');
       
@@ -87,23 +110,45 @@ class ChatState extends State<Chat> {
       print('ERROR: Error al cargar viaje activo: $e');
     }
   }
+
+  // --- Función para cargar los viajes donde el usuario está confirmado ---
+  Future<void> _cargarViajesParaChat() async {
+    try {
+      final viajes = await ChatGrupalService.obtenerMisViajesParaChat();
+      
+      if (mounted) {
+        setState(() {
+          viajesDisponibles = viajes;
+        });
+      }
+      
+      print('🚗📋 Viajes para chat cargados: ${viajes.length}');
+      
+    } catch (e) {
+      print('ERROR: Error al cargar viajes para chat: $e');
+    }
+  }
   
   // --- Función para cargar SOLO los amigos desde el backend ---
   Future<void> _cargarAmigosDisponibles() async {
     // Asegurarse de que el token esté disponible antes de la petición
     if (_jwtToken == null) {
-      setState(() {
-        isLoading = false;
-        errorMessage = 'No hay token de autenticación disponible. Por favor, vuelve a iniciar sesión.';
-      });
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+          errorMessage = 'No hay token de autenticación disponible. Por favor, vuelve a iniciar sesión.';
+        });
+      }
       print('ERROR: _cargarAmigosDisponibles llamado sin token JWT.');
       return;
     }
 
-    setState(() {
-      isLoading = true;
-      errorMessage = null;
-    });
+    if (mounted) {
+      setState(() {
+        isLoading = true;
+        errorMessage = null;
+      });
+    }
 
     try {
       // Usar el servicio de amistad para obtener SOLO los amigos confirmados
@@ -138,30 +183,35 @@ class ChatState extends State<Chat> {
         
         print('DEBUG: Total de amigos obtenidos: ${amigos.length}');
         
-        setState(() {
-          amigosDisponibles = amigos;
-          isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            amigosDisponibles = amigos;
+            isLoading = false;
+          });
+        }
       } else {
         print('DEBUG: Success no es true. Resultado: $resultado');
-        setState(() {
-          errorMessage = resultado['message'] ?? 'Error al cargar amigos';
-          isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            errorMessage = resultado['message'] ?? 'Error al cargar amigos';
+            isLoading = false;
+          });
+        }
       }
       
     } catch (e) {
-      setState(() {
-        errorMessage = 'Error al cargar amigos: $e';
-        isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          errorMessage = 'Error al cargar amigos: $e';
+          isLoading = false;
+        });
+      }
       print('ERROR: Excepción al intentar cargar amigos: $e');
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // ... (Tu método build() permanece sin cambios) ...
     final Color fondo = const Color(0xFFF8F2EF);
     final Color principal = const Color(0xFF6B3B2D);
     final Color secundario = const Color(0xFF8D4F3A);
@@ -169,115 +219,40 @@ class ChatState extends State<Chat> {
     return Scaffold(
       backgroundColor: fondo,
       appBar: AppBar(
-        backgroundColor: fondo,
+        title: const Text('Chats'),
+        backgroundColor: secundario,
+        foregroundColor: Colors.white,
         elevation: 0,
-        title: Text('Chats', style: TextStyle(color: principal)),
-        iconTheme: IconThemeData(color: principal),
+        bottom: TabBar(
+          controller: _tabController,
+          indicatorColor: Colors.white,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          tabs: const [
+            Tab(icon: Icon(Icons.person), text: 'Personales'),
+            Tab(icon: Icon(Icons.directions_car), text: 'Viajes'),
+          ],
+        ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: isLoading
-            ? Center(child: CircularProgressIndicator(color: principal))
-            : errorMessage != null
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(errorMessage!, style: TextStyle(color: Colors.red)),
-                        ElevatedButton(
-                          onPressed: _cargarAmigosDisponibles,
-                          child: const Text('Reintentar', style: TextStyle(color: Colors.white)),
-                          style: ElevatedButton.styleFrom(backgroundColor: principal),
-                        )
-                      ],
-                    ),
-                  )
-                : ListView(
-                    children: [
-                      // Card del viaje grupal (siempre visible)
-                      _buildViajeCard(),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Amistades',
-                        style: TextStyle(color: principal, fontSize: 18, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 8),
-                      // Verificar si hay amigos
-                      if (amigosDisponibles.isEmpty)
-                        Card(
-                          color: Colors.orange.shade50,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          child: Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Column(
-                              children: [
-                                Icon(Icons.people_outline, size: 48, color: Colors.orange.shade400),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'No tienes amigos para chatear',
-                                  style: TextStyle(
-                                    color: principal,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'Ve a tu perfil para enviar solicitudes de amistad',
-                                  style: TextStyle(color: secundario),
-                                  textAlign: TextAlign.center,
-                                ),
-                                const SizedBox(height: 8),
-                                ElevatedButton(
-                                  onPressed: () => Navigator.pushNamed(context, '/perfil'),
-                                  style: ElevatedButton.styleFrom(backgroundColor: principal),
-                                  child: const Text('Ir a Perfil', style: TextStyle(color: Colors.white)),
-                                ),
-                              ],
-                            ),
-                          ),
-                        )
-                      else
-                        // Generar la lista de chats con amigos DINÁMICAMENTE desde los usuarios obtenidos
-                        ...amigosDisponibles.map((user) {
-                          return Card(
-                            color: Colors.white,
-                            elevation: 2,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            margin: const EdgeInsets.symmetric(vertical: 6),
-                            child: ListTile(
-                              leading: CircleAvatar(
-                                backgroundColor: principal.withOpacity(0.8),
-                                child: Text(user.nombreCompleto[0], style: const TextStyle(color: Colors.white)),
-                              ),
-                              title: Text(user.nombreCompleto, style: TextStyle(color: principal)),
-                              subtitle: Text(user.email, style: TextStyle(color: secundario)),
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => PaginaIndividualWebSocket(
-                                      nombre: user.nombreCompleto,
-                                      rutAmigo: user.rut,
-                                      rutUsuarioAutenticado: _rutUsuarioAutenticado, // Ahora es opcional
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                          );
-                        }).toList(),
-                    ],
-                  ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          // TAB 1: Chats Personales (contenido actual)
+          _buildChatPersonalesTab(fondo, principal, secundario),
+          // TAB 2: Chats de Viajes (nuevo)
+          _buildChatViajesTab(fondo, principal, secundario),
+        ],
       ),
       bottomNavigationBar: NavbarConSOSDinamico(
         currentIndex: _selectedIndex,
         onTap: (index) {
           if (index == _selectedIndex) return;
 
-          setState(() {
-            _selectedIndex = index;
-          });
+          if (mounted) {
+            setState(() {
+              _selectedIndex = index;
+            });
+          }
 
           switch (index) {
             case 0:
@@ -304,92 +279,195 @@ class ChatState extends State<Chat> {
     );
   }
 
-  // --- Método para construir la card del viaje ---
-  Widget _buildViajeCard() {
-    final Color principal = const Color(0xFF6B3B2D);
-    final Color secundario = const Color(0xFF8D4F3A);
-    
-    // Determinar el estado del viaje
-    bool tieneViajeActivo = _viajeActivo?.estaActivo == true;
-    
-    return Card(
-      color: tieneViajeActivo 
-          ? Colors.brown.shade100.withOpacity(0.8) // Tonalidad clara si tiene viaje activo
-          : Colors.brown.shade100.withOpacity(0.3), // Tonalidad oscura si no tiene viaje activo
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      elevation: tieneViajeActivo ? 3 : 1,
-      child: ListTile(
-        leading: Icon(
-          tieneViajeActivo ? Icons.directions_car : Icons.directions_car_outlined,
-          color: tieneViajeActivo ? secundario : Colors.grey[600],
-          size: 28,
-        ),
-        title: Text(
-          tieneViajeActivo ? 'Chat de Viaje' : 'Sin Viaje Activo',
-          style: TextStyle(
-            color: tieneViajeActivo ? principal : Colors.grey[700],
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (tieneViajeActivo && _viajeActivo != null) ...[
-              Text(
-                '${_viajeActivo!.cantidadPasajeros} pasajeros',
-                style: TextStyle(
-                  color: secundario,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              if (_viajeActivo!.origen != null && _viajeActivo!.destino != null)
-                Text(
-                  '${_viajeActivo!.origen} → ${_viajeActivo!.destino}',
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: 11,
+  // --- Método para construir la pestaña de Chats Personales ---
+  Widget _buildChatPersonalesTab(Color fondo, Color principal, Color secundario) {
+    return Padding(
+      padding: const EdgeInsets.all(12.0),
+      child: isLoading
+          ? Center(child: CircularProgressIndicator(color: principal))
+          : errorMessage != null
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(errorMessage!, style: TextStyle(color: Colors.red)),
+                      ElevatedButton(
+                        onPressed: _cargarAmigosDisponibles,
+                        child: const Text('Reintentar', style: TextStyle(color: Colors.white)),
+                        style: ElevatedButton.styleFrom(backgroundColor: principal),
+                      )
+                    ],
                   ),
-                  overflow: TextOverflow.ellipsis,
+                )
+              : ListView(
+                  children: [
+                    const SizedBox(height: 4),
+                    // Verificar si hay amigos
+                    if (amigosDisponibles.isEmpty)
+                      Card(
+                        color: Colors.orange.shade50,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            children: [
+                              Icon(Icons.people_outline, size: 48, color: Colors.orange.shade400),
+                              const SizedBox(height: 8),
+                              Text(
+                                'No tienes amigos para chatear',
+                                style: TextStyle(
+                                  color: principal,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Ve a tu perfil para enviar solicitudes de amistad',
+                                style: TextStyle(color: secundario),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 8),
+                              ElevatedButton(
+                                onPressed: () => Navigator.pushNamed(context, '/perfil'),
+                                style: ElevatedButton.styleFrom(backgroundColor: principal),
+                                child: const Text('Ir a Perfil', style: TextStyle(color: Colors.white)),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    else
+                      // Generar la lista de chats con amigos DINÁMICAMENTE desde los usuarios obtenidos
+                      ...amigosDisponibles.map((user) {
+                        return Card(
+                          color: Colors.white,
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          margin: const EdgeInsets.symmetric(vertical: 6),
+                          child: ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: principal.withOpacity(0.8),
+                              child: Text(user.nombreCompleto[0], style: const TextStyle(color: Colors.white)),
+                            ),
+                            title: Text(user.nombreCompleto, style: TextStyle(color: principal)),
+                            subtitle: Text(user.email, style: TextStyle(color: secundario)),
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => PaginaIndividualWebSocket(
+                                    nombre: user.nombreCompleto,
+                                    rutAmigo: user.rut,
+                                    rutUsuarioAutenticado: _rutUsuarioAutenticado, // Ahora es opcional
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        );
+                      }).toList(),
+                  ],
                 ),
-            ] else ...[
-              Text(
-                'No hay viajes activos',
-                style: TextStyle(
-                  color: Colors.grey[600],
-                  fontSize: 12,
-                ),
-              ),
-            ],
-          ],
-        ),
-        trailing: tieneViajeActivo
-            ? Icon(
-                Icons.chevron_right,
-                color: secundario,
-              )
-            : null,
-        onTap: tieneViajeActivo && _viajeActivo != null
-            ? () {
-                // Navegar al chat grupal
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => ChatGrupalScreen(
-                      idViaje: _viajeActivo!.idViaje,
-                      nombreViaje: _viajeActivo!.origen != null && _viajeActivo!.destino != null
-                          ? '${_viajeActivo!.origen} → ${_viajeActivo!.destino}'
-                          : 'Chat de Viaje',
+    );
+  }
+
+  // --- Método para construir la pestaña de Chats de Viajes ---
+  Widget _buildChatViajesTab(Color fondo, Color principal, Color secundario) {
+    return Padding(
+      padding: const EdgeInsets.all(12.0),
+      child: isLoading
+          ? Center(child: CircularProgressIndicator(color: principal))
+          : ListView(
+              children: [
+                const SizedBox(height: 4),
+                // Verificar si hay viajes
+                if (viajesDisponibles.isEmpty)
+                  Card(
+                    color: Colors.blue.shade50,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        children: [
+                          Icon(Icons.directions_car_outlined, size: 48, color: Colors.blue.shade400),
+                          const SizedBox(height: 8),
+                          Text(
+                            'No tienes viajes para chatear',
+                            style: TextStyle(
+                              color: principal,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Únete a viajes como pasajero o crea uno como conductor',
+                            style: TextStyle(color: secundario),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 8),
+                          ElevatedButton(
+                            onPressed: () => Navigator.pushNamed(context, '/publicar'),
+                            style: ElevatedButton.styleFrom(backgroundColor: principal),
+                            child: const Text('Crear Viaje', style: TextStyle(color: Colors.white)),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ).then((_) {
-                  // Refrescar información del viaje cuando se regrese
-                  print('🚗🔄 Regresando del chat grupal, actualizando estado...');
-                  _cargarViajeActivo();
-                });
-              }
-            : null,
-      ),
+                  )
+                else
+                  // Generar la lista de chats de viajes
+                  ...viajesDisponibles.map((viaje) {
+                    return Card(
+                      color: Colors.white,
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      margin: const EdgeInsets.symmetric(vertical: 6),
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: principal.withOpacity(0.8),
+                          child: Icon(
+                            viaje.soyElConductor ? Icons.drive_eta : Icons.person,
+                            color: Colors.white,
+                          ),
+                        ),
+                        title: Text(
+                          viaje.infoTitulo,
+                          style: TextStyle(color: principal, fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              viaje.rutaCompleta,
+                              style: TextStyle(color: secundario, fontSize: 13),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Text(
+                              viaje.infoSubtitulo,
+                              style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                            ),
+                          ],
+                        ),
+                        trailing: Icon(Icons.chevron_right, color: secundario),
+                        onTap: () {
+                          // Navegar al chat grupal de este viaje específico
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ChatGrupalScreen(
+                                idViaje: viaje.idViaje,
+                                nombreViaje: viaje.rutaCompleta,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    );
+                  }).toList(),
+              ],
+            ),
     );
   }
 }

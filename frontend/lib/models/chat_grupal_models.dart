@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 // Modelos para el chat grupal
 class ChatGrupalInfo {
   final String idViaje;
@@ -56,7 +58,12 @@ class ChatGrupalInfo {
       origen: origenNombre,
       destino: destinoNombre,
       fechaViaje: json['fecha_ida'] != null ? DateTime.parse(json['fecha_ida']) : null, // El backend usa 'fecha_ida'
-      horaViaje: json['hora_ida'], // El backend usa 'hora_ida'
+      horaViaje: json['fecha_ida'] != null 
+        ? () {
+            final fecha = DateTime.parse(json['fecha_ida']);
+            return '${fecha.hour.toString().padLeft(2, '0')}:${fecha.minute.toString().padLeft(2, '0')}';
+          }()
+        : null,
       cantidadPasajeros: (json['pasajeros'] as List<dynamic>?)?.length ?? 0, // Contar pasajeros
       participantes: (json['participantes'] as List<dynamic>?)
           ?.map((p) => ParticipanteChat.fromJson(p))
@@ -164,6 +171,7 @@ class MensajeGrupal {
   final String tipo;
   final DateTime? fechaEdicion;
   final String? editadoPor;
+  final Map<String, dynamic>? locationData; // Para mensajes de ubicación
 
   MensajeGrupal({
     required this.id,
@@ -177,26 +185,54 @@ class MensajeGrupal {
     required this.tipo,
     this.fechaEdicion,
     this.editadoPor,
+    this.locationData,
   });
 
   factory MensajeGrupal.fromJson(Map<String, dynamic> json) {
+    final contenido = json['contenido'] ?? '';
+    String tipoMensaje = json['tipo'] ?? 'grupal';
+    Map<String, dynamic>? locationData;
+    
+    // Verificar si es un mensaje de ubicación
+    try {
+      print('🔍 Revisando contenido: $contenido');
+      final parsedContent = jsonDecode(contenido);
+      print('🔍 Contenido parseado: $parsedContent');
+      if (parsedContent is Map<String, dynamic> && parsedContent['type'] == 'location') {
+        print('✅ Detectado mensaje de ubicación');
+        tipoMensaje = 'location';
+        locationData = {
+          'latitude': parsedContent['latitude'],
+          'longitude': parsedContent['longitude'],
+          'accuracy': parsedContent['accuracy'],
+          'timestamp': parsedContent['timestamp'],
+        };
+      } else {
+        print('❌ No es mensaje de ubicación - type: ${parsedContent is Map ? parsedContent['type'] : 'no es map'}');
+      }
+    } catch (e) {
+      // No es JSON válido, es un mensaje normal
+      print('❌ Error parseando JSON: $e');
+    }
+    
     return MensajeGrupal(
       id: json['id'] ?? 0,
-      contenido: json['contenido'] ?? '',
+      contenido: tipoMensaje == 'location' ? 'Ubicación compartida' : contenido,
       emisorRut: json['emisor'] ?? json['emisorRut'] ?? '',
       emisorNombre: json['emisorNombre'] ?? '',
       fecha: json['fecha'] != null ? DateTime.parse(json['fecha']) : DateTime.now(),
       idViaje: json['idViajeMongo'] ?? json['idViaje'] ?? '',
       editado: json['editado'] ?? false,
       eliminado: json['eliminado'] ?? false,
-      tipo: json['tipo'] ?? 'grupal',
+      tipo: tipoMensaje,
       fechaEdicion: json['fechaEdicion'] != null ? DateTime.parse(json['fechaEdicion']) : null,
       editadoPor: json['editadoPor'],
+      locationData: locationData,
     );
   }
 
   Map<String, dynamic> toJson() {
-    return {
+    final Map<String, dynamic> json = {
       'id': id,
       'contenido': contenido,
       'emisor': emisorRut,
@@ -211,6 +247,12 @@ class MensajeGrupal {
       'fechaEdicion': fechaEdicion?.toIso8601String(),
       'editadoPor': editadoPor,
     };
+    
+    if (locationData != null) {
+      json['locationData'] = locationData;
+    }
+    
+    return json;
   }
 
   // Getter para obtener iniciales del emisor

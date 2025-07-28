@@ -2,6 +2,8 @@
 import { Server } from "socket.io";
 import { enviarMensaje, editarMensaje, eliminarMensaje, obtenerInfoMensajeParaEliminacion } from "./services/chat.service.js";
 import { agregarParticipante, eliminarParticipante, obtenerParticipantes } from "./services/chatGrupal.service.js";
+import WebSocketNotificationService from "./services/push_notification.service.js";
+import { obtenerUserByRut } from "./services/user.service.js";
 import jwt from "jsonwebtoken";
 import { ACCESS_TOKEN_SECRET } from "./config/configEnv.js";
 
@@ -126,6 +128,26 @@ export function initSocket(server) {
           io.to(`usuario_${socket.userId}`).emit("nuevo_mensaje", mensajeParaEnviar);
           io.to(`usuario_${receptorRut}`).emit("nuevo_mensaje", mensajeParaEnviar);
           console.log(`💬 Mensaje enviado entre ${socket.userId} y ${receptorRut}`);
+
+          // 🔔 ENVIAR NOTIFICACIÓN PUSH PARA CHAT INDIVIDUAL
+          try {
+            const [emisorData, errorEmisor] = await obtenerUserByRut(socket.userId);
+            if (!errorEmisor && emisorData) {
+              console.log(`🔔 Enviando notificación push de chat individual a ${receptorRut}`);
+              await WebSocketNotificationService.enviarNotificacionChatIndividual(
+                io,
+                receptorRut,
+                emisorData.nombreCompleto,
+                socket.userId,
+                contenido
+              );
+              console.log(`✅ Notificación push enviada exitosamente`);
+            } else {
+              console.warn(`⚠️ No se pudo obtener datos del emisor ${socket.userId} para notificación`);
+            }
+          } catch (notifError) {
+            console.error(`❌ Error enviando notificación push:`, notifError);
+          }
         }
 
         console.log(`📱 DEVICE DEBUG - Confirmando envío al emisor...`);
@@ -429,6 +451,42 @@ export function initSocket(server) {
         io.to(`viaje_${idViaje}`).emit("nuevo_mensaje_grupal", mensajeParaEnviar);
         console.log(`📢 Mensaje grupal enviado a chat de viaje ${idViaje}`);
 
+        // 🔔 ENVIAR NOTIFICACIONES PUSH PARA CHAT GRUPAL
+        try {
+          const [emisorData, errorEmisor] = await obtenerUserByRut(socket.userId);
+          if (!errorEmisor && emisorData) {
+            console.log(`🔔 Enviando notificaciones push de chat grupal a participantes del viaje ${idViaje}`);
+            
+            // Obtener participantes del chat grupal (excluyendo al emisor)
+            const participantesViaje = await obtenerParticipantes(idViaje);
+            const nombreGrupo = `Viaje Chat`; // Por ahora un nombre genérico
+            
+            // Enviar notificación a cada participante (excepto el emisor)
+            for (const rutParticipante of participantesViaje) {
+              if (rutParticipante !== socket.userId) {
+                try {
+                  await WebSocketNotificationService.enviarNotificacionChatGrupal(
+                    io,
+                    rutParticipante,
+                    emisorData.nombreCompleto,
+                    socket.userId,
+                    contenido,
+                    idViaje,
+                    nombreGrupo
+                  );
+                  console.log(`✅ Notificación grupal enviada a ${rutParticipante}`);
+                } catch (notifParticipanteError) {
+                  console.error(`❌ Error enviando notificación a ${rutParticipante}:`, notifParticipanteError);
+                }
+              }
+            }
+          } else {
+            console.warn(`⚠️ No se pudo obtener datos del emisor ${socket.userId} para notificación grupal`);
+          }
+        } catch (notifGrupalError) {
+          console.error(`❌ Error enviando notificaciones push grupales:`, notifGrupalError);
+        }
+
         // Confirmar al emisor
         socket.emit("mensaje_grupal_enviado", {
           success: true,
@@ -535,6 +593,52 @@ export function initSocket(server) {
     });
 
     // ===== FIN EVENTOS CHAT GRUPAL =====
+
+    // ===== EVENTOS DE PROCESAMIENTO AUTOMÁTICO =====
+    
+    // Procesar estados automáticos de viajes (solo para admins o sistema automatizado)
+    socket.on("procesar_estados_automaticos", async () => {
+      try {
+        console.log(`🔄 Procesamiento automático solicitado por usuario: ${socket.userId}`);
+        
+        // Importar la función de procesamiento
+        const { procesarCambiosEstadoAutomaticos } = await import('./services/viaje.validation.service.js');
+        
+        const resultado = await procesarCambiosEstadoAutomaticos();
+        
+        if (resultado.exito) {
+          // Emitir resultado al usuario que solicitó
+          socket.emit("estados_automaticos_procesados", {
+            exito: true,
+            procesados: resultado.procesados,
+            cancelados: resultado.cancelados,
+            iniciados: resultado.iniciados,
+            timestamp: new Date().toISOString()
+          });
+          
+          // Emitir a todos los usuarios sobre cambios de estado si hubo procesos
+          if (resultado.procesados > 0) {
+            io.emit("viajes_estado_actualizado", {
+              procesados: resultado.procesados,
+              cancelados: resultado.cancelados,
+              iniciados: resultado.iniciados
+            });
+          }
+          
+          console.log(`✅ Procesamiento automático completado: ${resultado.procesados} viajes procesados`);
+        } else {
+          socket.emit("estados_automaticos_error", { 
+            error: resultado.mensaje || "Error en procesamiento automático" 
+          });
+        }
+        
+      } catch (error) {
+        console.error("❌ Error en procesamiento automático via socket:", error.message);
+        socket.emit("estados_automaticos_error", { error: error.message });
+      }
+    });
+
+    // ===== FIN EVENTOS PROCESAMIENTO AUTOMÁTICO =====
 
     socket.on("disconnect", () => {
       console.log(`🔌 Usuario desconectado: ${socket.id} (RUT: ${socket.userId})`);

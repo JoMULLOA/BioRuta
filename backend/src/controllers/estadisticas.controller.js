@@ -1,11 +1,12 @@
 "use strict";
 import { AppDataSource } from "../config/configDb.js";
+import { Not, IsNull } from "typeorm";
 import User from "../entity/user.entity.js";
 import Vehiculo from "../entity/vehiculo.entity.js";
-import Pago from "../entity/pago.entity.js";
 import Amistad from "../entity/amistad.entity.js";
 import Notificacion from "../entity/notificacion.entity.js";
 import Mensaje from "../entity/mensaje.entity.js";
+import Transaccion from "../entity/transaccion.entity.js";
 import Viaje from "../entity/viaje.entity.js"; // MongoDB
 import { handleErrorClient, handleErrorServer, handleSuccess } from "../handlers/responseHandlers.js";
 
@@ -16,10 +17,10 @@ export async function obtenerEstadisticasGenerales(req, res) {
     // Repositorios SQL
     const userRepository = AppDataSource.getRepository(User);
     const vehiculoRepository = AppDataSource.getRepository(Vehiculo);
-    const pagoRepository = AppDataSource.getRepository(Pago);
     const amistadRepository = AppDataSource.getRepository(Amistad);
     const notificacionRepository = AppDataSource.getRepository(Notificacion);
     const mensajeRepository = AppDataSource.getRepository(Mensaje);
+    const transaccionRepository = AppDataSource.getRepository(Transaccion);
 
     // Estadísticas básicas
     const [
@@ -36,7 +37,7 @@ export async function obtenerEstadisticasGenerales(req, res) {
     ] = await Promise.all([
       userRepository.count(),
       vehiculoRepository.count(),
-      pagoRepository.count(),
+      transaccionRepository.count(),
       amistadRepository.count(),
       notificacionRepository.count(),
       mensajeRepository.count(),
@@ -254,55 +255,7 @@ export async function obtenerDestinosPopulares(req, res) {
   }
 }
 
-export async function obtenerEstadisticasPagos(req, res) {
-  try {
-    console.log("📊 Obteniendo estadísticas de pagos...");
 
-    const pagoRepository = AppDataSource.getRepository(Pago);
-
-    // Estadísticas de pagos por estado
-    const pagosPorEstado = await pagoRepository
-      .createQueryBuilder("pago")
-      .select("pago.estado, COUNT(*) as cantidad")
-      .groupBy("pago.estado")
-      .getRawMany();
-
-    // Monto total de pagos
-    const montoTotal = await pagoRepository
-      .createQueryBuilder("pago")
-      .select("SUM(pago.montoTotal)", "total")
-      .where("pago.estado = :estado", { estado: "aprobado" })
-      .getRawOne();
-
-    // Pagos por mes
-    const pagosPorMes = await pagoRepository
-      .createQueryBuilder("pago")
-      .select([
-        "EXTRACT(YEAR FROM pago.fechaCreacion) as año",
-        "EXTRACT(MONTH FROM pago.fechaCreacion) as mes",
-        "COUNT(*) as cantidad",
-        "SUM(pago.montoTotal) as monto"
-      ])
-      .where("pago.fechaCreacion >= :fecha", { 
-        fecha: new Date(Date.now() - 6 * 30 * 24 * 60 * 60 * 1000) 
-      })
-      .groupBy("EXTRACT(YEAR FROM pago.fechaCreacion), EXTRACT(MONTH FROM pago.fechaCreacion)")
-      .orderBy("año, mes")
-      .getRawMany();
-
-    const estadisticasPagos = {
-      pagosPorEstado,
-      montoTotal: montoTotal?.total || 0,
-      pagosPorMes
-    };
-
-    console.log("✅ Estadísticas de pagos obtenidas:", estadisticasPagos);
-    handleSuccess(res, 200, "Estadísticas de pagos obtenidas", estadisticasPagos);
-  } catch (error) {
-    console.error("❌ Error obteniendo estadísticas de pagos:", error);
-    handleErrorServer(res, 500, error.message);
-  }
-}
 
 export async function obtenerAnalisisAvanzado(req, res) {
   try {
@@ -323,7 +276,7 @@ export async function obtenerAnalisisAvanzado(req, res) {
       vehiculoRepository.count(),
       Viaje.countDocuments(),
       Viaje.countDocuments({ estado: 'completado' }),
-      userRepository.count({ where: { clasificacion: { $ne: null } } })
+      userRepository.count({ where: { clasificacion: Not(IsNull()) } })
     ]);
 
     // Calcular métricas

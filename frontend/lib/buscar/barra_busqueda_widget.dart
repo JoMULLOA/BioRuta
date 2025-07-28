@@ -74,13 +74,16 @@ class BarraBusquedaWidget extends StatelessWidget {
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Distancia: ${sugerencias[index].distancia.toStringAsFixed(2)} km',
-                        style: TextStyle(
-                          color: Colors.grey[600],
-                          fontSize: 12,
+                      // Solo mostrar tiempo estimado si es destino (tiempoEstimado > 0)
+                      if (sugerencias[index].tiempoEstimado > 0)
+                        Text(
+                          'Tiempo estimado de viaje: ${sugerencias[index].tiempoEstimado} minutos',
+                          style: TextStyle(
+                            color: Colors.green[700],
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
-                      ),
                       Text(
                         tipoSugerencia,
                         style: TextStyle(

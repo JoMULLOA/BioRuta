@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../models/direccion_sugerida.dart';
 import '../services/viaje_service.dart';
 import '../services/user_service.dart';
 import '../models/viaje_model.dart';
+import '../utils/viaje_validator.dart';
 
 class PublicarViajeFinal extends StatefulWidget {
   final List<DireccionSugerida> ubicaciones;
@@ -33,11 +35,15 @@ class _PublicarViajeFinalState extends State<PublicarViajeFinal> {
   VehiculoViaje? vehiculoSeleccionado;
   List<VehiculoViaje> vehiculosDisponibles = [];
   bool cargandoVehiculos = true;
+  bool calculandoPrecio = false;
+  bool cargando = false; // Variable para el estado de carga al publicar
+  double? kilometrosRuta;
+  Map<String, dynamic>? infoPrecio;
 
   @override
   void initState() {
     super.initState();
-    _calcularPrecioEstimado();
+    _calcularPrecioReal();
     _cargarVehiculos();
   }
 
@@ -102,42 +108,6 @@ class _PublicarViajeFinalState extends State<PublicarViajeFinal> {
     }
   }
 
-  void _calcularPrecioEstimado() {
-    // Simulación del cálculo de precio basado en distancia
-    // En una implementación real, esto calcularía la distancia real
-    double distanciaEstimada = _calcularDistanciaTotal();
-    setState(() {
-      precio = (distanciaEstimada * 25).roundToDouble(); // 25 pesos por km como base
-    });
-  }
-
-  double _calcularDistanciaTotal() {
-    if (widget.ubicaciones.length < 2) return 0.0;
-    
-    // Simulación simple - en realidad usarías una API de routing
-    double distanciaTotal = 0.0;
-    for (int i = 0; i < widget.ubicaciones.length - 1; i++) {
-      double lat1 = widget.ubicaciones[i].lat;
-      double lon1 = widget.ubicaciones[i].lon;
-      double lat2 = widget.ubicaciones[i + 1].lat;
-      double lon2 = widget.ubicaciones[i + 1].lon;
-      
-      // Fórmula simple de distancia euclidiana (no es precisa para geografía real)
-      double distancia = ((lat2 - lat1) * (lat2 - lat1) + (lon2 - lon1) * (lon2 - lon1)) * 100;
-      distanciaTotal += distancia;
-    }
-    
-    return distanciaTotal.clamp(50, 500); // Entre 50 y 500 km estimados
-  }
-
-  String _formatearHora(DateTime fechaHora) {
-    return '${fechaHora.hour.toString().padLeft(2, '0')}:${fechaHora.minute.toString().padLeft(2, '0')}';
-  }
-
-  String _formatearFecha(DateTime fecha) {
-    return '${fecha.day}/${fecha.month}/${fecha.year}';
-  }
-
   Future<void> _publicarViaje() async {
     if (vehiculoSeleccionado == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -154,6 +124,83 @@ class _PublicarViajeFinalState extends State<PublicarViajeFinal> {
     }
 
     try {
+      setState(() {
+        cargando = true;
+      });
+
+      // NUEVA VALIDACIÓN: Verificar solapamiento de viajes
+      final origen = widget.ubicaciones.firstWhere((u) => u.esOrigen == true);
+      final destino = widget.ubicaciones.firstWhere((u) => u.esOrigen != true);
+      
+      final validacion = await ViajeService.validarPublicacionViaje(
+        fechaHoraIda: widget.fechaHoraIda,
+        fechaHoraVuelta: widget.fechaHoraVuelta,
+        origenLat: origen.lat,
+        origenLng: origen.lon,
+        destinoLat: destino.lat,
+        destinoLng: destino.lon,
+      );
+      
+      if (validacion['success'] != true) {
+        setState(() {
+          cargando = false;
+        });
+        
+        // Mostrar información detallada del error
+        await showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('⚠️ Conflicto de Viajes'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(validacion['message']),
+                if (validacion['proximoTiempoDisponible'] != null) ...[
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Próximo tiempo disponible:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    DateFormat('dd/MM/yyyy HH:mm').format(validacion['proximoTiempoDisponible']),
+                    style: const TextStyle(color: Colors.green),
+                  ),
+                ],
+                if (validacion['distanciaKm'] != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    'Distancia estimada: ${validacion['distanciaKm'].toStringAsFixed(1)} km',
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                ],
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Entendido'),
+              ),
+            ],
+          ),
+        );
+        return;
+      }
+      
+      // Mostrar información de la duración estimada del viaje
+      if (validacion['duracionEstimada'] != null) {
+        final duracion = validacion['duracionEstimada'] as Duration;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '⏱️ Duración estimada: ${ViajeValidator.formatearDuracion(duracion)}',
+            ),
+            backgroundColor: Colors.blue,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+
       // Preparar ubicaciones - usar los nombres exactos que espera el backend
       final ubicaciones = widget.ubicaciones.map((u) => {
         'displayName': u.displayName,  // Cambiar de 'nombre' a 'displayName'
@@ -165,7 +212,7 @@ class _PublicarViajeFinalState extends State<PublicarViajeFinal> {
       print('📍 Ubicaciones a enviar: $ubicaciones');
       print('📅 Fecha y hora ida: ${widget.fechaHoraIda}');
       if (widget.viajeIdaYVuelta && widget.fechaHoraVuelta != null) {
-        print('� Fecha y hora vuelta: ${widget.fechaHoraVuelta}');
+        print('🔄 Fecha y hora vuelta: ${widget.fechaHoraVuelta}');
       }
 
       final resultado = await ViajeService.crearViaje(
@@ -219,13 +266,157 @@ class _PublicarViajeFinalState extends State<PublicarViajeFinal> {
     }
   }
 
+  Future<void> _calcularPrecioReal() async {
+    if (widget.ubicaciones.length < 2) return;
+    
+    setState(() {
+      calculandoPrecio = true;
+    });
+    
+    try {
+      print('🔢 Calculando precio real de la ruta...');
+      
+      final origen = widget.ubicaciones.first;
+      final destino = widget.ubicaciones.last;
+      
+      // Obtener el tipo de vehículo seleccionado (si existe)
+      String? tipoVehiculo;
+      if (vehiculoSeleccionado != null) {
+        final modelo = vehiculoSeleccionado!.modelo.toLowerCase();
+        if (modelo.contains('sedan') || modelo.contains('corolla') || modelo.contains('civic')) {
+          tipoVehiculo = 'sedan';
+        } else if (modelo.contains('suv') || modelo.contains('rav4') || modelo.contains('crv')) {
+          tipoVehiculo = 'suv';
+        } else if (modelo.contains('hatchback') || modelo.contains('yaris') || modelo.contains('fit')) {
+          tipoVehiculo = 'hatchback';
+        }
+      }
+      
+      print('📍 Calculando para ruta: ${origen.displayName} → ${destino.displayName}');
+      print('🚗 Tipo de vehículo: $tipoVehiculo');
+      
+      // Llamar al backend para obtener precio sugerido
+      final resultado = await ViajeService.obtenerPrecioSugerido(
+        origenLat: origen.lat,
+        origenLon: origen.lon,
+        destinoLat: destino.lat,
+        destinoLon: destino.lon,
+        tipoVehiculo: tipoVehiculo,
+      );
+      
+      if (resultado['success'] == true && resultado['data'] != null) {
+        final data = resultado['data'];
+        
+        print('✅ Precio calculado exitosamente:');
+        print('   Kilómetros: ${data['kilometros']} km');
+        print('   Precio final: \$${data['precioFinal']}');
+        print('   Precio base: \$${data['precioBase']}');
+        
+        setState(() {
+          kilometrosRuta = data['kilometros']?.toDouble() ?? 0.0;
+          precio = data['precioFinal']?.toDouble() ?? 0.0;
+          infoPrecio = {
+            'kilometros': data['kilometros'],
+            'precioBase': data['precioBase'],
+            'precioAjustado': data['precioAjustado'],
+            'precioFinal': data['precioFinal'],
+            'precioPorKm': data['precioPorKm'],
+            'desglose': data['desglose'],
+            'factores': data['factores'],
+          };
+        });
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('💰 Precio calculado: \$${data['precioFinal']} para ${data['kilometros']} km'),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      } else {
+        print('❌ Error calculando precio: ${resultado['message']}');
+        
+        // Fallback: usar cálculo simple si falla el backend
+        final distanciaEstimada = _calcularDistanciaTotal();
+        setState(() {
+          precio = (distanciaEstimada * 300).roundToDouble(); // 300 pesos por km
+          kilometrosRuta = distanciaEstimada;
+        });
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('⚠️ ${resultado['message']} - Usando cálculo estimado'),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print('❌ Error calculando precio real: $e');
+      
+      // Fallback: usar cálculo simple en caso de error
+      final distanciaEstimada = _calcularDistanciaTotal();
+      setState(() {
+        precio = (distanciaEstimada * 300).roundToDouble(); // 300 pesos por km
+        kilometrosRuta = distanciaEstimada;
+      });
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Error calculando precio: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } finally {
+      setState(() {
+        calculandoPrecio = false;
+      });
+    }
+  }
+
+  double _calcularDistanciaTotal() {
+    if (widget.ubicaciones.length < 2) return 0.0;
+    
+    // Simulación simple - fallback en caso de error del backend
+    double distanciaTotal = 0.0;
+    for (int i = 0; i < widget.ubicaciones.length - 1; i++) {
+      double lat1 = widget.ubicaciones[i].lat;
+      double lon1 = widget.ubicaciones[i].lon;
+      double lat2 = widget.ubicaciones[i + 1].lat;
+      double lon2 = widget.ubicaciones[i + 1].lon;
+      
+      // Fórmula simple de distancia euclidiana (no es precisa para geografía real)
+      double distancia = ((lat2 - lat1) * (lat2 - lat1) + (lon2 - lon1) * (lon2 - lon1)) * 100;
+      distanciaTotal += distancia;
+    }
+    
+    return distanciaTotal.clamp(5, 50); // Entre 5 y 50 km estimados para fallback
+  }
+
+  String _formatearHora(DateTime fechaHora) {
+    final horaFormato = DateFormat('HH:mm');
+    return horaFormato.format(fechaHora);
+  }
+
+  String _formatearFecha(DateTime fechaHora) {
+    final fechaFormato = DateFormat('EEEE, d \'de\' MMMM \'de\' y', 'es_ES');
+    return fechaFormato.format(fechaHora);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF2EEED),
       appBar: AppBar(
         title: const Text('Publicar'),
-        backgroundColor: const Color(0xFF854937),
+        backgroundColor: const Color(0xFF8D4F3A),
         foregroundColor: Colors.white,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -329,6 +520,87 @@ class _PublicarViajeFinalState extends State<PublicarViajeFinal> {
                 ],
               ),
             ),
+            
+            const SizedBox(height: 20),
+            
+            // Información del precio calculado
+            if (calculandoPrecio)
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.blue.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                ),
+                child: const Row(
+                  children: [
+                    SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+                      ),
+                    ),
+                    SizedBox(width: 12),
+                    Text(
+                      'Calculando precio basado en kilómetros de la ruta...',
+                      style: TextStyle(
+                        color: Colors.blue,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else if (kilometrosRuta != null && infoPrecio != null)
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.green.withOpacity(0.3)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.route, color: Colors.green, size: 20),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Ruta: ${kilometrosRuta!.toStringAsFixed(1)} km',
+                          style: const TextStyle(
+                            color: Colors.green,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Precio base: \$${infoPrecio!['precioBase']} (${infoPrecio!['precioPorKm']}/km)',
+                      style: TextStyle(
+                        color: Colors.grey[700],
+                        fontSize: 14,
+                      ),
+                    ),
+                    if (infoPrecio!['desglose'] != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        'Combustible: \$${infoPrecio!['desglose']['costoCombustible']} • '
+                        'Desgaste: \$${infoPrecio!['desglose']['costoDesgaste']} • '
+                        'Tiempo: \$${infoPrecio!['desglose']['costoTiempo']}',
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
             
             const SizedBox(height: 20),
             
@@ -576,7 +848,7 @@ class _PublicarViajeFinalState extends State<PublicarViajeFinal> {
         child: ElevatedButton(
           onPressed: (vehiculoSeleccionado != null && !cargandoVehiculos) ? _publicarViaje : null,
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF854937),
+            backgroundColor: const Color(0xFF8D4F3A),
             foregroundColor: Colors.white,
             minimumSize: const Size(double.infinity, 50),
             shape: RoundedRectangleBorder(

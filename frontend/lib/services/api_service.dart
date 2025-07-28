@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/viaje_model.dart';
 import '../config/confGlobal.dart';
+import '../utils/token_manager.dart'; // Agregar TokenManager para autenticación
+import '../utils/date_utils.dart'; // Importar DateUtils para conversiones de zona horaria
 
 class ApiService {
   // Configuración de la API usando confGlobal
@@ -17,15 +19,20 @@ class ApiService {
     required double destinoLng,
     required String fechaViaje,
     required int pasajeros,
+    bool soloMujeres = false, // Nuevo parámetro para filtro de género
   }) async {
     try {
+      // Convertir fecha chilena (string formato "YYYY-MM-DD") a rango UTC para búsqueda en MongoDB
+      final rangoFechaUtc = DateUtils.fechaChileStringARangoUtcBusqueda(fechaViaje);
+      
       final queryParams = {
         'origenLat': origenLat.toString(),
         'origenLng': origenLng.toString(),
         'destinoLat': destinoLat.toString(),
         'destinoLng': destinoLng.toString(),
-        'fechaViaje': fechaViaje,
+        'fechaViaje': rangoFechaUtc, // Usar rango UTC en lugar de fecha chilena directa
         'pasajeros': pasajeros.toString(),
+        'soloMujeres': soloMujeres.toString(), // Agregar parámetro al query
       };
       
       final uri = Uri.parse('$baseUrl/viajes/buscar').replace(
@@ -36,7 +43,7 @@ class ApiService {
       
       final response = await http.get(
         uri,
-        headers: {
+        headers: await TokenManager.getAuthHeaders() ?? {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
@@ -51,6 +58,15 @@ class ApiService {
         if (jsonData['success'] == true && jsonData['data'] != null) {
           final data = jsonData['data'];
           final viajesList = data['viajes'] as List<dynamic>? ?? [];
+          
+          print('🔍 Procesando ${viajesList.length} viajes:');
+          for (int i = 0; i < viajesList.length; i++) {
+            final viaje = viajesList[i];
+            print('  Viaje ${i + 1}:');
+            print('    - _id: ${viaje['_id']}');
+            print('    - id: ${viaje['id']}');
+            print('    - Keys disponibles: ${viaje.keys.toList()}');
+          }
           
           return viajesList
               .map((viajeJson) => ViajeProximidad.fromJson(viajeJson))

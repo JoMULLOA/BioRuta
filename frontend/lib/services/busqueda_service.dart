@@ -9,7 +9,7 @@ class BusquedaService {
   static const String _userAgent = 'flutter_bioruta_app';
 
   // Búsqueda con región específica
-  static Future<List<DireccionSugerida>> buscarConRegion(String query, String region) async {
+  static Future<List<DireccionSugerida>> buscarConRegion(String query, String region, {bool? esOrigen}) async {
     try {
       final queryConRegion = '$query, $region, Chile';
       
@@ -25,7 +25,7 @@ class BusquedaService {
 
       if (respuesta.statusCode == 200) {
         final List<dynamic> data = json.decode(respuesta.body);
-        return data.map((item) => DireccionSugerida.fromJson(item, esRegional: true)).toList();
+        return data.map((item) => DireccionSugerida.fromJson(item, esRegional: true, esOrigen: esOrigen)).toList();
       }
     } catch (e) {
       debugPrint('Error en búsqueda regional: $e');
@@ -34,7 +34,7 @@ class BusquedaService {
   }
 
   // Búsqueda general
-  static Future<List<DireccionSugerida>> buscarGeneral(String query, int limite) async {
+  static Future<List<DireccionSugerida>> buscarGeneral(String query, int limite, {bool? esOrigen}) async {
     try {
       final url = Uri.parse(
         'https://nominatim.openstreetmap.org/search?'
@@ -48,7 +48,7 @@ class BusquedaService {
 
       if (respuesta.statusCode == 200) {
         final List<dynamic> data = json.decode(respuesta.body);
-        return data.map((item) => DireccionSugerida.fromJson(item, esRegional: false)).toList();
+        return data.map((item) => DireccionSugerida.fromJson(item, esRegional: false, esOrigen: esOrigen)).toList();
       }
     } catch (e) {
       debugPrint('Error en búsqueda general: $e');
@@ -107,19 +107,108 @@ class BusquedaService {
     return null;
   }
 
-  // Calcular distancias usando fórmula Haversine
+  // Calcular solo tiempo estimado (no distancias) para destinos
   static void calcularDistancias(List<DireccionSugerida> sugerencias, GeoPoint ubicacionUsuario) {
     if (sugerencias.isEmpty) return;
     
     for (var sugerencia in sugerencias) {
-      double distancia = _calcularDistanciaHaversine(
-        ubicacionUsuario.latitude,
-        ubicacionUsuario.longitude,
-        sugerencia.lat,
-        sugerencia.lon,
-      );
-      sugerencia.distancia = distancia;
+      // No calcular ni mostrar distancia
+      sugerencia.distancia = 0.0;
+      
+      // Solo calcular tiempo estimado si es para seleccionar DESTINO
+      if (sugerencia.esOrigen == false) {
+        // Es destino: calcular tiempo estimado del viaje
+        double distanciaCarretera = _calcularDistanciaConFactor(
+          ubicacionUsuario.latitude,
+          ubicacionUsuario.longitude,
+          sugerencia.lat,
+          sugerencia.lon,
+        );
+        int tiempoMinutos = _calcularTiempoEstimado(distanciaCarretera);
+        sugerencia.tiempoEstimado = tiempoMinutos;
+      } else {
+        // Es origen: no calcular tiempo
+        sugerencia.tiempoEstimado = 0;
+      }
     }
+  }
+
+  // Calcular solo tiempo estimado para destino con origen específico
+  static void calcularDistanciasConOrigen(
+    List<DireccionSugerida> sugerencias, 
+    GeoPoint ubicacionUsuario,
+    DireccionSugerida? origenSeleccionado
+  ) {
+    if (sugerencias.isEmpty) return;
+    
+    for (var sugerencia in sugerencias) {
+      // No calcular ni mostrar distancia
+      sugerencia.distancia = 0.0;
+      
+      // Solo calcular tiempo estimado si es para seleccionar DESTINO Y tenemos origen
+      if (sugerencia.esOrigen == false && origenSeleccionado != null) {
+        // Es destino: calcular tiempo estimado de la ruta origen→destino
+        double distanciaRuta = _calcularDistanciaConFactor(
+          origenSeleccionado.lat,
+          origenSeleccionado.lon,
+          sugerencia.lat,
+          sugerencia.lon,
+        );
+        int tiempoMinutos = _calcularTiempoEstimado(distanciaRuta);
+        sugerencia.tiempoEstimado = tiempoMinutos;
+      } else {
+        // Es origen: no calcular tiempo
+        sugerencia.tiempoEstimado = 0;
+      }
+    }
+  }
+
+  /// Calcular distancia por carretera usando factor de corrección sobre Haversine
+  /// Similar a calcularDistanciaKmConFactor del backend
+  static double _calcularDistanciaConFactor(double lat1, double lon1, double lat2, double lon2) {
+    // Primero calcular distancia en línea recta
+    double distanciaLineal = _calcularDistanciaHaversine(lat1, lon1, lat2, lon2);
+    
+    // Factor de corrección según distancia (basado en estadísticas reales de Chile)
+    double factor = 1.2; // 20% más por defecto
+    
+    if (distanciaLineal < 5) {
+      factor = 1.6; // Ciudades: +60% (muchas vueltas)
+    } else if (distanciaLineal < 15) {
+      factor = 1.4; // Urbano: +40%
+    } else if (distanciaLineal < 50) {
+      factor = 1.3; // Regional: +30%
+    } else if (distanciaLineal < 200) {
+      factor = 1.2; // Interprovincial: +20%
+    } else {
+      factor = 1.15; // Larga distancia: +15% (autopistas más directas)
+    }
+    
+    return distanciaLineal * factor;
+  }
+
+  /// Calcular tiempo estimado de viaje en minutos
+  static int _calcularTiempoEstimado(double distanciaKm) {
+    // Velocidades promedio más realistas según tipo de ruta en Chile
+    double velocidadPromedio;
+    
+    if (distanciaKm < 3) {
+      velocidadPromedio = 15; // Centro ciudad: 15 km/h (muy congestionado)
+    } else if (distanciaKm < 8) {
+      velocidadPromedio = 20; // Ciudad: 20 km/h (tráfico, semáforos)
+    } else if (distanciaKm < 20) {
+      velocidadPromedio = 30; // Urbano/suburbano: 30 km/h
+    } else if (distanciaKm < 50) {
+      velocidadPromedio = 55; // Regional: 55 km/h (carreteras secundarias)
+    } else if (distanciaKm < 150) {
+      velocidadPromedio = 75; // Interprovincial: 75 km/h (rutas principales)
+    } else {
+      velocidadPromedio = 85; // Larga distancia: 85 km/h (autopistas)
+    }
+    
+    // Tiempo = distancia / velocidad, convertido a minutos
+    double tiempoHoras = distanciaKm / velocidadPromedio;
+    return (tiempoHoras * 60).round();
   }
 
   static double _calcularDistanciaHaversine(double lat1, double lon1, double lat2, double lon2) {

@@ -47,9 +47,21 @@ const UserSchema = new EntitySchema({
       type: "float",
       nullable: true,
     },
+    cantidadValoraciones: {
+      type: "int",
+      nullable: false,
+      default: 0,
+      comment: "Número total de valoraciones recibidas por este usuario",
+    },
     puntuacion: {
       type: "int",
       nullable: true,
+    },
+    contadorReportes: {
+      type: "int",
+      nullable: false,
+      default: 0,
+      comment: "Número total de reportes recibidos por este usuario",
     },
     email: {
       type: "varchar",
@@ -70,6 +82,19 @@ const UserSchema = new EntitySchema({
       type: "text",
       nullable: true,
       comment: "Token FCM para notificaciones push",
+    },
+    saldo: {
+      type: "decimal",
+      precision: 10,
+      scale: 2,
+      nullable: false,
+      default: 0,
+      comment: "Saldo disponible del usuario para pagos",
+    },
+    tarjetas: {
+      type: "jsonb",
+      nullable: true,
+      comment: "Lista de tarjetas agregadas por el usuario",
     },
     createdAt: {
       type: "timestamp with time zone",

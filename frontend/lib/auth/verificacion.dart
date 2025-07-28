@@ -34,8 +34,39 @@ class _VerificarCorreoPageState extends State<VerificarCorreoPage> {
         const SnackBar(content: Text("📧 Código enviado al correo")),
       );
     } else {
+      final Map<String, dynamic> data = jsonDecode(response.body);
+      
+      // Mejorar el manejo de errores para mostrar mensajes específicos de validación
+      String errorMessage = "Error al enviar código";
+      
+      // 1. PRIMERO verificar si hay detalles específicos de validación
+      if (data.containsKey("details") && data["details"] != null) {
+        errorMessage = data["details"].toString();
+      }
+      // 2. Verificar si hay un mensaje directo
+      else if (data.containsKey("message") && data["message"] != null) {
+        errorMessage = data["message"];
+      }
+      // 3. Verificar si hay un error general 
+      else if (data.containsKey("error") && data["error"] != null) {
+        var errorData = data["error"];
+        
+        if (errorData is String) {
+          errorMessage = errorData;
+        } else if (errorData is Map && errorData.containsKey("message")) {
+          errorMessage = errorData["message"];
+        }
+      }
+      
+      print('❌ Error enviando código: $errorMessage');
+      print('📄 Estructura completa del error: $data');
+      
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("❌ Error al enviar código")),
+        SnackBar(
+          content: Text("❌ $errorMessage"),
+          duration: const Duration(seconds: 4),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
@@ -62,8 +93,39 @@ class _VerificarCorreoPageState extends State<VerificarCorreoPage> {
         ),
       );
     } else {
+      final Map<String, dynamic> data = jsonDecode(response.body);
+      
+      // Mejorar el manejo de errores para mostrar mensajes específicos
+      String errorMessage = "Código inválido";
+      
+      // 1. PRIMERO verificar si hay detalles específicos de validación
+      if (data.containsKey("details") && data["details"] != null) {
+        errorMessage = data["details"].toString();
+      }
+      // 2. Verificar si hay un mensaje directo
+      else if (data.containsKey("message") && data["message"] != null) {
+        errorMessage = data["message"];
+      }
+      // 3. Verificar si hay un error general 
+      else if (data.containsKey("error") && data["error"] != null) {
+        var errorData = data["error"];
+        
+        if (errorData is String) {
+          errorMessage = errorData;
+        } else if (errorData is Map && errorData.containsKey("message")) {
+          errorMessage = errorData["message"];
+        }
+      }
+      
+      print('❌ Error verificando código: $errorMessage');
+      print('📄 Estructura completa del error: $data');
+      
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("❌ Código inválido")),
+        SnackBar(
+          content: Text("❌ $errorMessage"),
+          duration: const Duration(seconds: 4),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }

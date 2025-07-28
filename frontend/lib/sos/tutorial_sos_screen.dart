@@ -59,6 +59,7 @@ class _TutorialSOSScreenState extends State<TutorialSOSScreen> {
       color: const Color(0xFF6B3B2D), // Color secundario
       details: [
         'Incluye tu nombre y la app (BioRuta)',
+        'Nombre, conductor y patente del vehículo',
         'Muestra tu ubicación actual en Google Maps',
         'Se envía por WhatsApp automáticamente',
         'Mensaje claro indicando que es una emergencia',
@@ -68,7 +69,7 @@ class _TutorialSOSScreenState extends State<TutorialSOSScreen> {
       title: '⚠️ Uso Responsable',
       description: 'El sistema SOS debe usarse ÚNICAMENTE en emergencias reales.',
       icon: Icons.warning_amber_rounded,
-      color: Colors.red.shade600, // Rojo para emergencia
+      color: const Color(0xFF854937), // Color principal de la app
       details: [
         'Solo para situaciones de peligro real',
         'No usar como broma o prueba',

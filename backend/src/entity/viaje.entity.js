@@ -58,16 +58,8 @@ const viajeSchema = new mongoose.Schema({
     type: Date, 
     required: true 
   },
-  hora_ida: { 
-    type: String, 
-    required: true 
-  }, // "HH:MM"
   fecha_vuelta: { 
     type: Date, 
-    default: null 
-  },
-  hora_vuelta: { 
-    type: String, 
     default: null 
   },
   viaje_ida_vuelta: { 
@@ -98,6 +90,12 @@ const viajeSchema = new mongoose.Schema({
     type: Number, 
     required: true, 
     min: 0 
+  },
+  kilometros_ruta: {
+    type: Number,
+    required: true,
+    min: 0,
+    default: 0
   },
   plazas_disponibles: { 
     type: Number, 

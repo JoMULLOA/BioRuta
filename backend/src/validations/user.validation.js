@@ -150,6 +150,60 @@ export const userBodyValidation = Joi.object({
       "string.base": "El género debe ser de tipo string.",
       "any.only": "El género debe ser uno de: masculino, femenino, no_binario, prefiero_no_decir.",
     }),
+  tarjetas: Joi.array().items(
+    Joi.object({
+      numero: Joi.string()
+        .pattern(/^[0-9-\s]+$/)
+        .messages({
+          "string.base": "El número de tarjeta debe ser de tipo string.",
+          "string.pattern.base": "El número de tarjeta solo puede contener números, espacios y guiones.",
+        }),
+      cvv: Joi.string()
+        .pattern(/^[0-9]+$/)
+        .min(3)
+        .max(4)
+        .messages({
+          "string.base": "El CVV debe ser de tipo string.",
+          "string.pattern.base": "El CVV solo puede contener números.",
+          "string.min": "El CVV debe tener al menos 3 dígitos.",
+          "string.max": "El CVV debe tener máximo 4 dígitos.",
+        }),
+      fechaVencimiento: Joi.string()
+        .pattern(/^(0[1-9]|1[0-2])\/\d{4}$/)
+        .messages({
+          "string.base": "La fecha de vencimiento debe ser de tipo string.",
+          "string.pattern.base": "La fecha de vencimiento debe tener el formato MM/YYYY.",
+        }),
+      nombreTitular: Joi.string()
+        .min(2)
+        .max(100)
+        .pattern(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ0-9\s\.\-]+$/)
+        .messages({
+          "string.base": "El nombre del titular debe ser de tipo string.",
+          "string.min": "El nombre del titular debe tener al menos 2 caracteres.",
+          "string.max": "El nombre del titular debe tener máximo 100 caracteres.",
+          "string.pattern.base": "El nombre del titular solo puede contener letras, números, espacios, puntos y guiones.",
+        }),
+      tipo: Joi.string()
+        .valid("VISA", "MASTERCARD", "AMERICAN_EXPRESS")
+        .messages({
+          "string.base": "El tipo de tarjeta debe ser de tipo string.",
+          "any.only": "El tipo de tarjeta debe ser VISA, MASTERCARD o AMERICAN_EXPRESS.",
+        }),
+      banco: Joi.string()
+        .messages({
+          "string.base": "El banco debe ser de tipo string.",
+        }),
+      limiteCredito: Joi.number()
+        .min(0)
+        .messages({
+          "number.base": "El límite de crédito debe ser un número.",
+          "number.min": "El límite de crédito debe ser mayor o igual a 0.",
+        }),
+    })
+  ).messages({
+    "array.base": "Las tarjetas deben ser un array.",
+  }),
 })
   .or(
     "nombreCompleto",
@@ -161,11 +215,12 @@ export const userBodyValidation = Joi.object({
     "carrera",
     "descripcion",
     "fechaNacimiento",
-    "genero"
+    "genero",
+    "tarjetas"
   )
   .unknown(false)
   .messages({
     "object.unknown": "No se permiten propiedades adicionales.",
     "object.missing":
-      "Debes proporcionar al menos un campo: nombreCompleto, email, password, newPassword, rut, rol, carrera, descripcion, fechaNacimiento, genero.",
+      "Debes proporcionar al menos un campo: nombreCompleto, email, password, newPassword, rut, rol, carrera, descripcion, fechaNacimiento, genero, tarjetas.",
   });

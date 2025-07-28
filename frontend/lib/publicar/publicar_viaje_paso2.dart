@@ -1,5 +1,7 @@
 import "package:flutter/material.dart";
 import "../models/direccion_sugerida.dart";
+import "../services/viaje_service.dart";
+import "../utils/viaje_validator.dart";
 import "publicar_viaje_paso3.dart";
 
 class PublicarViajePaso2 extends StatefulWidget {
@@ -7,7 +9,7 @@ class PublicarViajePaso2 extends StatefulWidget {
 
   const PublicarViajePaso2({
     super.key,
-    required this.ubicaciones,
+    required this.ubicaciones, Map<String, dynamic>? infoPrecio, double? precioSugerido, double? kilometrosRuta,
   });
 
   @override
@@ -321,6 +323,65 @@ class _PublicarViajePaso2State extends State<PublicarViajePaso2> {
         );
       }
       return;
+    }
+    
+    // NUEVA VALIDACIÓN: Verificar solapamiento si es viaje de vuelta
+    if (!esIda && _fechaHoraIda != null) {
+      try {
+        final origen = widget.ubicaciones.firstWhere((u) => u.esOrigen == true);
+        final destino = widget.ubicaciones.firstWhere((u) => u.esOrigen != true);
+        
+        final validacion = await ViajeService.validarPublicacionViaje(
+          fechaHoraIda: _fechaHoraIda!,
+          fechaHoraVuelta: combinedDateTime,
+          origenLat: origen.lat,
+          origenLng: origen.lon,
+          destinoLat: destino.lat,
+          destinoLng: destino.lon,
+        );
+        
+        if (validacion['success'] != true) {
+          if (mounted) {
+            await showDialog(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: const Text('⚠️ Conflicto con Viaje de Vuelta'),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(validacion['message']),
+                    if (validacion['duracionEstimada'] != null) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        'Duración estimada: ${ViajeValidator.formatearDuracion(validacion['duracionEstimada'])}',
+                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                    ],
+                  ],
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Entendido'),
+                  ),
+                ],
+              ),
+            );
+          }
+          return; // No actualizar la fecha si hay conflicto
+        }
+      } catch (e) {
+        // En caso de error en la validación, mostrar advertencia pero permitir continuar
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('⚠️ No se pudo validar el viaje: $e'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      }
     }
 
     // Actualizar el estado

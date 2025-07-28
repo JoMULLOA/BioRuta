@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'dart:convert';
 import '../models/chat_grupal_models.dart';
 import '../services/chat_grupal_service.dart';
 import '../services/socket_service.dart';
+import '../services/websocket_notification_service.dart';
+import '../services/location_service.dart';
 import '../widgets/mensaje_grupal_widget.dart';
 import '../widgets/participantes_header_widget.dart';
+import '../widgets/reportar_usuario_dialog.dart';
+import '../widgets/location_message_widget.dart';
+import '../models/reporte_model.dart';
 
 class ChatGrupalScreen extends StatefulWidget {
   final String idViaje;
@@ -61,8 +67,10 @@ class ChatGrupalScreenState extends State<ChatGrupalScreen> {
   @override
   void initState() {
     super.initState();
+    print('[CHAT-GRUPAL] 🚀 INICIANDO CHAT GRUPAL - initState()');
     print('🚗🔄 Inicializando chat grupal para viaje: ${widget.idViaje}');
     _initializarDatos();
+    print('[CHAT-GRUPAL] 🚀 CHAT GRUPAL INICIADO COMPLETAMENTE');
   }
 
   Future<void> _initializarDatos() async {
@@ -91,16 +99,20 @@ class ChatGrupalScreenState extends State<ChatGrupalScreen> {
       print('🚗🚪 Uniéndose al chat grupal...');
       ChatGrupalService.unirseAlChatGrupal(widget.idViaje);
       
-      setState(() {
-        isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
       
       print('✅ Chat grupal inicializado correctamente');
     } catch (e) {
-      setState(() {
-        errorMessage = 'Error al inicializar chat grupal: $e';
-        isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          errorMessage = 'Error al inicializar chat grupal: $e';
+          isLoading = false;
+        });
+      }
       print('❌ Error inicializando chat grupal: $e');
       print('❌ Stack trace: ${e.toString()}');
     }
@@ -119,10 +131,12 @@ class ChatGrupalScreenState extends State<ChatGrupalScreen> {
       final participantesResult = await ChatGrupalService.obtenerParticipantes(widget.idViaje);
       print('🚗👥 Participantes obtenidos: ${participantesResult.length}');
       
-      setState(() {
-        mensajes = mensajesResult;
-        participantes = participantesResult;
-      });
+      if (mounted) {
+        setState(() {
+          mensajes = mensajesResult;
+          participantes = participantesResult;
+        });
+      }
       
       print('🚗✅ Mensajes históricos cargados: ${mensajes.length} mensajes, ${participantes.length} participantes');
       
@@ -138,29 +152,92 @@ class ChatGrupalScreenState extends State<ChatGrupalScreen> {
 
   void _setupSocketListeners() {
     // Listener para mensajes grupales
-    _messageSubscription = _socketService.groupMessageStream.listen((data) {
+    _messageSubscription = _socketService.groupMessageStream.listen((data) async {
       print('🚗💬 Nuevo mensaje grupal recibido en UI: $data');
-      final mensaje = MensajeGrupal.fromJson(data);
-      setState(() {
-        mensajes.add(mensaje);
-      });
-      _scrollToBottom();
+      
+      // Verificar que el widget esté montado antes de hacer setState
+      if (!mounted) {
+        print('🚗⚠️ Widget no montado, ignorando mensaje');
+        return;
+      }
+      
+      try {
+        // Enriquecer mensaje usando método helper
+        final mensajeEnriquecido = await _enriquecerMensaje(data);
+        
+        if (mounted) {
+          setState(() {
+            mensajes.add(mensajeEnriquecido);
+          });
+          
+          // Mostrar notificación solo si el mensaje lo envió otro usuario
+          if (mensajeEnriquecido.emisorRut != userRut) {
+            print('[CHAT-GRUPAL] 🔍 VERIFICANDO CONDICIONES DE NOTIFICACIÓN GRUPAL:');
+            print('[CHAT-GRUPAL] 📧 Emisor del mensaje: ${mensajeEnriquecido.emisorRut}');
+            print('[CHAT-GRUPAL] 👤 Usuario autenticado: $userRut');
+            print('[CHAT-GRUPAL] ✅ CONDICIONES CUMPLIDAS - Mensaje recibido de otro usuario, mostrando notificación...');
+            final groupName = widget.nombreViaje ?? 'Chat Grupal';
+            WebSocketNotificationService.showLocalNotification(
+              title: '👥 $groupName',
+              body: '${mensajeEnriquecido.emisorNombre}: ${mensajeEnriquecido.contenido}',
+              payload: 'chat_grupal_${widget.idViaje}',
+            );
+          } else {
+            print('[CHAT-GRUPAL] ❌ NO MOSTRAR NOTIFICACIÓN GRUPAL:');
+            print('[CHAT-GRUPAL] 📧 Emisor del mensaje: ${mensajeEnriquecido.emisorRut}');
+            print('[CHAT-GRUPAL] 👤 Usuario autenticado: $userRut');
+            print('[CHAT-GRUPAL] 📝 Es mi propio mensaje');
+          }
+          
+          _scrollToBottom();
+        }
+      } catch (e) {
+        print('❌ Error procesando mensaje en tiempo real: $e');
+        print('❌ Data del mensaje: $data');
+        
+        // Fallback: crear mensaje sin enriquecimiento
+        final mensaje = MensajeGrupal.fromJson(data);
+        if (mounted) {
+          setState(() {
+            mensajes.add(mensaje);
+          });
+          
+          // Mostrar notificación también en el fallback si no es del usuario actual
+          if (mensaje.emisorRut != userRut) {
+            print('[CHAT-GRUPAL] Mensaje fallback recibido de otro usuario, mostrando notificación...');
+            final groupName = widget.nombreViaje ?? 'Chat Grupal';
+            WebSocketNotificationService.showLocalNotification(
+              title: '👥 $groupName',
+              body: '${mensaje.emisorNombre}: ${mensaje.contenido}',
+              payload: 'chat_grupal_${widget.idViaje}',
+            );
+          }
+          
+          _scrollToBottom();
+        }
+      }
     });
 
     // Listener para cambios en participantes
     _participantsSubscription = _socketService.groupParticipantsStream.listen((data) {
+      if (!mounted) return;
+      
       print('🚗👥 Cambio en participantes: $data');
       _handleParticipantChange(data);
     });
 
     // Listener para eventos del chat grupal
     _eventsSubscription = _socketService.groupChatEventsStream.listen((data) {
+      if (!mounted) return;
+      
       print('🚗📊 Evento del chat grupal: $data');
       _handleChatEvent(data);
     });
 
     // Listener para estado de conexión
     _connectionSubscription = _socketService.connectionStream.listen((connected) {
+      if (!mounted) return;
+      
       print('🚗📶 Estado conexión cambiado: $connected');
       setState(() {
         isConnected = connected;
@@ -169,6 +246,8 @@ class ChatGrupalScreenState extends State<ChatGrupalScreen> {
     
     // Verificar estado inicial de conexión
     Future.delayed(Duration.zero, () {
+      if (!mounted) return;
+      
       final socketConnected = _socketService.socket?.connected ?? false;
       print('🚗📶 Estado inicial socket: $socketConnected');
       if (socketConnected && !isConnected) {
@@ -181,6 +260,8 @@ class ChatGrupalScreenState extends State<ChatGrupalScreen> {
 
     // Listener para mensajes editados
     _socketService.editedMessageStream.listen((data) {
+      if (!mounted) return;
+      
       if (data['tipo'] == 'grupal' && data['idViajeMongo'] == widget.idViaje) {
         _handleMessageEdited(data);
       }
@@ -188,6 +269,8 @@ class ChatGrupalScreenState extends State<ChatGrupalScreen> {
 
     // Listener para mensajes eliminados
     _socketService.deletedMessageStream.listen((data) {
+      if (!mounted) return;
+      
       if (data['tipo'] == 'grupal') {
         _handleMessageDeleted(data);
       }
@@ -206,7 +289,7 @@ class ChatGrupalScreenState extends State<ChatGrupalScreen> {
     }
     
     // Actualizar lista de participantes
-    if (data['participantes'] != null) {
+    if (data['participantes'] != null && mounted) {
       setState(() {
         participantes = (data['participantes'] as List<dynamic>)
             .map((p) => ParticipanteChat.fromJson(p))
@@ -272,18 +355,86 @@ class ChatGrupalScreenState extends State<ChatGrupalScreen> {
     }
   }
 
-  void _handleMessageEdited(Map<String, dynamic> data) {
+  void _handleMessageEdited(Map<String, dynamic> data) async {
+    if (!mounted) return;
+    
     final mensajeId = data['id'];
     
-    setState(() {
-      final index = mensajes.indexWhere((m) => m.id == mensajeId);
-      if (index != -1) {
-        mensajes[index] = MensajeGrupal.fromJson(data);
+    try {
+      // Enriquecer el mensaje editado también
+      final mensajeEnriquecido = await _enriquecerMensaje(data);
+      
+      if (mounted) {
+        setState(() {
+          final index = mensajes.indexWhere((m) => m.id == mensajeId);
+          if (index != -1) {
+            mensajes[index] = mensajeEnriquecido;
+          }
+        });
       }
-    });
+    } catch (e) {
+      print('❌ Error enriqueciendo mensaje editado: $e');
+      // Fallback sin enriquecimiento
+      if (mounted) {
+        setState(() {
+          final index = mensajes.indexWhere((m) => m.id == mensajeId);
+          if (index != -1) {
+            mensajes[index] = MensajeGrupal.fromJson(data);
+          }
+        });
+      }
+    }
+  }
+
+  // --- Método helper para enriquecer mensajes con emisorNombre ---
+  Future<MensajeGrupal> _enriquecerMensaje(Map<String, dynamic> data) async {
+    final emisorRut = data['emisor'] ?? data['emisorRut'] ?? '';
+    
+    print('🚗🔍 Enriqueciendo mensaje de RUT: $emisorRut');
+    print('🚗📋 Participantes actuales: ${participantes.length}');
+    
+    String emisorNombre = 'Usuario';
+    
+    // Si no hay participantes cargados, intentar cargarlos
+    if (participantes.isEmpty) {
+      print('🚗⏳ Lista de participantes vacía, intentando cargar...');
+      try {
+        final participantesResult = await ChatGrupalService.obtenerParticipantes(widget.idViaje);
+        if (mounted) {
+          setState(() {
+            participantes = participantesResult;
+          });
+          print('🚗✅ Participantes cargados: ${participantes.length}');
+        }
+      } catch (e) {
+        print('🚗❌ Error cargando participantes: $e');
+      }
+    }
+    
+    // Buscar el nombre del emisor
+    final participanteEncontrado = participantes.firstWhere(
+      (p) => p.rut == emisorRut,
+      orElse: () => ParticipanteChat(rut: '', nombre: '', esConductor: false, estaConectado: false),
+    );
+    
+    if (participanteEncontrado.nombre.isNotEmpty) {
+      emisorNombre = participanteEncontrado.nombre;
+      print('🚗👤 Emisor encontrado: $emisorNombre (${emisorRut})');
+    } else {
+      print('🚗❓ Emisor no encontrado para RUT: $emisorRut');
+    }
+    
+    // Agregar emisorNombre al data
+    data['emisorNombre'] = emisorNombre;
+    
+    print('🚗💬 Mensaje enriquecido: $emisorNombre: ${data['contenido']}');
+    
+    return MensajeGrupal.fromJson(data);
   }
 
   void _handleMessageDeleted(Map<String, dynamic> data) {
+    if (!mounted) return;
+    
     final mensajeId = data['idMensaje'];
     
     setState(() {
@@ -368,6 +519,67 @@ class ChatGrupalScreenState extends State<ChatGrupalScreen> {
     }
   }
 
+  /// Enviar ubicación actual al chat grupal
+  Future<void> _sendLocation() async {
+    // Mostrar diálogo de carga
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const AlertDialog(
+        content: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 16),
+            Text('Obteniendo ubicación...'),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      // Obtener ubicación actual
+      final locationData = await LocationService.getCurrentLocation();
+      
+      // Cerrar diálogo de carga
+      Navigator.of(context).pop();
+      
+      if (locationData == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se pudo obtener la ubicación. Verifica los permisos.')),
+        );
+        return;
+      }
+
+      // Crear mensaje de ubicación
+      final locationMessage = {
+        'type': 'location',
+        'latitude': locationData['latitude'],
+        'longitude': locationData['longitude'],
+        'accuracy': locationData['accuracy'],
+        'timestamp': locationData['timestamp'],
+      };
+
+      // Enviar mensaje de ubicación via servicio de chat grupal
+      print('🚗📍 Enviando ubicación: ${locationData['latitude']}, ${locationData['longitude']}');
+      ChatGrupalService.enviarMensajeGrupal(
+        widget.idViaje, 
+        json.encode(locationMessage),
+      );
+      
+    } catch (e) {
+      // Cerrar diálogo si aún está abierto
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+      
+      print('❌ Error enviando ubicación al chat grupal: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al enviar ubicación: $e')),
+      );
+    }
+  }
+
   void _editMessage(MensajeGrupal mensaje, String nuevoContenido) {
     ChatGrupalService.editarMensajeGrupal(
       widget.idViaje,
@@ -384,20 +596,18 @@ class ChatGrupalScreenState extends State<ChatGrupalScreen> {
   void dispose() {
     print('🚗🧹 Limpiando chat grupal y saliendo del viaje: ${widget.idViaje}');
     
-    // Limpiar mensajes de memoria antes de salir
-    setState(() {
-      mensajes.clear();
-      participantes.clear();
-    });
-    
-    // Salir del chat grupal
-    ChatGrupalService.salirDelChatGrupal(widget.idViaje);
-    
-    // Cancelar subscripciones
+    // Cancelar subscripciones PRIMERO para evitar setState después de dispose
     _messageSubscription?.cancel();
     _participantsSubscription?.cancel();
     _eventsSubscription?.cancel();
     _connectionSubscription?.cancel();
+    
+    // Limpiar mensajes de memoria después de cancelar subscripciones
+    mensajes.clear();
+    participantes.clear();
+    
+    // Salir del chat grupal
+    ChatGrupalService.salirDelChatGrupal(widget.idViaje);
     
     // Limpiar controladores
     _messageController.dispose();
@@ -412,7 +622,7 @@ class ChatGrupalScreenState extends State<ChatGrupalScreen> {
     return Scaffold(
       backgroundColor: fondo,
       appBar: AppBar(
-        backgroundColor: principal,
+        backgroundColor: secundario,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -435,6 +645,29 @@ class ChatGrupalScreenState extends State<ChatGrupalScreen> {
         ),
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
+          // Botón de prueba de notificaciones grupales
+          IconButton(
+            icon: Icon(Icons.notifications_active, color: Colors.amber),
+            onPressed: () async {
+              print('[CHAT-GRUPAL] 🧪 PRUEBA DE NOTIFICACIÓN GRUPAL INICIADA');
+              WebSocketNotificationService.showLocalNotification(
+                title: '👥 ${widget.nombreViaje ?? 'Chat Grupal'}',
+                body: 'Usuario de Prueba: Esta es una notificación grupal de prueba',
+                payload: 'test_chat_grupal_${widget.idViaje}',
+              );
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Notificación grupal de prueba enviada usando el servicio existente'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            },
+          ),
+          // Botón para ver participantes y reportar
+          IconButton(
+            icon: Icon(Icons.people, color: Colors.white),
+            onPressed: _mostrarMenuParticipantes,
+          ),
           // Indicador de conexión
           Container(
             margin: const EdgeInsets.only(right: 16),
@@ -549,6 +782,22 @@ class ChatGrupalScreenState extends State<ChatGrupalScreen> {
                       ),
                       child: Row(
                         children: [
+                          // Botón de ubicación
+                          Container(
+                            decoration: BoxDecoration(
+                              color: principal.withOpacity(0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: IconButton(
+                              onPressed: _sendLocation,
+                              icon: Icon(
+                                Icons.location_on,
+                                color: principal,
+                              ),
+                              tooltip: 'Compartir ubicación',
+                            ),
+                          ),
+                          const SizedBox(width: 8),
                           Expanded(
                             child: Container(
                               decoration: BoxDecoration(
@@ -596,6 +845,141 @@ class ChatGrupalScreenState extends State<ChatGrupalScreen> {
                     ),
                   ],
                 ),
+    );
+  }
+
+  void _mostrarMenuParticipantes() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (BuildContext context) {
+        return Container(
+          padding: EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.people, color: Color(0xFF8D4F3A)),
+                  SizedBox(width: 8),
+                  Text(
+                    'Participantes del Chat',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF8D4F3A),
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 16),
+              Flexible(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: participantes.length,
+                  itemBuilder: (context, index) {
+                    final participante = participantes[index];
+                    final isCurrentUser = participante.rut == userRut;
+                    
+                    // Obtener colores dinámicos del participante (igual que en los mensajes)
+                    final colorParticipante = Color(
+                      ChatGrupalService.obtenerColorParticipante(participante.rut),
+                    );
+                    
+                    return ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: colorParticipante, // Color dinámico basado en RUT
+                        child: Text(
+                          participante.nombre.isNotEmpty 
+                              ? participante.nombre[0].toUpperCase()
+                              : '?',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      title: Row(
+                        children: [
+                          Text(
+                            participante.nombre,
+                            style: TextStyle(
+                              fontWeight: isCurrentUser ? FontWeight.bold : FontWeight.normal,
+                            ),
+                          ),
+                          SizedBox(width: 8),
+                          Container(
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              color: colorParticipante,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ],
+                      ),
+                      subtitle: isCurrentUser 
+                          ? Text(
+                              'Tú',
+                              style: TextStyle(
+                                color: colorParticipante, // Usar el color dinámico del usuario
+                                fontWeight: FontWeight.w600,
+                              ),
+                            )
+                          : null,
+                      trailing: isCurrentUser 
+                          ? null 
+                          : PopupMenuButton<String>(
+                              onSelected: (String value) {
+                                if (value == 'reportar') {
+                                  Navigator.pop(context); // Cerrar el bottom sheet
+                                  _mostrarDialogoReporte(
+                                    participante.rut,
+                                    participante.nombre,
+                                  );
+                                }
+                              },
+                              itemBuilder: (BuildContext context) => [
+                                PopupMenuItem<String>(
+                                  value: 'reportar',
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.report, color: Colors.red, size: 20),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        'Reportar',
+                                        style: TextStyle(color: Colors.red),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _mostrarDialogoReporte(String rutUsuario, String nombreUsuario) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return ReportarUsuarioDialog(
+          usuarioReportado: rutUsuario,
+          nombreUsuario: nombreUsuario,
+          tipoReporte: TipoReporte.chatGrupal,
+        );
+      },
     );
   }
 }

@@ -8,6 +8,7 @@ import './amistad_menu.dart';
 import '../config/confGlobal.dart';
 import 'editar_perfil.dart';
 import 'mis_vehiculos.dart';
+import 'saldo_tarjetas_screen.dart';
 import '../utils/token_manager.dart';
 import '../auth/login.dart';
 import '../services/socket_service.dart';
@@ -107,25 +108,17 @@ class Perfil_ extends State<Perfil> {
             }
           }
           
-          // Calcular clasificación usando método bayesiano
+          // Usar clasificación directa de la base de datos (ya es bayesiana)
           String clasificacionFinal = 'Sin clasificación';
           if (userData['clasificacion'] != null) {
-            double clasificacionOriginal = double.parse(userData['clasificacion'].toString());
-            int cantidadValoraciones = userData['cantidadValoraciones'] ?? 1; // Usar 1 como mínimo
-            
-            // Llamar al método bayesiano
-            double? clasificacionBayesiana = await _calcularCalificacionBayesiana(
-              clasificacionOriginal,
-              cantidadValoraciones
-            );
-            
-            if (clasificacionBayesiana != null) {
-              clasificacionFinal = clasificacionBayesiana.toStringAsFixed(1);
-              print('Clasificación original: $clasificacionOriginal');
-              print('Clasificación bayesiana: $clasificacionBayesiana');
-            } else {
-              // Si falla el cálculo bayesiano, usar la clasificación original
+            try {
+              final clasificacionOriginal = double.parse(userData['clasificacion'].toString());
+              // Ya no aplicar bayesiano aquí porque se aplica al momento de calificar
               clasificacionFinal = clasificacionOriginal.toStringAsFixed(1);
+              print('Clasificación de BD (ya bayesiana): $clasificacionOriginal');
+            } catch (e) {
+              print('Error parseando clasificación: $e');
+              clasificacionFinal = 'Sin clasificación';
             }
           }
           
@@ -258,6 +251,14 @@ class Perfil_ extends State<Perfil> {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const MisVehiculosPage()),
+    );
+  }
+
+  // Función para navegar a saldo y tarjetas
+  void _navigateToSaldoTarjetas(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const SaldoTarjetasScreen()),
     );
   }
 
@@ -501,11 +502,17 @@ class Perfil_ extends State<Perfil> {
     return Scaffold(
       backgroundColor: fondo,
       appBar: AppBar(
-        backgroundColor: fondo,
+        title: const Text('Perfil'),
+        backgroundColor: secundario,
+        foregroundColor: Colors.white,
         elevation: 0,
-        title: Text('Perfil', style: TextStyle(color: primario)),
-        iconTheme: IconThemeData(color: primario),
         actions: [
+          //Botón de billetera/pagos
+          IconButton(
+            icon: Icon(Icons.account_balance_wallet),
+            tooltip: 'Gestión de Pagos',
+            onPressed: () => _navigateToSaldoTarjetas(context),
+          ),
           //Botón de amistades
           IconButton(
             icon: Icon(Icons.people),

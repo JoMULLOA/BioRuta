@@ -4,27 +4,42 @@ import 'admin_profile.dart';
 import 'admin_stats.dart';
 import '../services/user_service.dart';
 import '../services/peticion_supervision_service.dart';
+import '../services/reporte_service.dart';
+import '../models/reporte_model.dart';
 import '../chat/pagina_individual.dart';
 
 class AdminDashboard extends StatefulWidget {
-  const AdminDashboard({super.key});
+  final int? initialTab;
+  
+  const AdminDashboard({super.key, this.initialTab});
 
   @override
   State<AdminDashboard> createState() => _AdminDashboardState();
 }
 
 class _AdminDashboardState extends State<AdminDashboard> {
-  int _selectedIndex = 0; // Dashboard es la primera pestaña
+  int _selectedIndex = 0; // Dashboard es la primera pestaña por defecto
   
   // Variables para estadísticas
   int _totalUsuarios = 0;
   int _viajesHoy = 0;
   int _usuariosActivos = 0;
   bool _isLoading = true;
+  
+  // Cache para conteo de reportes por usuario
+  final Map<String, int> _reportesCache = {};
+  
+  // Cache para nombres de usuarios
+  final Map<String, String> _nombresUsuarios = {};
 
   @override
   void initState() {
     super.initState();
+    // Si se especifica una pestaña inicial, usarla
+    if (widget.initialTab != null) {
+      _selectedIndex = widget.initialTab!;
+      print('🔄 AdminDashboard iniciado con pestaña: $_selectedIndex');
+    }
     _loadDashboardData();
   }
 
@@ -79,14 +94,14 @@ class _AdminDashboardState extends State<AdminDashboard> {
           setState(() {
             _selectedIndex = index;
           });
-        },
+        }, // Ensure this closing brace matches the function or widget it belongs to
       ),
     );
   }
 
   Widget _buildDashboardHome() {
     final Color fondo = Color(0xFFF8F2EF);
-    final Color primario = Color(0xFF6B3B2D);
+    final Color primario = Color(0xFF854937);
     final Color secundario = Color(0xFF8D4F3A);
 
     return Scaffold(
@@ -169,55 +184,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
                     const SizedBox(height: 24),
 
-                    // Estadísticas Principales
-                    const Text(
-                      'Estadísticas Generales',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF6B3B2D),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Grid de estadísticas
-                    GridView.count(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 16,
-                      mainAxisSpacing: 16,
-                      childAspectRatio: 1.5,
-                      children: [
-                        _buildStatCard(
-                          'Total Usuarios',
-                          _totalUsuarios.toString(),
-                          Icons.people,
-                          Colors.blue,
-                        ),
-                        _buildStatCard(
-                          'Viajes Hoy',
-                          _viajesHoy.toString(),
-                          Icons.directions_car,
-                          Colors.green,
-                        ),
-                        _buildStatCard(
-                          'Usuarios Activos',
-                          _usuariosActivos.toString(),
-                          Icons.people_alt,
-                          Colors.orange,
-                        ),
-                        _buildStatCard(
-                          'Sistema',
-                          'Activo',
-                          Icons.check_circle,
-                          Colors.teal,
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 24),
-
                     // Acciones Rápidas
                     const Text(
                       'Acciones Rápidas',
@@ -241,6 +207,30 @@ class _AdminDashboardState extends State<AdminDashboard> {
                             setState(() {
                               _selectedIndex = 1; // Navegar a estadísticas
                             });
+                          }, // Ensure this closing brace matches the function or widget it belongs to
+                        ),
+                        const SizedBox(height: 12),
+                        _buildActionButton(
+                          'Gestión de Usuarios',
+                          'Administrar usuarios registrados en el sistema',
+                          Icons.people_alt,
+                          Colors.blue,
+                          () {
+                            setState(() {
+                              _selectedIndex = 2; // Navegar a usuarios
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        _buildActionButton(
+                          'Centro de Soporte',
+                          'Gestionar peticiones y solicitudes de usuarios',
+                          Icons.support_agent,
+                          Colors.teal,
+                          () {
+                            setState(() {
+                              _selectedIndex = 3; // Navegar a soporte
+                            });
                           },
                         ),
                         const SizedBox(height: 12),
@@ -259,7 +249,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   Widget _buildUsersPage() {
     final Color fondo = Color(0xFFF8F2EF);
-    final Color primario = Color(0xFF6B3B2D);
+    final Color primario = Color(0xFF854937);
 
     return Scaffold(
       backgroundColor: fondo,
@@ -457,7 +447,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   Widget _buildSupportPage() {
     final Color fondo = Color(0xFFF8F2EF);
-    final Color primario = Color(0xFF6B3B2D);
+    final Color primario = Color(0xFF854937);
     final Color secundario = Color(0xFF8D4F3A);
 
     return Scaffold(
@@ -1134,7 +1124,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
   void _mostrarDialogoRespuesta(Map<String, dynamic> peticion, String accion) {
     final TextEditingController respuestaController = TextEditingController();
     final Color primario = Color(0xFF6B3B2D);
-    final Color secundario = Color(0xFF8D4F3A);
     final bool esAceptar = accion == 'aceptar';
 
     showDialog(
@@ -1589,34 +1578,45 @@ class _AdminDashboardState extends State<AdminDashboard> {
         ],
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12), // Reducir padding
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min, // Ajustar al contenido
           children: [
-            Icon(icon, color: color, size: 32),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: color,
+            Flexible(
+              child: Icon(icon, size: 28, color: color), // Reducir tamaño del ícono
+            ),
+            const SizedBox(height: 6), // Reducir espacio
+            Flexible(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 22, // Reducir tamaño de fuente
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                  ),
+                ),
               ),
             ),
             const SizedBox(height: 4),
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 12,
-                color: Colors.grey,
-                fontWeight: FontWeight.w500,
+            Flexible(
+              child: Text(
+                title,
+                textAlign: TextAlign.center,
+                maxLines: 2, // Permitir 2 líneas
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 10, // Reducir tamaño de fuente
+                  color: Colors.grey,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
-              textAlign: TextAlign.center,
             ),
           ],
         ),
-      ),
-    );
+      ));
   }
 
   Widget _buildActionButton(
@@ -1719,44 +1719,83 @@ class _AdminDashboardState extends State<AdminDashboard> {
   Widget _buildUserCard(Usuario usuario) {
     final Color primario = Color(0xFF6B3B2D);
     
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            spreadRadius: 1,
-            blurRadius: 4,
-            offset: const Offset(0, 2),
+    return FutureBuilder<int>(
+      future: _obtenerNumeroReportes(usuario.rut),
+      builder: (context, reportesSnapshot) {
+        final numReportes = reportesSnapshot.data ?? 0;
+        final tieneReportes = numReportes > 0;
+        
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: tieneReportes 
+                ? Border.all(color: Colors.red, width: 2)
+                : null,
+            boxShadow: [
+              BoxShadow(
+                color: tieneReportes 
+                    ? Colors.red.withOpacity(0.2)
+                    : Colors.black.withOpacity(0.08),
+                spreadRadius: 1,
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            // Avatar con iniciales
-            Container(
-              width: 50,
-              height: 50,
-              decoration: BoxDecoration(
-                color: usuario.esActivo ? primario : Colors.grey[400],
-                borderRadius: BorderRadius.circular(25),
-              ),
-              child: Center(
-                child: Text(
-                  usuario.iniciales,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                  ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                // Avatar con iniciales - rojo si tiene reportes
+                Stack(
+                  children: [
+                    Container(
+                      width: 50,
+                      height: 50,
+                      decoration: BoxDecoration(
+                        color: tieneReportes
+                            ? Colors.red[600]
+                            : (usuario.esActivo ? primario : Colors.grey[400]),
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                      child: Center(
+                        child: Text(
+                          usuario.iniciales,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                          ),
+                        ),
+                      ),
+                    ),
+                    // Badge de reportes si los tiene
+                    if (tieneReportes)
+                      Positioned(
+                        right: -2,
+                        top: -2,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: Colors.red,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: Colors.white, width: 1),
+                          ),
+                          child: Text(
+                            numReportes.toString(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
-              ),
-            ),
-            const SizedBox(width: 12),
+                const SizedBox(width: 12),
             
             // Información del usuario
             Expanded(
@@ -1890,6 +1929,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   case 'ver':
                     _mostrarDetallesUsuario(usuario);
                     break;
+                  case 'reportes':
+                    _mostrarReportesUsuario(usuario);
+                    break;
                   case 'editar':
                     _editarUsuario(usuario);
                     break;
@@ -1906,6 +1948,16 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       Icon(Icons.visibility),
                       SizedBox(width: 8),
                       Text('Ver Detalles'),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'reportes',
+                  child: Row(
+                    children: [
+                      Icon(Icons.report, color: Colors.orange),
+                      SizedBox(width: 8),
+                      Text('Ver Reportes'),
                     ],
                   ),
                 ),
@@ -1929,7 +1981,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
             ),
           ],
         ),
-      ),
+    ),
+      );
+    },
     );
   }
 
@@ -2146,6 +2200,576 @@ class _AdminDashboardState extends State<AdminDashboard> {
           duration: const Duration(seconds: 4),
         ),
       );
+    }
+  }
+
+  void _mostrarReportesUsuario(Usuario usuario) {
+    // Variable para manejar el filtro seleccionado
+    String filtroEstadoSeleccionado = '';
+
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        child: Container(
+          width: MediaQuery.of(context).size.width * 0.9,
+          height: MediaQuery.of(context).size.height * 0.8,
+          padding: const EdgeInsets.all(16),
+          child: StatefulBuilder(
+            builder: (context, setDialogState) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.report,
+                        color: Colors.red[600],
+                        size: 24,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Reportes de ${usuario.nombreCompleto}',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF6B3B2D),
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: const Icon(Icons.close),
+                      ),
+                    ],
+                  ),
+                  const Divider(),
+                  
+                  // Filtros de estado
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[50],
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey[200]!),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.filter_list,
+                          size: 16,
+                          color: Colors.grey[600],
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Filtrar por estado:',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            value: filtroEstadoSeleccionado.isEmpty ? null : filtroEstadoSeleccionado,
+                            hint: const Text('Todos los estados'),
+                            decoration: const InputDecoration(
+                              isDense: true,
+                              contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                              border: OutlineInputBorder(),
+                            ),
+                            isExpanded: true, // Prevent overflow
+                            onChanged: (String? newValue) {
+                              setDialogState(() {
+                                filtroEstadoSeleccionado = newValue ?? '';
+                              });
+                            },
+                            items: const [
+                              DropdownMenuItem(
+                                value: '',
+                                child: Text('Todos los estados'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'pendiente',
+                                child: Text('Pendientes'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'aceptado',
+                                child: Text('Aceptados'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'rechazado',
+                                child: Text('Rechazados'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 8),
+              
+                  // Lista de reportes
+                  Expanded(
+                    child: FutureBuilder<Map<String, dynamic>>(
+                      future: ReporteService.obtenerReportesUsuario(rutUsuario: usuario.rut),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState == ConnectionState.waiting) {
+                          return const Center(
+                            child: CircularProgressIndicator(),
+                          );
+                        }
+                        
+                        if (snapshot.hasError) {
+                          return Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.error_outline,
+                                  size: 48,
+                                  color: Colors.grey[400],
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'Error al cargar reportes',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: Colors.grey[600],
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  snapshot.error.toString(),
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: Colors.grey[500],
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }
+                        
+                        final data = snapshot.data ?? {};
+                        final success = data['success'] ?? false;
+                        
+                        if (!success) {
+                          return Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.error_outline,
+                                  size: 48,
+                                  color: Colors.grey[400],
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'Error al cargar reportes',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: Colors.grey[600],
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  data['message'] ?? 'Error desconocido',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: Colors.grey[500],
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }
+                        
+                        final reportes = data['reportes'] as List<Reporte>? ?? [];
+                        
+                        // Aplicar filtro de estado
+                        final reportesFiltrados = filtroEstadoSeleccionado.isEmpty 
+                            ? reportes 
+                            : reportes.where((reporte) => 
+                                reporte.estado.toString().split('.').last == filtroEstadoSeleccionado
+                              ).toList();
+                        
+                        if (reportesFiltrados.isEmpty) {
+                          String mensajeVacio = filtroEstadoSeleccionado.isEmpty
+                              ? 'Este usuario no tiene reportes registrados'
+                              : 'No hay reportes con el estado seleccionado';
+                          
+                          return Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  filtroEstadoSeleccionado.isEmpty 
+                                      ? Icons.check_circle_outline 
+                                      : Icons.filter_list_off,
+                                  size: 48,
+                                  color: filtroEstadoSeleccionado.isEmpty 
+                                      ? Colors.green[400] 
+                                      : Colors.grey[400],
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  filtroEstadoSeleccionado.isEmpty ? 'Sin reportes' : 'Sin resultados',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  mensajeVacio,
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }
+                        
+                        return ListView.builder(
+                          itemCount: reportesFiltrados.length,
+                          itemBuilder: (context, index) {
+                            final reporte = reportesFiltrados[index];
+                            return _buildReporteCard(reporte);
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      ));
+  }
+
+  Widget _buildReporteCard(Reporte reporte) {
+    Color estadoColor = reporte.estado.color;
+    IconData estadoIcon;
+    
+    switch (reporte.estado) {
+      case EstadoReporte.pendiente:
+        estadoIcon = Icons.pending;
+        break;
+      case EstadoReporte.revisado:
+        estadoIcon = Icons.visibility;
+        break;
+      case EstadoReporte.aceptado:
+        estadoIcon = Icons.check_circle;
+        break;
+      case EstadoReporte.rechazado:
+        estadoIcon = Icons.cancel;
+        break;
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            spreadRadius: 1,
+            blurRadius: 3,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header del reporte
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: _getTipoColor(reporte.tipoReporte).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  reporte.tipoReporte.displayName,
+                  style: TextStyle(
+                    color: _getTipoColor(reporte.tipoReporte),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: estadoColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(estadoIcon, size: 14, color: estadoColor),
+                    const SizedBox(width: 4),
+                    Text(
+                      reporte.estado.displayName.toUpperCase(),
+                      style: TextStyle(
+                        color: estadoColor,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          
+          // Motivo y descripción
+          Text(
+            'Motivo: ${reporte.motivo.displayName}',
+            style: const TextStyle(
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF6B3B2D),
+            ),
+          ),
+          if (reporte.descripcion != null && reporte.descripcion!.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              reporte.descripcion!,
+              style: TextStyle(
+                color: Colors.grey[700],
+                fontSize: 14,
+              ),
+            ),
+          ],
+          const SizedBox(height: 8),
+          
+          // Información adicional
+          Row(
+            children: [
+              Icon(Icons.person, size: 14, color: Colors.grey[500]),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  'Reportado por: ${_obtenerNombreMostrable(reporte.usuarioReportante)}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              Icon(Icons.access_time, size: 14, color: Colors.grey[500]),
+              const SizedBox(width: 4),
+              Text(
+                'Fecha: ${_formatearFecha(reporte.fechaCreacion)}',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
+          
+          // Acciones del admin si el reporte está pendiente
+          if (reporte.estado == EstadoReporte.pendiente) ...[
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Flexible(
+                  child: TextButton(
+                    onPressed: () => _actualizarEstadoReporte(reporte.id!, 'rechazado'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.grey[600],
+                    ),
+                    child: const Text(
+                      'Descartar',
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: ElevatedButton(
+                    onPressed: () => _actualizarEstadoReporte(reporte.id!, 'aceptado'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text('Proceder'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Color _getTipoColor(TipoReporte tipo) {
+    switch (tipo) {
+      case TipoReporte.ranking:
+        return Colors.orange;
+      case TipoReporte.chatIndividual:
+        return Colors.blue;
+      case TipoReporte.chatGrupal:
+        return Colors.purple;
+    }
+  }
+
+  String _formatearFecha(DateTime fecha) {
+    return '${fecha.day}/${fecha.month}/${fecha.year} ${fecha.hour}:${fecha.minute.toString().padLeft(2, '0')}';
+  }
+
+  void _actualizarEstadoReporte(int reporteId, String nuevoEstado) async {
+    try {
+      // Convertir string a enum
+      EstadoReporte estadoEnum;
+      switch (nuevoEstado) {
+        case 'revisado':
+          estadoEnum = EstadoReporte.revisado;
+          break;
+        case 'aceptado':
+          estadoEnum = EstadoReporte.aceptado;
+          break;
+        case 'rechazado':
+          estadoEnum = EstadoReporte.rechazado;
+          break;
+        default:
+          estadoEnum = EstadoReporte.pendiente;
+      }
+      
+      final result = await ReporteService.actualizarEstadoReporte(
+        reporteId: reporteId,
+        nuevoEstado: estadoEnum,
+      );
+      
+      if (result['success'] == true) {
+        // Refrescar la vista
+        setState(() {});
+        
+        // Mostrar mensaje de éxito
+        String mensaje;
+        switch (nuevoEstado) {
+          case 'rechazado':
+            mensaje = 'Reporte descartado';
+            break;
+          case 'aceptado':
+            mensaje = 'Reporte procesado - Se tomarán medidas correspondientes';
+            break;
+          default:
+            mensaje = 'Reporte actualizado';
+        }
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(mensaje),
+            backgroundColor: Colors.green,
+          ),
+        );
+        
+        // Cerrar el diálogo y volver a abrirlo para mostrar los cambios
+        Navigator.of(context).pop();
+      } else {
+        throw Exception(result['message'] ?? 'Error desconocido');
+      }
+      
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al actualizar reporte: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  // Función para obtener el número de reportes de un usuario
+  Future<int> _obtenerNumeroReportes(String rut) async {
+    if (_reportesCache.containsKey(rut)) {
+      return _reportesCache[rut]!;
+    }
+
+    try {
+      final result = await ReporteService.obtenerReportesUsuario(rutUsuario: rut, limit: 1);
+      if (result['success'] == true) {
+        final pagination = result['pagination'] as Map<String, dynamic>?;
+        final total = pagination?['total'] ?? 0;
+        _reportesCache[rut] = total;
+        return total;
+      }
+    } catch (e) {
+      print('Error obteniendo reportes para usuario $rut: $e');
+    }
+    
+    _reportesCache[rut] = 0;
+    return 0;
+  }
+
+  // Función para obtener el nombre mostrable de un usuario
+  String _obtenerNombreMostrable(String rut) {
+    // Si ya tenemos el nombre en cache, lo usamos
+    if (_nombresUsuarios.containsKey(rut)) {
+      return _nombresUsuarios[rut]!;
+    }
+    
+    // Por ahora mostrar el RUT formateado
+    // En el futuro se puede implementar una llamada al backend
+    return _formatearRut(rut);
+  }
+  
+  // Función para formatear un RUT de manera más legible
+  String _formatearRut(String rut) {
+    if (rut.length < 8) return rut;
+    
+    // Formatear RUT: 12345678-9 -> 12.345.678-9
+    final sinDigito = rut.substring(0, rut.length - 1);
+    final digito = rut.substring(rut.length - 1);
+    
+    String formateado = '';
+    for (int i = 0; i < sinDigito.length; i++) {
+      if (i > 0 && (sinDigito.length - i) % 3 == 0) {
+        formateado += '.';
+      }
+      formateado += sinDigito[i];
+    }
+    
+    return '$formateado-$digito';
+  }
+
+  // Función para obtener el ícono del estado
+  IconData _getEstadoIcon(EstadoReporte estado) {
+    switch (estado) {
+      case EstadoReporte.pendiente:
+        return Icons.schedule;
+      case EstadoReporte.revisado:
+        return Icons.visibility;
+      case EstadoReporte.aceptado:
+        return Icons.check_circle;
+      case EstadoReporte.rechazado:
+        return Icons.cancel;
     }
   }
 }

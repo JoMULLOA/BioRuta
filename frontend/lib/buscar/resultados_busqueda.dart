@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../services/api_service.dart';
+import '../services/viaje_service.dart';
 import '../models/viaje_model.dart';
 import '../widgets/navbar_con_sos_dinamico.dart';
+import '../widgets/metodo_pago_modal.dart';
 
 class ResultadosBusquedaScreen extends StatefulWidget {
   final double origenLat;
@@ -12,6 +15,7 @@ class ResultadosBusquedaScreen extends StatefulWidget {
   final int pasajeros;
   final String origenTexto;
   final String destinoTexto;
+  final bool soloMujeres; // Nuevo parámetro para filtro de género
 
   const ResultadosBusquedaScreen({
     super.key,
@@ -23,6 +27,7 @@ class ResultadosBusquedaScreen extends StatefulWidget {
     required this.pasajeros,
     required this.origenTexto,
     required this.destinoTexto,
+    this.soloMujeres = false, // Por defecto false
   });
 
   @override
@@ -53,14 +58,19 @@ class _ResultadosBusquedaScreenState extends State<ResultadosBusquedaScreen> {
         destinoLng: widget.destinoLng,
         fechaViaje: widget.fechaViaje,
         pasajeros: widget.pasajeros,
+        soloMujeres: widget.soloMujeres, // Usar el parámetro soloMujeres
       );
 
       // Debug: Verificar datos del conductor
       for (int i = 0; i < viajes.length; i++) {
         print('🚗 Viaje ${i + 1}:');
+        print('  - ID: "${viajes[i].id}"');
+        print('  - ID length: ${viajes[i].id.length}');
         print('  - RUT: ${viajes[i].usuarioRut}');
         print('  - Conductor: ${viajes[i].conductor?.nombre ?? "null"}');
-        print('  - Conductor objeto completo: ${viajes[i].conductor}');
+        print('  - Precio: ${viajes[i].precio}');
+        print('  - Origen: ${viajes[i].origen.nombre}');
+        print('  - Destino: ${viajes[i].destino.nombre}');
       }
 
       // Ordenar por distancia total (origen + destino)
@@ -79,6 +89,165 @@ class _ResultadosBusquedaScreenState extends State<ResultadosBusquedaScreen> {
         _error = e.toString();
         _cargando = false;
       });
+    }
+  }
+
+  Future<void> _unirseAlViaje(ViajeProximidad viaje) async {
+    try {
+      print('🚗 Datos del viaje seleccionado:');
+      print('  - ID: "${viaje.id}"');
+      print('  - ID length: ${viaje.id.length}');
+      print('  - ID isEmpty: ${viaje.id.isEmpty}');
+      print('  - Origen: ${viaje.origen.nombre}');
+      print('  - Destino: ${viaje.destino.nombre}');
+      print('  - Precio: ${viaje.precio}');
+
+      // Verificar que el ID no esté vacío
+      if (viaje.id.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Error: ID del viaje no válido'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
+      // Mostrar modal de selección de método de pago
+      final metodoPagoResult = await showModalBottomSheet<Map<String, dynamic>>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (context) => MetodoPagoModal(
+          precio: viaje.precio,
+          viajeOrigen: viaje.origen.nombre,
+          viajeDestino: viaje.destino.nombre,
+          onPagoSeleccionado: (metodoPago, datosAdicionales, mensaje) {
+            Navigator.pop(context, {
+              'metodoPago': metodoPago,
+              'datosAdicionales': datosAdicionales,
+              'mensaje': mensaje,
+            });
+          },
+        ),
+      );
+
+      if (metodoPagoResult == null) {
+        // Usuario canceló la selección de pago
+        return;
+      }
+
+      // Mostrar indicador de carga
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Enviando solicitud con información de pago...'),
+            backgroundColor: Color(0xFF854937),
+          ),
+        );
+      }
+
+      // Enviar solicitud con información de pago
+      final resultado = await ViajeService.unirseAViajeConPago(
+        viaje.id,
+        metodoPagoResult['metodoPago'],
+        metodoPagoResult['datosAdicionales'],
+        mensaje: metodoPagoResult['mensaje'],
+      );
+
+      if (mounted) {
+        // Mensaje específico para el nuevo flujo de notificaciones con pago
+        String mensaje = resultado['message'] ?? 'Solicitud enviada';
+        if (resultado['success'] == true) {
+          mensaje = 'Solicitud enviada al conductor con información de pago. Espera su respuesta en tus notificaciones.';
+        }
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(mensaje),
+            backgroundColor: resultado['success'] == true 
+                ? const Color(0xFF854937) 
+                : Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ Error al unirse al viaje: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al enviar la solicitud: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  // Función para abrir Google Maps con navegación al origen del viaje
+  Future<void> _abrirGoogleMaps(ViajeProximidad viaje) async {
+    try {
+      final lat = viaje.origen.latitud;
+      final lng = viaje.origen.longitud;
+      final url = Uri.parse('https://www.google.com/maps/dir/?api=1&destination=$lat,$lng&travelmode=driving');
+      
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('No se pudo abrir Google Maps'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error al abrir Google Maps: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Error al abrir Google Maps'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  // Función para abrir Waze con navegación al origen del viaje
+  Future<void> _abrirWaze(ViajeProximidad viaje) async {
+    try {
+      final lat = viaje.origen.latitud;
+      final lng = viaje.origen.longitud;
+      final url = Uri.parse('https://waze.com/ul?ll=$lat,$lng&navigate=yes');
+      
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('No se pudo abrir Waze. ¿Está instalado?'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error al abrir Waze: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Error al abrir Waze'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -226,7 +395,7 @@ class _ResultadosBusquedaScreenState extends State<ResultadosBusquedaScreen> {
                 ),
               ),              const SizedBox(height: 8),
               Text(
-                'No hay viajes disponibles en un radio de 2km de tu origen y destino para la fecha seleccionada.',
+                'No hay viajes disponibles en un radio de 10 km de tu origen y destino para la fecha seleccionada.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 14,
@@ -520,7 +689,7 @@ class _ResultadosBusquedaScreenState extends State<ResultadosBusquedaScreen> {
                           const Icon(Icons.calendar_today, size: 16, color: Color(0xFF854937)),
                           const SizedBox(width: 4),
                           Text(
-                            viaje.fechaIda,
+                            viaje.fechaIdaFormateada,
                             style: const TextStyle(fontSize: 14),
                           ),
                         ],
@@ -654,19 +823,80 @@ class _ResultadosBusquedaScreenState extends State<ResultadosBusquedaScreen> {
               
               const SizedBox(height: 12),
               
-              // Botón de acción
+              // Botones de navegación
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF854937).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: const Color(0xFF854937).withOpacity(0.3),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.navigation, color: Color(0xFF854937), size: 16),
+                        SizedBox(width: 4),
+                        Text(
+                          'Navegar al punto de encuentro:',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF854937),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () => _abrirGoogleMaps(viaje),
+                            icon: const Icon(Icons.map, size: 16),
+                            label: const Text(
+                              'Google Maps',
+                              style: TextStyle(fontSize: 11),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.blue,
+                              side: const BorderSide(color: Colors.blue),
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () => _abrirWaze(viaje),
+                            icon: const Icon(Icons.navigation, size: 16),
+                            label: const Text(
+                              'Waze',
+                              style: TextStyle(fontSize: 11),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.orange,
+                              side: const BorderSide(color: Colors.orange),
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              
+              const SizedBox(height: 12),
+              
+              // Botón de acción principal
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () {
-                    // TODO: Implementar navegación a detalles del viaje
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Funcionalidad de detalles próximamente disponible'),
-                        backgroundColor: Color(0xFF854937),
-                      ),
-                    );
-                  },
+                  onPressed: () => _unirseAlViaje(viaje),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF854937),
                     foregroundColor: Colors.white,

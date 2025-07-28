@@ -9,9 +9,13 @@ import 'buscar/inicio.dart';
 import 'publicar/publicar.dart';
 import 'chat/chat.dart';
 import 'perfil/perfil.dart';
+import 'perfil/notificaciones.dart';
+import 'perfil/amistad_menu.dart';
 import 'services/viaje_estado_service.dart';
+import 'services/navigation_service.dart';
 import 'Ranking/ranking.dart';
 import 'sos/sos_screen.dart';
+import 'admin/admin_dashboard.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,6 +26,37 @@ void main() async {
   try {
     // Inicializar sistema de notificaciones WebSocket
     await WebSocketNotificationService.initialize();
+    
+    // Configurar callback para diálogos in-app
+    WebSocketNotificationService.setInAppDialogCallback((title, message, {action}) {
+      final context = NavigationService.navigatorKey.currentContext;
+      if (context != null) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (BuildContext dialogContext) => AlertDialog(
+            title: Text(title),
+            content: Text(message),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(dialogContext).pop();
+                  if (action == 'passenger_eliminated') {
+                    // Redirigir a la pantalla de mis viajes después de eliminar
+                    Navigator.of(context).pushNamedAndRemoveUntil(
+                      '/mis-viajes',
+                      (route) => false,
+                    );
+                  }
+                },
+                child: const Text('Entendido'),
+              ),
+            ],
+          ),
+        );
+      }
+    });
+    
     print('🔔 Sistema de notificaciones WebSocket inicializado');
   } catch (e) {
     print('❌ Error inicializando notificaciones: $e');
@@ -36,6 +71,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: NavigationService.navigatorKey,
       title: 'BioRuta',
       localizationsDelegates: [
         GlobalMaterialLocalizations.delegate,
@@ -52,6 +88,19 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
       ),
       initialRoute: '/login', // Ruta inicial
+      onGenerateRoute: (settings) {
+        // Manejar rutas con argumentos personalizados
+        switch (settings.name) {
+          case '/admin':
+            final args = settings.arguments as Map<String, dynamic>?;
+            final initialTab = args?['initialTab'] as int?;
+            return MaterialPageRoute(
+              builder: (context) => AdminDashboard(initialTab: initialTab),
+            );
+          default:
+            return null; // Usar rutas predefinidas
+        }
+      },
       routes: {
         '/': (context) => const MisViajesScreen(), // Ruta principal ahora es mis viajes
         '/login': (context) => const LoginPage(),
@@ -65,6 +114,8 @@ class MyApp extends StatelessWidget {
         '/ranking': (context) => ranking(),
         '/sos': (context) => const SOSScreen(),
         '/perfil': (context) => Perfil(),
+        '/amistades': (context) => AmistadMenuScreen(),
+        '/solicitudes': (context) => NotificacionesScreen(),
       },
     );
   }

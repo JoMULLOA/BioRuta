@@ -3,6 +3,7 @@ import 'package:flutter_osm_plugin/flutter_osm_plugin.dart';
 import 'dart:math' as math;
 import '../services/viaje_service.dart';
 import '../models/marcador_viaje_model.dart';
+import '../utils/date_utils.dart' as ChileDateUtils;
 import 'vehiculo_icon_helper.dart';
 
 class MapaViajesInteractivo extends StatefulWidget {
@@ -192,12 +193,12 @@ class _MapaViajesInteractivoState extends State<MapaViajesInteractivo> {
                   _construirInfoItem(
                     icono: Icons.calendar_today,
                     titulo: 'Fecha',
-                    valor: _formatearFecha(marcador.detallesViaje.fecha),
+                    valor: ChileDateUtils.DateUtils.obtenerFechaChile(marcador.detallesViaje.fecha),
                   ),
                   _construirInfoItem(
                     icono: Icons.access_time,
                     titulo: 'Hora',
-                    valor: marcador.detallesViaje.hora,
+                    valor: ChileDateUtils.DateUtils.obtenerHoraChile(marcador.detallesViaje.fecha),
                   ),
                   _construirInfoItem(
                     icono: Icons.attach_money,
@@ -377,10 +378,6 @@ class _MapaViajesInteractivoState extends State<MapaViajesInteractivo> {
 
   double _gradosARadianes(double grados) {
     return grados * (math.pi / 180);
-  }
-
-  String _formatearFecha(DateTime fecha) {
-    return '${fecha.day.toString().padLeft(2, '0')}/${fecha.month.toString().padLeft(2, '0')}/${fecha.year}';
   }
 
   @override

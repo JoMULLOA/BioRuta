@@ -23,7 +23,6 @@ class _AdminStatsState extends State<AdminStats> with TickerProviderStateMixin {
   int _totalVehiculos = 0;
   List<Map<String, dynamic>> _usuariosPorPuntuacion = [];
   List<Map<String, dynamic>> _viajesPorMes = [];
-  List<Map<String, dynamic>> _destinosPopulares = [];
   List<Map<String, dynamic>> _clasificacionUsuarios = [];
 
   @override
@@ -45,14 +44,12 @@ class _AdminStatsState extends State<AdminStats> with TickerProviderStateMixin {
         EstadisticasService.obtenerDistribucionPuntuaciones(),
         EstadisticasService.obtenerViajesPorMes(),
         EstadisticasService.obtenerClasificacionUsuarios(),
-        EstadisticasService.obtenerDestinosPopulares(),
       ]);
 
       final estadisticasGenerales = results[0] as Map<String, dynamic>;
       final distribucionPuntuaciones = results[1] as List<Map<String, dynamic>>;
       final viajesPorMes = results[2] as List<Map<String, dynamic>>;
       final clasificacionUsuarios = results[3] as List<Map<String, dynamic>>;
-      final destinosPopulares = results[4] as List<Map<String, dynamic>>;
 
       setState(() {
         // Extraer datos de estadísticas generales
@@ -76,9 +73,6 @@ class _AdminStatsState extends State<AdminStats> with TickerProviderStateMixin {
 
         // Procesar clasificación de usuarios
         _clasificacionUsuarios = clasificacionUsuarios;
-
-        // Procesar destinos populares
-        _destinosPopulares = destinosPopulares;
 
         _isLoading = false;
       });
@@ -107,7 +101,7 @@ class _AdminStatsState extends State<AdminStats> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     final Color fondo = Color(0xFFF8F2EF);
-    final Color primario = Color(0xFF6B3B2D);
+    final Color primario = Color(0xFF854937);
     final Color secundario = Color(0xFF8D4F3A);
 
     return Scaffold(
@@ -152,18 +146,18 @@ class _AdminStatsState extends State<AdminStats> with TickerProviderStateMixin {
             )
           : _errorMessage.isNotEmpty
               ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.error_outline,
-                        size: 64,
-                        color: Colors.red[400],
-                      ),
-                      const SizedBox(height: 16),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 32),
-                        child: Text(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(32),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.error_outline,
+                          size: 64,
+                          color: Colors.red[400],
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
                           _errorMessage,
                           textAlign: TextAlign.center,
                           style: TextStyle(
@@ -171,17 +165,17 @@ class _AdminStatsState extends State<AdminStats> with TickerProviderStateMixin {
                             fontSize: 16,
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 24),
-                      ElevatedButton(
-                        onPressed: _loadStatistics,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: primario,
-                          foregroundColor: Colors.white,
+                        const SizedBox(height: 24),
+                        ElevatedButton(
+                          onPressed: _loadStatistics,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: primario,
+                            foregroundColor: Colors.white,
+                          ),
+                          child: const Text('Reintentar'),
                         ),
-                        child: const Text('Reintentar'),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 )
               : RefreshIndicator(
@@ -244,14 +238,11 @@ class _AdminStatsState extends State<AdminStats> with TickerProviderStateMixin {
                         
                         const SizedBox(height: 24),
                         
-                        // Lista de destinos populares
-                        if (_destinosPopulares.isNotEmpty)
-                          _buildDestinosPopulares(primario, secundario),
-                        
-                        const SizedBox(height: 24),
-                        
                         // Estadísticas adicionales
                         _buildEstadisticasAdicionales(primario, secundario),
+                        
+                        // Espacio adicional al final para evitar que el último elemento quede pegado al borde
+                        const SizedBox(height: 32),
                       ],
                     ),
                   ),
@@ -278,7 +269,7 @@ class _AdminStatsState extends State<AdminStats> with TickerProviderStateMixin {
           physics: const NeverScrollableScrollPhysics(),
           crossAxisSpacing: 12,
           mainAxisSpacing: 12,
-          childAspectRatio: 1.5,
+          childAspectRatio: 1.8, // Aumentar para dar más espacio horizontal
           children: [
             _buildMetricCard(
               'Total Usuarios',
@@ -333,28 +324,40 @@ class _AdminStatsState extends State<AdminStats> with TickerProviderStateMixin {
         ],
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12), // Reducir padding
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min, // Ajustar al contenido
           children: [
-            Icon(icon, size: 32, color: color),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: color,
+            Flexible(
+              child: Icon(icon, size: 28, color: color), // Reducir tamaño del ícono
+            ),
+            const SizedBox(height: 6), // Reducir espacio
+            Flexible(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 22, // Reducir tamaño de fuente
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                  ),
+                ),
               ),
             ),
             const SizedBox(height: 4),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 12,
-                color: color.withOpacity(0.8),
-                fontWeight: FontWeight.w500,
+            Flexible(
+              child: Text(
+                title,
+                textAlign: TextAlign.center,
+                maxLines: 2, // Permitir 2 líneas
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 10, // Reducir tamaño de fuente
+                  color: color.withOpacity(0.8),
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
           ],
@@ -655,102 +658,6 @@ class _AdminStatsState extends State<AdminStats> with TickerProviderStateMixin {
               ),
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDestinosPopulares(Color primario, Color secundario) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            spreadRadius: 2,
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.location_on, color: primario, size: 24),
-              const SizedBox(width: 8),
-              Text(
-                'Destinos Más Populares',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: primario,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          ...(_destinosPopulares.asMap().entries.map((entry) {
-            final index = entry.key;
-            final destino = entry.value;
-            final maxViajes = _destinosPopulares.first['viajes'];
-            final porcentaje = (destino['viajes'] / maxViajes) * 100;
-            
-            return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          '${index + 1}. ${destino['destino']}',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: primario,
-                          ),
-                        ),
-                      ),
-                      Text(
-                        '${destino['viajes']} viajes',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: secundario,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Container(
-                    height: 6,
-                    decoration: BoxDecoration(
-                      color: secundario.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(3),
-                    ),
-                    child: FractionallySizedBox(
-                      alignment: Alignment.centerLeft,
-                      widthFactor: porcentaje / 100,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [primario, secundario],
-                          ),
-                          borderRadius: BorderRadius.circular(3),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }).toList()),
         ],
       ),
     );

@@ -111,18 +111,13 @@ export async function responderSolicitudAmistad(req, res) {
         // Extraer rutEmisor de la estructura correcta
         const rutEmisor = resultado.rutEmisor || resultado.solicitud?.rutEmisor;
         
-        console.log(`🔧 INICIANDO creación de notificación para emisor: ${rutEmisor}`);
-        console.log(`🔧 Respuesta recibida: ${respuesta}`);
-        console.log(`🔧 Usuario receptor: ${req.user.nombreCompleto || req.user.nombre || rutReceptor}`);
-        console.log(`🔧 Estructura resultado completa:`, JSON.stringify(resultado, null, 2));
+        console.log(`🔧 Creando notificación de ${respuesta} para emisor: ${rutEmisor}`);
         
         const tipoNotificacion = respuesta === "aceptada" ? 'amistad_aceptada' : 'amistad_rechazada';
         const titulo = respuesta === "aceptada" ? '🎉 ¡Nueva amistad!' : 'Solicitud rechazada';
         const mensaje = respuesta === "aceptada" 
           ? `Ahora eres amigo de ${req.user.nombreCompleto || req.user.nombre || rutReceptor}`
           : `${req.user.nombreCompleto || rutReceptor} rechazó tu solicitud de amistad`;
-
-        console.log(`🔧 Datos de notificación preparados:`, { tipoNotificacion, titulo, mensaje });
 
         await crearNotificacionService({
           tipo: tipoNotificacion,
@@ -141,32 +136,25 @@ export async function responderSolicitudAmistad(req, res) {
         const getIo = req.app.get('io');
         const io = getIo ? getIo() : null;
         
-        console.log(`🔧 Socket.io disponible: ${io ? 'SÍ' : 'NO'}`);
-        console.log(`🔧 Respuesta: ${respuesta}, RUT emisor: ${rutEmisor}`);
-        
         if (io) {
           const nombreReceptor = req.user.nombreCompleto || req.user.nombre || rutReceptor;
-          console.log(`🔧 Nombre receptor: ${nombreReceptor}`);
-          console.log(`🔧 WebSocketNotificationService disponible: ${WebSocketNotificationService ? 'SÍ' : 'NO'}`);
           
           if (respuesta === "aceptada") {
-            console.log(`🎉 EJECUTANDO enviarAmistadAceptada...`);
-            const resultado_notif = await WebSocketNotificationService.enviarAmistadAceptada(
+            console.log(`🎉 Enviando notificación de amistad aceptada...`);
+            await WebSocketNotificationService.enviarAmistadAceptada(
               io,
               rutEmisor,
               nombreReceptor,
               rutReceptor
             );
-            console.log(`🎉 RESULTADO envío amistad aceptada:`, resultado_notif);
           } else {
-            console.log(`😔 EJECUTANDO enviarAmistadRechazada...`);
-            const resultado_notif = await WebSocketNotificationService.enviarAmistadRechazada(
+            console.log(`😔 Enviando notificación de amistad rechazada...`);
+            await WebSocketNotificationService.enviarAmistadRechazada(
               io,
               rutEmisor,
               nombreReceptor,
               rutReceptor
             );
-            console.log(`😔 RESULTADO envío amistad rechazada:`, resultado_notif);
           }
         } else {
           console.warn(`⚠️ Socket.io no está disponible en el controlador`);

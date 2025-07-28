@@ -1,10 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // Agrega este import
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:async';
 import '../config/confGlobal.dart';
 import '../services/socket_service.dart';
+import '../services/websocket_notification_service.dart';
+import '../services/location_service.dart';
+import '../utils/date_utils.dart' as date_utils;
+import '../widgets/reportar_usuario_dialog.dart';
+import '../widgets/location_message_widget.dart';
+import '../models/reporte_model.dart';
 
 // Clase Message temporal inline para debugging
 class Message {
@@ -14,6 +21,8 @@ class Message {
   final DateTime timestamp;
   final bool isEdited;
   final bool isDeleted;
+  final String type; // 'text' o 'location'
+  final Map<String, dynamic>? locationData; // Para mensajes de ubicación
 
   Message({
     this.id,
@@ -22,6 +31,8 @@ class Message {
     required this.timestamp,
     this.isEdited = false,
     this.isDeleted = false,
+    this.type = 'text',
+    this.locationData,
   });
 
   // Crear copia del mensaje con cambios
@@ -32,6 +43,8 @@ class Message {
     DateTime? timestamp,
     bool? isEdited,
     bool? isDeleted,
+    String? type,
+    Map<String, dynamic>? locationData,
   }) {
     return Message(
       id: id ?? this.id,
@@ -40,6 +53,28 @@ class Message {
       timestamp: timestamp ?? this.timestamp,
       isEdited: isEdited ?? this.isEdited,
       isDeleted: isDeleted ?? this.isDeleted,
+      type: type ?? this.type,
+      locationData: locationData ?? this.locationData,
+    );
+  }
+  
+  // Factory constructor para crear mensaje de ubicación
+  factory Message.location({
+    required String senderRut,
+    required double latitude,
+    required double longitude,
+    int? id,
+  }) {
+    return Message(
+      id: id,
+      senderRut: senderRut,
+      text: 'Ubicación compartida',
+      timestamp: DateTime.now(),
+      type: 'location',
+      locationData: {
+        'latitude': latitude,
+        'longitude': longitude,
+      },
     );
   }
 }
@@ -61,6 +96,18 @@ class PaginaIndividualWebSocket extends StatefulWidget {
 }
 
 class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
+
+
+  void _copyMessageToClipboard(String text) {
+    Clipboard.setData(ClipboardData(text: text));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Mensaje copiado al portapapeles'),
+        duration: Duration(seconds: 1),
+      ),
+    );
+  }
+
   final TextEditingController _messageController = TextEditingController();
   final List<Message> _messages = [];
   final ScrollController _scrollController = ScrollController();
@@ -83,8 +130,10 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
   @override
   void initState() {
     super.initState();
+    print('[CHAT] 🚀 INICIANDO CHAT INDIVIDUAL - initState()');
     _socketService = SocketService.instance;
     _initializarDatos();
+    print('[CHAT] 🚀 CHAT INDIVIDUAL INICIADO COMPLETAMENTE');
   }
 
   @override
@@ -248,14 +297,36 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
       }
       
       if (esParaEstaConversacion) {
+        final contenido = messageData['contenido'].toString();
+        String tipoMensaje = 'text';
+        Map<String, dynamic>? locationData;
+        
+        // Verificar si es un mensaje de ubicación
+        try {
+          final parsedContent = json.decode(contenido);
+          if (parsedContent is Map<String, dynamic> && parsedContent['type'] == 'location') {
+            tipoMensaje = 'location';
+            locationData = {
+              'latitude': parsedContent['latitude'],
+              'longitude': parsedContent['longitude'],
+              'accuracy': parsedContent['accuracy'],
+              'timestamp': parsedContent['timestamp'],
+            };
+          }
+        } catch (e) {
+          // No es JSON válido, es un mensaje de texto normal
+        }
+        
         // Crear mensaje usando el constructor directo con conversión correcta
         final nuevoMensaje = Message(
           id: messageData['id'] is String ? int.tryParse(messageData['id']) : messageData['id'],
           senderRut: messageData['emisor'].toString(),
-          text: messageData['contenido'].toString(),
+          text: tipoMensaje == 'location' ? 'Ubicación compartida' : contenido,
           timestamp: DateTime.parse(messageData['fecha']),
           isEdited: messageData['editado'] ?? false,
           isDeleted: messageData['eliminado'] ?? false,
+          type: tipoMensaje,
+          locationData: locationData,
         );
         
         setState(() {
@@ -267,6 +338,31 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
                m.timestamp.difference(nuevoMensaje.timestamp).abs().inSeconds < 2))) {
             _messages.add(nuevoMensaje);
             _messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+            
+            // Mostrar notificación solo si el mensaje lo envió el otro usuario
+            if (nuevoMensaje.senderRut != _rutUsuarioAutenticadoReal && !nuevoMensaje.isDeleted) {
+              print('[CHAT] 🔍 VERIFICANDO CONDICIONES DE NOTIFICACIÓN:');
+              print('[CHAT] 📧 Emisor del mensaje: ${nuevoMensaje.senderRut}');
+              print('[CHAT] 👤 Usuario autenticado: $_rutUsuarioAutenticadoReal');
+              print('[CHAT] ❌ Mensaje eliminado: ${nuevoMensaje.isDeleted}');
+              print('[CHAT] ✅ CONDICIONES CUMPLIDAS - Mensaje recibido de otro usuario, mostrando notificación...');
+              
+              // 🔔 LLAMADA AL SERVICIO DE NOTIFICACIONES
+              print('[CHAT] 🔔 ENVIANDO NOTIFICACIÓN AL SERVICIO...');
+              WebSocketNotificationService.showLocalNotification(
+                title: '💬 ${widget.nombre}',
+                body: nuevoMensaje.text,
+                payload: 'chat_individual_${widget.rutAmigo}',
+              );
+              print('[CHAT] 🔔 NOTIFICACIÓN ENVIADA AL SERVICIO EXITOSAMENTE');
+            } else {
+              print('[CHAT] ❌ NO MOSTRAR NOTIFICACIÓN:');
+              print('[CHAT] 📧 Emisor del mensaje: ${nuevoMensaje.senderRut}');
+              print('[CHAT] 👤 Usuario autenticado: $_rutUsuarioAutenticadoReal');
+              print('[CHAT] 🗑️ Mensaje eliminado: ${nuevoMensaje.isDeleted}');
+              print('[CHAT] 📝 Es mi propio mensaje o mensaje eliminado');
+              print('[CHAT] ⚠️  USUARIOS IGUALES = ${nuevoMensaje.senderRut == _rutUsuarioAutenticadoReal}');
+            }
           }
         });
         
@@ -398,13 +494,35 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
               }
               
               // Crear mensaje
+              final contenido = messageData['contenido'].toString();
+              String tipoMensaje = 'text';
+              Map<String, dynamic>? locationData;
+              
+              // Verificar si es un mensaje de ubicación
+              try {
+                final parsedContent = json.decode(contenido);
+                if (parsedContent is Map<String, dynamic> && parsedContent['type'] == 'location') {
+                  tipoMensaje = 'location';
+                  locationData = {
+                    'latitude': parsedContent['latitude'],
+                    'longitude': parsedContent['longitude'],
+                    'accuracy': parsedContent['accuracy'],
+                    'timestamp': parsedContent['timestamp'],
+                  };
+                }
+              } catch (e) {
+                // No es JSON válido, es un mensaje de texto normal
+              }
+              
               final message = Message(
                 id: messageId,
                 senderRut: messageData['emisor'].toString(),
-                text: messageData['contenido'].toString(),
+                text: tipoMensaje == 'location' ? 'Ubicación compartida' : contenido,
                 timestamp: DateTime.parse(messageData['fecha']),
                 isEdited: messageData['editado'] ?? false,
                 isDeleted: messageData['eliminado'] ?? false,
+                type: tipoMensaje,
+                locationData: locationData,
               );
               
               newMessages.add(message);
@@ -474,6 +592,88 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
     }
   }
 
+  /// Enviar ubicación actual
+  Future<void> _sendLocation() async {
+    // Validar que tenemos el RUT del usuario autenticado
+    if (_rutUsuarioAutenticadoReal == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error: No se pudo identificar el usuario para enviar la ubicación.')),
+      );
+      return;
+    }
+
+    // Mostrar diálogo de carga
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const AlertDialog(
+        content: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 16),
+            Text('Obteniendo ubicación...'),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      // Obtener ubicación actual
+      final locationData = await LocationService.getCurrentLocation();
+      
+      // Cerrar diálogo de carga
+      Navigator.of(context).pop();
+      
+      if (locationData == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se pudo obtener la ubicación. Verifica los permisos.')),
+        );
+        return;
+      }
+
+      // Verificar que el socket esté conectado
+      if (!_socketService.isConnected) {
+        await _socketService.connect();
+        
+        if (!_socketService.isConnected) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Error de conexión. Intenta nuevamente.')),
+          );
+          return;
+        }
+      }
+
+      // Crear mensaje de ubicación
+      final locationMessage = {
+        'type': 'location',
+        'latitude': locationData['latitude'],
+        'longitude': locationData['longitude'],
+        'accuracy': locationData['accuracy'],
+        'timestamp': locationData['timestamp'],
+      };
+
+      // Enviar mensaje de ubicación via WebSocket
+      _socketService.sendMessage(
+        contenido: json.encode(locationMessage),
+        receptorRut: widget.rutAmigo,
+      );
+
+      print('✅ Ubicación enviada: ${locationData['latitude']}, ${locationData['longitude']}');
+      
+    } catch (e) {
+      // Cerrar diálogo si aún está abierto
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+      
+      print('❌ Error enviando ubicación: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al enviar ubicación: $e')),
+      );
+    }
+  }
+
   // Función para buscar mensajes
   Future<void> _searchMessages(String query) async {
     if (_jwtToken == null || query.trim().isEmpty) return;
@@ -522,7 +722,7 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
                     return ListTile(
                       title: Text(json['contenido']),
                       subtitle: Text(
-                        '${json['emisor'] == _rutUsuarioAutenticadoReal ? "Tú" : widget.nombre} - ${DateTime.parse(json['fecha']).day}/${DateTime.parse(json['fecha']).month}/${DateTime.parse(json['fecha']).year}',
+                        '${json['emisor'] == _rutUsuarioAutenticadoReal ? "Tú" : widget.nombre} - ${date_utils.DateUtils.obtenerFechaChile(DateTime.parse(json['fecha']))}',
                       ),
                       dense: true,
                     );
@@ -599,14 +799,14 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF2E8B57),
+        backgroundColor: const Color(0xFF854937),
         title: Row(
           children: [
             CircleAvatar(
               backgroundColor: Colors.white,
               child: Text(
                 widget.nombre.isNotEmpty ? widget.nombre[0] : '?',
-                style: const TextStyle(color: Color(0xFF2E8B57)),
+                style: const TextStyle(color: Color(0xFF854937)),
               ),
             ),
             const SizedBox(width: 8),
@@ -624,9 +824,10 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
                   ),
                   Text(
                     _isConnected ? 'En línea' : 'Desconectado',
-                    style: const TextStyle(
-                      color: Colors.white70,
+                    style: TextStyle(
+                      color: _isConnected ? Colors.white70 : Colors.white70,
                       fontSize: 12,
+                      fontWeight: _isConnected ? FontWeight.w500 : FontWeight.normal,
                     ),
                   ),
                 ],
@@ -635,6 +836,24 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
           ],
         ),
         actions: [
+          // Botón de prueba de notificaciones
+          IconButton(
+            icon: const Icon(Icons.notifications_active, color: Colors.amber),
+            onPressed: () async {
+              print('[CHAT] 🧪 PRUEBA DE NOTIFICACIÓN INICIADA');
+              WebSocketNotificationService.showLocalNotification(
+                title: '🧪 Usuario de Prueba',
+                body: 'Esta es una notificación de prueba del chat individual',
+                payload: 'test_chat_individual',
+              );
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Notificación de prueba enviada usando el servicio existente'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.search, color: Colors.white),
             onPressed: () {
@@ -670,6 +889,28 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
               );
             },
           ),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert, color: Colors.white),
+            onSelected: (String value) {
+              switch (value) {
+                case 'reportar':
+                  _mostrarDialogoReporte();
+                  break;
+              }
+            },
+            itemBuilder: (BuildContext context) => [
+              PopupMenuItem<String>(
+                value: 'reportar',
+                child: Row(
+                  children: [
+                    Icon(Icons.report, color: Colors.red),
+                    SizedBox(width: 8),
+                    Text('Reportar usuario'),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ],
       ),
       body: Column(
@@ -682,7 +923,25 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
               itemBuilder: (context, index) {
                 final message = _messages[index];
                 final isMe = message.senderRut == _rutUsuarioAutenticadoReal;
-                
+
+                // Si es un mensaje de ubicación, usar el widget especializado
+                if (message.type == 'location' && message.locationData != null) {
+                  return LocationMessageWidget(
+                    latitude: message.locationData!['latitude'],
+                    longitude: message.locationData!['longitude'],
+                    senderName: isMe ? 'Tú' : widget.nombre,
+                    timestamp: message.timestamp,
+                    isOwnMessage: isMe,
+                  );
+                }
+
+                // Mensaje de texto normal
+                final cafeClaro = const Color(0xFFD7BFAE); // Café claro para mensaje propio
+                final cafeOscuro = const Color(0xFF854937); // Café oscuro para globo 'Tú'
+                final colorMensaje = isMe ? cafeClaro : Colors.grey[300];
+                final colorTextoMensaje = isMe ? Colors.black : Colors.black;
+                final colorHora = isMe ? Colors.black54 : Colors.black54;
+
                 return Container(
                   margin: const EdgeInsets.symmetric(vertical: 4),
                   child: Row(
@@ -691,7 +950,7 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
                       if (!isMe) ...[
                         CircleAvatar(
                           radius: 16,
-                          backgroundColor: const Color(0xFF2E8B57),
+                          backgroundColor: cafeOscuro,
                           child: Text(
                             widget.nombre.isNotEmpty ? widget.nombre[0] : '?',
                             style: const TextStyle(color: Colors.white, fontSize: 12),
@@ -705,7 +964,7 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
                           child: Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: isMe ? const Color(0xFF2E8B57) : Colors.grey[300],
+                              color: colorMensaje,
                               borderRadius: BorderRadius.circular(16),
                             ),
                             child: Column(
@@ -714,7 +973,7 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
                                 Text(
                                   message.isDeleted ? "Mensaje eliminado" : message.text,
                                   style: TextStyle(
-                                    color: isMe ? Colors.white : Colors.black,
+                                    color: colorTextoMensaje,
                                     fontStyle: message.isDeleted ? FontStyle.italic : FontStyle.normal,
                                   ),
                                 ),
@@ -723,9 +982,9 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Text(
-                                      '${message.timestamp.hour.toString().padLeft(2, '0')}:${message.timestamp.minute.toString().padLeft(2, '0')}',
+                                      date_utils.DateUtils.obtenerHoraChile(message.timestamp),
                                       style: TextStyle(
-                                        color: isMe ? Colors.white70 : Colors.black54,
+                                        color: colorHora,
                                         fontSize: 10,
                                       ),
                                     ),
@@ -734,7 +993,7 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
                                       Text(
                                         '(editado)',
                                         style: TextStyle(
-                                          color: isMe ? Colors.white70 : Colors.black54,
+                                          color: colorHora,
                                           fontSize: 10,
                                           fontStyle: FontStyle.italic,
                                         ),
@@ -751,7 +1010,7 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
                         const SizedBox(width: 8),
                         CircleAvatar(
                           radius: 16,
-                          backgroundColor: const Color(0xFF2E8B57),
+                          backgroundColor: cafeOscuro,
                           child: const Text(
                             'Tú',
                             style: TextStyle(color: Colors.white, fontSize: 10),
@@ -779,6 +1038,13 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
             ),
             child: Row(
               children: [
+                // Botón de ubicación
+                IconButton(
+                  onPressed: _sendLocation,
+                  icon: const Icon(Icons.location_on),
+                  color: const Color(0xFF854937),
+                  tooltip: 'Compartir ubicación',
+                ),
                 Expanded(
                   child: TextField(
                     controller: _messageController,
@@ -798,7 +1064,7 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
                 const SizedBox(width: 8),
                 FloatingActionButton(
                   onPressed: _sendMessage,
-                  backgroundColor: const Color(0xFF2E8B57),
+                  backgroundColor: const Color(0xFF854937),
                   mini: true,
                   child: const Icon(Icons.send, color: Colors.white),
                 ),
@@ -812,7 +1078,6 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
 
   void _showMessageOptions(Message message) {
     if (message.isDeleted) return;
-    
     showModalBottomSheet(
       context: context,
       builder: (context) => Container(
@@ -820,6 +1085,14 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            ListTile(
+              leading: const Icon(Icons.copy),
+              title: const Text('Copiar'),
+              onTap: () {
+                Navigator.pop(context);
+                _copyMessageToClipboard(message.text);
+              },
+            ),
             ListTile(
               leading: const Icon(Icons.edit),
               title: const Text('Editar mensaje'),
@@ -996,5 +1269,18 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
         );
       }
     });
+  }
+
+  void _mostrarDialogoReporte() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return ReportarUsuarioDialog(
+          usuarioReportado: widget.rutAmigo,
+          nombreUsuario: widget.nombre,
+          tipoReporte: TipoReporte.chatIndividual,
+        );
+      },
+    );
   }
 }

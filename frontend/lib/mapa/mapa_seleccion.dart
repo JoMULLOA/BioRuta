@@ -11,11 +11,13 @@ import '../buscar/barra_busqueda_widget.dart';
 class MapaSeleccionPage extends StatefulWidget {
   final String tituloSeleccion;
   final bool esOrigen;
+  final DireccionSugerida? origenSeleccionado; // Para calcular tiempo cuando es destino
 
   const MapaSeleccionPage({
     super.key,
     required this.tituloSeleccion,
     required this.esOrigen,
+    this.origenSeleccionado, // Opcional: solo se usa cuando esOrigen == false
   });
 
   @override
@@ -122,11 +124,20 @@ class _MapaSeleccionPageState extends State<MapaSeleccionPage> {
       
       String regionActual = _regionActual;
 
-      final sugerenciasRegionales = await BusquedaService.buscarConRegion(query, regionActual);
+      // Pasar información sobre si es origen o destino para el cálculo de tiempo
+      final sugerenciasRegionales = await BusquedaService.buscarConRegion(
+        query, 
+        regionActual, 
+        esOrigen: widget.esOrigen
+      );
       todasLasSugerencias.addAll(sugerenciasRegionales);
 
       if (todasLasSugerencias.length < 5) {
-        final sugerenciasGenerales = await BusquedaService.buscarGeneral(query, 5 - todasLasSugerencias.length);
+        final sugerenciasGenerales = await BusquedaService.buscarGeneral(
+          query, 
+          5 - todasLasSugerencias.length,
+          esOrigen: widget.esOrigen
+        );
         
         for (var sugerencia in sugerenciasGenerales) {
           bool esDuplicado = todasLasSugerencias.any((existente) =>
@@ -139,12 +150,25 @@ class _MapaSeleccionPageState extends State<MapaSeleccionPage> {
         }
       }      if (todasLasSugerencias.isNotEmpty) {
         GeoPoint ubicacionActual = await controller.myLocation();
-        BusquedaService.calcularDistancias(todasLasSugerencias, ubicacionActual);
         
+        // Usar función apropiada según si tenemos origen seleccionado
+        if (widget.origenSeleccionado != null) {
+          BusquedaService.calcularDistanciasConOrigen(
+            todasLasSugerencias, 
+            ubicacionActual,
+            widget.origenSeleccionado
+          );
+        } else {
+          BusquedaService.calcularDistancias(todasLasSugerencias, ubicacionActual);
+        }
+        
+        // Separar por tipo y ordenar por relevancia
         final regionales = todasLasSugerencias.where((s) => s.esRegional).toList()
-          ..sort((a, b) => a.distancia.compareTo(b.distancia));
+          ..sort((a, b) => a.displayName.compareTo(b.displayName)); // Orden alfabético
         
-        final generales = todasLasSugerencias.where((s) => !s.esRegional).toList();
+        final generales = todasLasSugerencias.where((s) => !s.esRegional).toList()
+          ..sort((a, b) => a.displayName.compareTo(b.displayName)); // Orden alfabético
+        
         final sugerenciasFinales = [...regionales, ...generales];
         
         if (mounted) {
@@ -183,7 +207,7 @@ class _MapaSeleccionPageState extends State<MapaSeleccionPage> {
         markerIcon: MarkerIcon(
           icon: Icon(
             widget.esOrigen ? Icons.my_location : Icons.place,
-            color: widget.esOrigen ? const Color(0xFF2E7D32) : Colors.orange,
+            color: widget.esOrigen ? const Color(0xFF8D4F3A) : const Color(0xFFEDCAB6),
             size: 56,
           ),
         ),
@@ -229,7 +253,7 @@ class _MapaSeleccionPageState extends State<MapaSeleccionPage> {
             ),
           ],
         ),
-        backgroundColor: const Color(0xFF2E7D32),
+        backgroundColor: const Color(0xFF8D4F3A),
         foregroundColor: Colors.white,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -284,7 +308,7 @@ class _MapaSeleccionPageState extends State<MapaSeleccionPage> {
               heroTag: 'centrar',
               onPressed: _centrarEnMiUbicacion,
               tooltip: 'Centrar en mi ubicación',
-              backgroundColor: const Color(0xFF2E7D32),
+              backgroundColor: const Color(0xFF8D4F3A),
               foregroundColor: Colors.white,
               child: const Icon(Icons.my_location),
             ),
@@ -298,7 +322,7 @@ class _MapaSeleccionPageState extends State<MapaSeleccionPage> {
               child: Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF2E7D32),
+                  color: const Color(0xFF8D4F3A),
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
@@ -329,8 +353,8 @@ class _MapaSeleccionPageState extends State<MapaSeleccionPage> {
                       child: ElevatedButton(
                         onPressed: _confirmarSeleccion,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          foregroundColor: const Color(0xFF2E7D32),
+                          backgroundColor: const Color(0xFFEDCAB6),
+                          foregroundColor: const Color(0xFF8D4F3A),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
                           ),

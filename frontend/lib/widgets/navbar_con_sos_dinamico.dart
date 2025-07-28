@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../navbar_widget.dart';
 import '../services/viaje_service.dart';
+import '../services/emergencia_service.dart';
 
 class NavbarConSOSDinamico extends StatefulWidget {
   final int currentIndex;
@@ -76,9 +77,9 @@ class _NavbarConSOSDinamicoState extends State<NavbarConSOSDinamico> {
     // Si SOS está visible y el índice es mayor o igual a 3 (SOS), 
     // ajustar el índice para la navegación
     if (_mostrarSOS && index >= 3) {
-      // Si toca SOS (índice 3), manejar acción SOS
+      // Si toca SOS (índice 3), navegar a pantalla SOS
       if (index == 3) {
-        _manejarSOS();
+        _navegarASOS();
         return widget.currentIndex; // No cambiar de pantalla
       }
       // Si toca Chat, Ranking o Perfil, decrementar índice
@@ -87,12 +88,58 @@ class _NavbarConSOSDinamicoState extends State<NavbarConSOSDinamico> {
     return index;
   }
 
-  void _manejarSOS() {
-    // Solo navegar a SOS si no estamos ya en SOS
-    final currentRoute = ModalRoute.of(context)?.settings.name;
-    if (currentRoute != '/sos') {
-      Navigator.pushNamed(context, '/sos');
+  void _navegarASOS() async {
+    // Obtener información del viaje activo para enviar en el SOS
+    Map<String, dynamic>? infoViaje;
+    try {
+      debugPrint('🔍 Verificando viajes para navegación a SOS...');
+      final tieneViajes = await ViajeService.tieneViajesActivos();
+      debugPrint('📊 Tiene viajes activos: $tieneViajes');
+      
+      if (tieneViajes) {
+        // Obtener detalles del viaje activo
+        debugPrint('🔄 Obteniendo detalles del viaje activo...');
+        infoViaje = await ViajeService.obtenerDetallesViajeActivo();
+        debugPrint('📋 Info viaje obtenida: $infoViaje');
+      } else {
+        debugPrint('⚠️ No hay viajes activos para obtener detalles');
+      }
+    } catch (e) {
+      debugPrint('💥 Error al obtener info del viaje para navegación SOS: $e');
     }
+    
+    debugPrint('🚀 Navegando a SOS con info: $infoViaje');
+    Navigator.pushNamed(context, '/sos', arguments: {
+      'infoViaje': infoViaje,
+    });
+  }
+
+  void _manejarSOS() async {
+    // Obtener información del viaje activo para enviar en el SOS
+    Map<String, dynamic>? infoViaje;
+    try {
+      debugPrint('🔍 Verificando viajes para SOS...');
+      final tieneViajes = await ViajeService.tieneViajesActivos();
+      debugPrint('📊 Tiene viajes activos: $tieneViajes');
+      
+      if (tieneViajes) {
+        // Obtener detalles del viaje activo
+        debugPrint('🔄 Obteniendo detalles del viaje activo...');
+        infoViaje = await ViajeService.obtenerDetallesViajeActivo();
+        debugPrint('📋 Info viaje obtenida: $infoViaje');
+      } else {
+        debugPrint('⚠️ No hay viajes activos para obtener detalles');
+      }
+    } catch (e) {
+      debugPrint('💥 Error al obtener info del viaje para SOS: $e');
+    }
+    
+    debugPrint('� Activando emergencia desde navbar dinámico...');
+    // Activar emergencia directamente desde aquí con la información del viaje
+    await EmergenciaService.mostrarDialogoEmergenciaGlobal(
+      context, 
+      infoViaje: infoViaje
+    );
   }
 
   // Método público para forzar actualización desde fuera
@@ -129,6 +176,7 @@ class _NavbarConSOSDinamicoState extends State<NavbarConSOSDinamico> {
         widget.onTap(indiceAjustado);
       },
       showSOS: _mostrarSOS,
+      onSOSLongPress: _manejarSOS, // Usar el método local que incluye info del viaje
     );
   }
 }

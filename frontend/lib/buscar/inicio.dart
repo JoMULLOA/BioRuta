@@ -77,12 +77,25 @@ class _InicioScreenState extends State<InicioScreen> {
     }
   }
 
-  Future<void> _abrirMapaParaSeleccion(bool esOrigen) async {    final result = await Navigator.push(
+  Future<void> _abrirMapaParaSeleccion(bool esOrigen) async {
+    // Si es destino y ya tenemos origen, pasar esa información
+    DireccionSugerida? origenSeleccionado;
+    if (!esOrigen && direccionOrigen != null && origenLat != null && origenLng != null) {
+      origenSeleccionado = DireccionSugerida(
+        displayName: direccionOrigen!,
+        lat: origenLat!,
+        lon: origenLng!,
+        esOrigen: true,
+      );
+    }
+    
+    final result = await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => MapaSeleccionPage(
           tituloSeleccion: esOrigen ? "Seleccionar Origen" : "Seleccionar Destino",
           esOrigen: esOrigen,
+          origenSeleccionado: origenSeleccionado,
         ),
       ),
     );    if (result != null && result is DireccionSugerida) {

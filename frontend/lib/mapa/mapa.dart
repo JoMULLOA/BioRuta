@@ -1,17 +1,25 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // Para vibración
 import 'package:flutter_osm_plugin/flutter_osm_plugin.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../widgets/navbar_con_sos_dinamico.dart';
+import '../widgets/radar_animation_widget.dart';
+import '../widgets/metodo_pago_modal.dart';
+import '../widgets/animacion_viaje_aceptado.dart';
+import '../widgets/conflicto_temporal_widgets.dart';
+import '../services/notificacion_service.dart';
 import '../models/direccion_sugerida.dart';
 import '../models/marcador_viaje_model.dart';
 import '../services/ubicacion_service.dart';
 import '../services/busqueda_service.dart';
 import '../services/viaje_service.dart';
 import '../services/ruta_service.dart';
+import '../services/user_service.dart'; // Importar UserService
+import '../services/viaje_state_monitor.dart'; // Importar monitor de estados
 import 'mapa_widget.dart';
-import '../buscar/barra_busqueda_widget.dart';
+import 'mapa_ui_components_v2.dart'; // Importar componentes de UI
 import 'mapa_seleccion.dart';
 import '../buscar/resultados_busqueda.dart';
 
@@ -27,9 +35,8 @@ class _MapPageState extends State<MapPage> {
   late MapController controller;
   final TextEditingController destinoController = TextEditingController();
   int _selectedIndex = 1; // Mapa está en índice 1 cuando showSOS = true
-  List<DireccionSugerida> _sugerencias = [];
-  bool _mostrandoSugerencias = false;
   Timer? _debounceTimer;
+  Timer? _radarTimer; // Timer para controlar el radar
   String _regionActual = "Desconocida";
   
   // Variables para los marcadores de viajes
@@ -50,12 +57,27 @@ class _MapPageState extends State<MapPage> {
   double? destinoLng;
   int pasajeros = 1;
   DateTime? fechaSeleccionada;
+  bool soloMujeres = false; // Nueva variable para la opción "Solo mujeres"
+  bool esUsuarioMujer = false; // Variable para determinar si el usuario es mujer
   
   final TextEditingController _origenController = TextEditingController();
   final TextEditingController _destinoController = TextEditingController();
 
   // Estado de la búsqueda
   bool _mostrandoFormularioBusqueda = false;
+
+  // Variables para funcionalidad de radar
+  bool _radarActivo = false;
+  bool _mostrandoAnimacionRadar = false;
+  GeoPoint? _marcadorRadar;
+  List<Map<String, dynamic>> _viajesEnRadio = [];
+  final double _radioKm = 0.5; // Radio de 500 metros para búsqueda más precisa
+  List<String> _marcadoresViajesIds = []; // Para trackear marcadores añadidos
+  Map<String, String> _marcadorViajeMap = {}; // Mapea ID de marcador con ID de viaje
+
+  // Variables para notificaciones de viaje aceptado
+  Timer? _notificacionTimer;
+  List<String> _notificacionesProcesadas = []; // Para evitar mostrar la misma animación múltiples veces
 
   @override
   void initState() {
@@ -67,8 +89,20 @@ class _MapPageState extends State<MapPage> {
       ),
     );
     
+    // Inicializar valores por defecto para la barra superior
+    _inicializarValoresPorDefecto();
+    
+    // Verificar género del usuario
+    _verificarGeneroUsuario();
+    
     // Registrar callback para recibir notificaciones de cambios de ruta
     RutaService.instance.registrarMapaCallback(_onRutaChanged);
+    
+    // Configurar listener para notificaciones de viaje aceptado
+    _configurarNotificacionesViajeAceptado();
+    
+    // Inicializar monitor de estados de viajes
+    ViajeStateMonitor.instance.iniciarMonitoreo();
     
     _inicializarUbicacion();
     _cargarMarcadoresViajes();
@@ -80,6 +114,378 @@ class _MapPageState extends State<MapPage> {
   }
 
   // ===== MÉTODOS PARA FUNCIONALIDAD DE BÚSQUEDA =====
+
+  /// Configurar notificaciones para mostrar animación cuando se acepta un viaje
+  void _configurarNotificacionesViajeAceptado() {
+    try {
+      // Iniciar polling más frecuente para detectar aceptaciones rápidamente (cada 3 segundos)
+      _notificacionTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
+        _verificarNotificacionesViajeAceptado();
+      });
+      
+      print('🎧 Sistema de notificaciones de viaje aceptado activado (polling cada 3s)');
+    } catch (e) {
+      print('Error configurando notificaciones de viaje aceptado: $e');
+    }
+  }
+
+  /// Verificar si hay nuevas notificaciones de viaje aceptado
+  Future<void> _verificarNotificacionesViajeAceptado() async {
+    if (!mounted) return;
+    
+    try {
+      final resultado = await NotificacionService.obtenerNotificacionesPendientes();
+      
+      if (resultado['success'] == true) {
+        final notificaciones = resultado['data'] as List;
+        
+        for (final notificacion in notificaciones) {
+          // Buscar notificaciones específicas de ride_accepted con flag de animación
+          if (notificacion['tipo'] == 'ride_accepted' && 
+              notificacion['datos']?['mostrarAnimacion'] == true) {
+            
+            final notifId = notificacion['_id'].toString();
+            
+            // Verificar que no hayamos procesado esta notificación antes
+            if (!_notificacionesProcesadas.contains(notifId)) {
+              _notificacionesProcesadas.add(notifId);
+              
+              print('🎉 ¡Viaje aceptado detectado! Mostrando animación...');
+              
+              // Mostrar la animación
+              _mostrarAnimacionViajeAceptado();
+              
+              // Marcar como leída para que no se muestre de nuevo
+              await NotificacionService.marcarComoLeida(notifId);
+              
+              print('✅ Animación de viaje aceptado mostrada para notificación: $notifId');
+              
+              // Mostrar también un SnackBar informativo
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('🚗 ${notificacion['mensaje'] ?? 'Tu viaje fue aceptado'}'),
+                    backgroundColor: Colors.green,
+                    duration: const Duration(seconds: 4),
+                    action: SnackBarAction(
+                      label: 'Ver',
+                      textColor: Colors.white,
+                      onPressed: () {
+                        // Aquí se puede navegar a la pantalla de viaje o detalles
+                      },
+                    ),
+                  ),
+                );
+              }
+            }
+          }
+        }
+      }
+    } catch (e) {
+      print('Error verificando notificaciones de viaje aceptado: $e');
+    }
+  }
+
+  /// Mostrar la animación de viaje aceptado
+  void _mostrarAnimacionViajeAceptado() {
+    if (!mounted) return;
+    
+    RideAcceptedHelper.show(
+      context,
+      onComplete: () {
+        print('🎉 Animación de viaje aceptado completada');
+      },
+    );
+  }
+
+  /// Inicializar valores por defecto para la barra superior
+  void _inicializarValoresPorDefecto() {
+    // Establecer fecha de hoy por defecto
+    fechaSeleccionada = DateTime.now();
+    // pasajeros ya está inicializado en 1 por defecto
+    // direccionOrigen se establecerá cuando se obtenga la región actual
+  }
+
+  /// Verificar si el usuario actual es mujer
+  Future<bool> _esUsuarioMujer() async {
+    try {
+      final perfilUsuario = await UserService.obtenerPerfilUsuario();
+      if (perfilUsuario != null && perfilUsuario['genero'] != null) {
+        return perfilUsuario['genero'].toString().toLowerCase() == 'femenino';
+      }
+      return false; // Por defecto false si no se puede obtener el género
+    } catch (e) {
+      print('Error al verificar género del usuario: $e');
+      return false; // Por defecto false en caso de error
+    }
+  }
+
+  /// Verificar el género del usuario para mostrar opciones específicas
+  void _verificarGeneroUsuario() async {
+    try {
+      final esMujer = await _esUsuarioMujer();
+      if (mounted) {
+        setState(() {
+          esUsuarioMujer = esMujer;
+        });
+      }
+    } catch (e) {
+      print('Error al verificar género del usuario: $e');
+    }
+  }
+
+  /// Abrir modal de búsqueda rápida al tocar la barra superior
+  void _abrirBusquedaAvanzada() {
+    if (!mounted) return; // Verificar que el widget esté montado
+    
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(20),
+              topRight: Radius.circular(20),
+            ),
+          ),
+        child: Padding(
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 20,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Handle bar
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              
+              // Título
+              const Text(
+                '¿A dónde vas?',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF854937),
+                ),
+              ),
+              const SizedBox(height: 20),
+              
+              // Origen (ahora editable)
+              GestureDetector(
+                onTap: () async {
+                  Navigator.pop(context); // Cerrar modal
+                  await _seleccionarOrigen();
+                  if (mounted) _abrirBusquedaAvanzada(); // Reabrir modal con nuevo origen
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: const Color(0xFF854937)),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.my_location, color: Color(0xFF854937)),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          direccionOrigen ?? 'Mi ubicación actual',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: direccionOrigen != null ? Colors.black87 : Colors.grey[600],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              
+              // Destino
+              GestureDetector(
+                onTap: () async {
+                  Navigator.pop(context); // Cerrar modal
+                  await _seleccionarDestino();
+                  if (mounted) _abrirBusquedaAvanzada(); // Reabrir modal con nuevo destino
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: const Color(0xFF854937)),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.location_on, color: Color(0xFF854937)),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          direccionDestino ?? 'Seleccionar destino',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: direccionDestino != null ? Colors.black87 : Colors.grey[600],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              
+              // Fecha y pasajeros en una fila
+              Row(
+                children: [
+                  // Fecha
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () async {
+                        await _seleccionarFecha();
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: const Color(0xFF854937)),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.calendar_today, color: Color(0xFF854937), size: 20),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                fechaSeleccionada != null
+                                    ? "${fechaSeleccionada!.day}/${fechaSeleccionada!.month}"
+                                    : 'Fecha',
+                                style: const TextStyle(fontSize: 14),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  
+                  // Pasajeros
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: const Color(0xFF854937)),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        IconButton(
+                          onPressed: () {
+                            if (pasajeros > 1 && mounted) {
+                              setState(() {
+                                pasajeros--;
+                              });
+                              setModalState(() {}); // Actualizar modal inmediatamente
+                            }
+                          },
+                          icon: const Icon(Icons.remove, color: Color(0xFF854937)),
+                          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                          padding: EdgeInsets.zero,
+                        ),
+                        Text('$pasajeros', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                        IconButton(
+                          onPressed: () {
+                            if (pasajeros < 5 && mounted) {
+                              setState(() {
+                                pasajeros++;
+                              });
+                              setModalState(() {}); // Actualizar modal inmediatamente
+                            }
+                          },
+                          icon: const Icon(Icons.add, color: Color(0xFF854937)),
+                          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                          padding: EdgeInsets.zero,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              
+              // Opción "Solo mujeres" - Solo visible para usuarias mujeres
+              if (esUsuarioMujer) ...[
+                Row(
+                  children: [
+                    Checkbox(
+                      value: soloMujeres,
+                      onChanged: (value) {
+                        setState(() {
+                          soloMujeres = value ?? false;
+                        });
+                        setModalState(() {}); // Actualizar modal inmediatamente
+                      },
+                      activeColor: const Color(0xFF854937),
+                    ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Solo mujeres',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+              ],
+              
+              // Botón de búsqueda (sin "Más opciones")
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    if (mounted) _buscarViajes();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF854937),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    'Buscar viajes',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ), // Fin del Column
+        ), // Fin del Padding
+      ), // Fin del Container
+      ), // Fin del StatefulBuilder
+    ); // Fin del showModalBottomSheet
+  }
   
   void _toggleFormularioBusqueda() {
     setState(() {
@@ -102,7 +508,7 @@ class _MapPageState extends State<MapPage> {
   }
 
   void _incrementarPasajeros() {
-    if (pasajeros < 8 && mounted) { // Verificar mounted
+    if (pasajeros < 5 && mounted) { // Máximo 5 pasajeros
       setState(() {
         pasajeros++;
       });
@@ -125,6 +531,14 @@ class _MapPageState extends State<MapPage> {
       return;
     }
 
+    // Verificar que tengamos las coordenadas necesarias
+    if (origenLat == null || origenLng == null || destinoLat == null || destinoLng == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error: No se pudieron obtener las coordenadas. Intenta seleccionar las ubicaciones nuevamente.')),
+      );
+      return;
+    }
+
     // Formatear la fecha como string
     final fechaFormateada = "${fechaSeleccionada!.year}-${fechaSeleccionada!.month.toString().padLeft(2, '0')}-${fechaSeleccionada!.day.toString().padLeft(2, '0')}";
 
@@ -140,6 +554,7 @@ class _MapPageState extends State<MapPage> {
           pasajeros: pasajeros,
           origenTexto: direccionOrigen!,
           destinoTexto: direccionDestino!,
+          soloMujeres: soloMujeres, // Pasar el parámetro de filtro
         ),
       ),
     );
@@ -152,6 +567,7 @@ class _MapPageState extends State<MapPage> {
         builder: (context) => const MapaSeleccionPage(
           tituloSeleccion: 'Seleccionar origen',
           esOrigen: true,
+          origenSeleccionado: null, // No hay origen previo cuando seleccionamos origen
         ),
       ),
     );
@@ -167,12 +583,24 @@ class _MapPageState extends State<MapPage> {
   }
 
   Future<void> _seleccionarDestino() async {
+    // Si ya tenemos origen, crear DireccionSugerida para pasar al destino
+    DireccionSugerida? origenSeleccionado;
+    if (direccionOrigen != null && origenLat != null && origenLng != null) {
+      origenSeleccionado = DireccionSugerida(
+        displayName: direccionOrigen!,
+        lat: origenLat!,
+        lon: origenLng!,
+        esOrigen: true,
+      );
+    }
+    
     final direccion = await Navigator.push<DireccionSugerida>(
       context,
       MaterialPageRoute(
-        builder: (context) => const MapaSeleccionPage(
+        builder: (context) => MapaSeleccionPage(
           tituloSeleccion: 'Seleccionar destino',
           esOrigen: false,
+          origenSeleccionado: origenSeleccionado,
         ),
       ),
     );
@@ -191,6 +619,11 @@ class _MapPageState extends State<MapPage> {
   void dispose() {
     // Cancelar cualquier operación asíncrona pendiente
     _debounceTimer?.cancel();
+    _radarTimer?.cancel();
+    _notificacionTimer?.cancel(); // Cancelar timer de notificaciones
+    
+    // Detener monitor de estados de viajes
+    ViajeStateMonitor.instance.detenerMonitoreo();
     
     // Limpiar el callback del servicio de ruta
     RutaService.instance.limpiarCallback();
@@ -237,7 +670,11 @@ class _MapPageState extends State<MapPage> {
     final status = await UbicacionService.solicitarPermisos();
     if (status.isGranted) {
       debugPrint("✅ Permiso de ubicación concedido");
-      await _centrarEnMiUbicacionConRegion();
+      // Esperar un poco para que el controlador del mapa esté listo
+      await Future.delayed(const Duration(milliseconds: 500));
+      if (mounted) {
+        await _centrarEnMiUbicacionConRegion();
+      }
     } else if (status.isDenied) {
       if (mounted) {
         UbicacionService.mostrarDialogoPermiso(context,
@@ -257,16 +694,23 @@ class _MapPageState extends State<MapPage> {
       GeoPoint? miPosicion = await controller.myLocation();
 
       String region = await BusquedaService.identificarRegion(miPosicion);
-      double zoomNivel = UbicacionService.obtenerZoomParaRegion(region);
       
       if (mounted) { // Verificar antes de setState
         setState(() {
           _regionActual = region;
+          // Establecer "Mi ubicación actual" como origen por defecto si no se ha seleccionado uno
+          if (direccionOrigen == null) {
+            direccionOrigen = 'Mi ubicación actual';
+            origenLat = miPosicion.latitude;
+            origenLng = miPosicion.longitude;
+            _origenController.text = 'Mi ubicación actual';
+          }
         });
       }
 
       await controller.moveTo(miPosicion);
-      await controller.setZoom(zoomLevel: zoomNivel);
+      // Zoom level 15 para mostrar aproximadamente 1km de radio
+      await controller.setZoom(zoomLevel: 15.0);
       
       debugPrint("📍 Ubicado en: $region (${miPosicion.latitude}, ${miPosicion.longitude})");
       
@@ -280,122 +724,11 @@ class _MapPageState extends State<MapPage> {
       }
     } catch (e) {
       debugPrint("❌ Error al centrar en ubicación: $e");
-    }
-  }
-
-  Future<void> _buscarSugerencias(String query) async {
-    if (query.length < 4) {
-      setState(() {
-        _sugerencias = [];
-        _mostrandoSugerencias = false;
-      });
-      return;
-    }
-
-    _debounceTimer?.cancel();
-    _debounceTimer = Timer(const Duration(milliseconds: 300), () async {
-      await _ejecutarBusqueda(query);
-    });
-  }
-
-  Future<void> _ejecutarBusqueda(String query) async {
-    try {
-      List<DireccionSugerida> todasLasSugerencias = [];
-      
-      GeoPoint? ubicacionActual = await controller.myLocation();
-      String regionActual = _regionActual;
-
-      final sugerenciasRegionales = await BusquedaService.buscarConRegion(query, regionActual);
-      todasLasSugerencias.addAll(sugerenciasRegionales);
-
-      if (todasLasSugerencias.length < 5) {
-        final sugerenciasGenerales = await BusquedaService.buscarGeneral(query, 5 - todasLasSugerencias.length);
-        
-        for (var sugerencia in sugerenciasGenerales) {
-          bool esDuplicado = todasLasSugerencias.any((existente) =>
-            (existente.lat - sugerencia.lat).abs() < 0.001 &&
-            (existente.lon - sugerencia.lon).abs() < 0.001
-          );
-          if (!esDuplicado) {
-            todasLasSugerencias.add(sugerencia);
-          }
-        }
-      }
-
-      if (todasLasSugerencias.isNotEmpty) {
-        BusquedaService.calcularDistancias(todasLasSugerencias, ubicacionActual);
-        
-        final regionales = todasLasSugerencias.where((s) => s.esRegional).toList()
-          ..sort((a, b) => a.distancia.compareTo(b.distancia));
-        
-        final generales = todasLasSugerencias.where((s) => !s.esRegional).toList();
-        final sugerenciasFinales = [...regionales, ...generales];
-        
-        if (mounted) { // Verificar antes de setState
-          setState(() {
-            _sugerencias = sugerenciasFinales.take(5).toList();
-            _mostrandoSugerencias = true;
-          });
-        }
-      }
-    } catch (e) {
-      debugPrint('Error al buscar sugerencias: $e');
-    }
-  }
-
-  Future<void> _buscarYDibujarRuta(String destinoTexto) async {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('🔍 Buscando dirección...'),
-          backgroundColor: Color(0xFF854937),
-        ),
-      );
-    }
-
-    final destinoPunto = await BusquedaService.buscarCoordenadas(destinoTexto);
-    if (destinoPunto == null) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('❌ Dirección no encontrada')),
-        );
-      }
-      return;
-    }
-
-    try {
-      final origen = await controller.myLocation();
-
-      await controller.removeLastRoad();
-      await controller.drawRoad(
-        origen,
-        destinoPunto,
-        roadType: RoadType.car,
-        roadOption: const RoadOption(roadColor: Color(0xFF854937)),
-      );
-      await controller.moveTo(destinoPunto);
-      await controller.addMarker(
-        destinoPunto,
-        markerIcon: const MarkerIcon(
-          icon: Icon(Icons.flag, color: Color(0xFFEDCAB6), size: 56),
-        ),
-      );
-
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('📍 Ruta trazada exitosamente'),
-            backgroundColor: Color(0xFF854937),
-          ),
-        );
-      }
-    } catch (e) {
-      debugPrint("❌ Error al trazar ruta: $e");
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('❌ Ocurrió un error al trazar la ruta'),
-            backgroundColor: Color(0xFF070505),
+            content: Text('Error al obtener la ubicación'),
+            backgroundColor: Colors.red,
           ),
         );
       }
@@ -410,9 +743,15 @@ class _MapPageState extends State<MapPage> {
         _cargandoViajes = true;
       });
 
+      // Agregar timestamp para evitar caché
       final marcadoresObtenidos = await ViajeService.obtenerMarcadoresViajes();
       
       if (!mounted) return; // Verificar nuevamente después de la operación async
+      
+      print('🔢 Marcadores obtenidos: ${marcadoresObtenidos.length}');
+      for (final marcador in marcadoresObtenidos) {
+        print('🔢 Viaje ${marcador.id}: ${marcador.detallesViaje.plazasDisponibles} plazas disponibles');
+      }
       
       setState(() {
         _marcadoresViajes = marcadoresObtenidos;
@@ -455,7 +794,7 @@ class _MapPageState extends State<MapPage> {
             icon: Icon(
               Icons.directions_car,
               color: Color(0xFF854937),
-              size: 48,
+              size: 72,
             ),
           ),
         );
@@ -480,122 +819,348 @@ class _MapPageState extends State<MapPage> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.85,
         decoration: const BoxDecoration(
-          color: Color(0xFFF2EEED),
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(20),
-            topRight: Radius.circular(20),
-          ),
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Indicador de arrastre
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(2),
+        child: Column(
+          children: [
+            // Header con degradado
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    const Color(0xFF854937),
+                    const Color(0xFF6B3B2D),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+              ),
+              child: Column(
+                children: [
+                  // Indicador para arrastrar
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.5),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
+                  const SizedBox(height: 16),
+                  
+                  // Título y precio
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'Viaje Disponible',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          '\$${marcador.detallesViaje.precio.toStringAsFixed(0)}',
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  
+                  const SizedBox(height: 12),
+                  
+                  // Ruta principal
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        // Origen
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Origen',
+                                style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                marcador.origen.nombre,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                        // Flecha
+                        Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 12),
+                          child: const Icon(
+                            Icons.arrow_forward,
+                            color: Colors.white,
+                            size: 24,
+                          ),
+                        ),
+                        // Destino
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              const Text(
+                                'Destino',
+                                style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                marcador.destino.nombre,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                textAlign: TextAlign.right,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            
+            // Contenido principal
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Información del conductor
+                    if (marcador.detallesViaje.conductor != null) ...[
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF2EEED),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 50,
+                              height: 50,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF854937),
+                                borderRadius: BorderRadius.circular(25),
+                              ),
+                              child: const Icon(
+                                Icons.person,
+                                color: Colors.white,
+                                size: 28,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Conductor',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    marcador.detallesViaje.conductor!.nombre,
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFF6B3B2D),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                    
+                    // Información del viaje en tarjetas
+                    const Text(
+                      'Detalles del Viaje',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF6B3B2D),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    
+                    _buildDetailCard(
+                      icon: Icons.calendar_today,
+                      title: 'Fecha',
+                      value: '${marcador.detallesViaje.fecha.day}/${marcador.detallesViaje.fecha.month}/${marcador.detallesViaje.fecha.year}',
+                      color: Colors.blue,
+                    ),
+                    
+                    _buildDetailCard(
+                      icon: Icons.access_time,
+                      title: 'Hora',
+                      value: marcador.detallesViaje.hora,
+                      color: Colors.orange,
+                    ),
+                    
+                    _buildDetailCard(
+                      icon: Icons.airline_seat_recline_normal,
+                      title: 'Plazas disponibles',
+                      value: '${marcador.detallesViaje.plazasDisponibles} asientos',
+                      color: Colors.green,
+                    ),
+                    
+                    if (marcador.detallesViaje.vehiculo != null)
+                      _buildDetailCard(
+                        icon: Icons.directions_car,
+                        title: 'Vehículo',
+                        value: '${marcador.detallesViaje.vehiculo!.modelo} (${marcador.detallesViaje.vehiculo!.color})',
+                        color: const Color(0xFF854937),
+                      ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 20),
-              
-              // Título del viaje
-              Text(
-                'Viaje Disponible',
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF854937),
-                ),
+            ),
+            
+            // Botón de acción
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
               ),
-              const SizedBox(height: 16),
-              
-              // Información del conductor
-              if (marcador.detallesViaje.conductor != null)
-                _buildInfoRow(Icons.person, 'Conductor', marcador.detallesViaje.conductor!.nombre),
-              
-              // Origen y destino
-              _buildInfoRow(Icons.location_on, 'Origen', marcador.origen.nombre),
-              _buildInfoRow(Icons.flag, 'Destino', marcador.destino.nombre),
-              
-              // Fecha y hora
-              _buildInfoRow(Icons.calendar_today, 'Fecha', 
-                '${marcador.detallesViaje.fecha.day}/${marcador.detallesViaje.fecha.month}/${marcador.detallesViaje.fecha.year}'),
-              _buildInfoRow(Icons.access_time, 'Hora', marcador.detallesViaje.hora),
-              
-              // Plazas disponibles
-              _buildInfoRow(Icons.airline_seat_recline_normal, 'Plazas disponibles', 
-                '${marcador.detallesViaje.plazasDisponibles}'),
-              
-              // Precio
-              _buildInfoRow(Icons.attach_money, 'Precio', '\$${marcador.detallesViaje.precio.toStringAsFixed(0)}'),
-              
-              // Vehículo
-              if (marcador.detallesViaje.vehiculo != null)
-                _buildInfoRow(Icons.directions_car, 'Vehículo', 
-                  '${marcador.detallesViaje.vehiculo!.modelo} (${marcador.detallesViaje.vehiculo!.color})'),
-              
-              const SizedBox(height: 20),
-              
-              // Botón para unirse al viaje
-              SizedBox(
+              child: SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () => _unirseAlViaje(marcador),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF854937),
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(12),
                     ),
+                    elevation: 2,
                   ),
                   child: const Text(
                     'Unirse al Viaje',
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: 18,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
               ),
-              
-              const SizedBox(height: 20),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildInfoRow(IconData icon, String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+  Widget _buildDetailCard({
+    required IconData icon,
+    required String title,
+    required String value,
+    required Color color,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       child: Row(
         children: [
-          Icon(icon, size: 20, color: const Color(0xFF854937)),
-          const SizedBox(width: 12),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              icon,
+              color: color,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 16),
           Expanded(
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '$label: ',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF854937),
+                  title,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
-                Expanded(
-                  child: Text(
-                    value,
-                    style: const TextStyle(color: Color(0xFF070505)),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF6B3B2D),
                   ),
                 ),
               ],
@@ -611,34 +1176,97 @@ class _MapPageState extends State<MapPage> {
       // Cerrar el modal
       Navigator.pop(context);
       
+      // Mostrar modal de selección de método de pago
+      final metodoPagoResult = await showModalBottomSheet<Map<String, dynamic>>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (context) => MetodoPagoModal(
+          precio: marcador.detallesViaje.precio,
+          viajeOrigen: marcador.origen.nombre,
+          viajeDestino: marcador.destino.nombre,
+          onPagoSeleccionado: (metodoPago, datosAdicionales, mensaje) {
+            Navigator.pop(context, {
+              'metodoPago': metodoPago,
+              'datosAdicionales': datosAdicionales,
+              'mensaje': mensaje,
+            });
+          },
+        ),
+      );
+
+      if (metodoPagoResult == null) {
+        // Usuario canceló la selección de pago
+        return;
+      }
+
       // Mostrar indicador de carga
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Enviando solicitud...'),
+            content: Text('Enviando solicitud con información de pago...'),
             backgroundColor: Color(0xFF854937),
           ),
         );
       }
 
-      final resultado = await ViajeService.unirseAViaje(marcador.id);
+      // Enviar solicitud con información de pago
+      final resultado = await ViajeService.unirseAViajeConPago(
+        marcador.id,
+        metodoPagoResult['metodoPago'],
+        metodoPagoResult['datosAdicionales'],
+        mensaje: metodoPagoResult['mensaje'],
+      );
 
       if (mounted) {
-        // Mensaje específico para el nuevo flujo de notificaciones
+        // Mensaje específico para el nuevo flujo de notificaciones con pago
         String mensaje = resultado['message'] ?? 'Solicitud enviada';
-        if (resultado['success'] == true) {
-          mensaje = 'Solicitud enviada al conductor. Espera su respuesta en tus notificaciones.';
-        }
         
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(mensaje),
-            backgroundColor: resultado['success'] == true 
-                ? const Color(0xFF854937) 
-                : Colors.red,
-            duration: const Duration(seconds: 4), // Más tiempo para leer el mensaje
-          ),
-        );
+        if (resultado['success'] == true) {
+          mensaje = 'Solicitud enviada al conductor con información de pago. Espera su respuesta en tus notificaciones.';
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(mensaje),
+              backgroundColor: const Color(0xFF854937),
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        } else {
+          // Verificar si es un conflicto temporal
+          final tipoConflicto = _detectarTipoConflicto(mensaje);
+          
+          print('🔥 DEBUG (unirseAlViaje) - Respuesta completa del backend: $resultado');
+          print('🔥 DEBUG (unirseAlViaje) - Mensaje de error recibido: "$mensaje"');
+          
+          if (tipoConflicto != null) {
+            print('✅ DEBUG (unirseAlViaje) - Mostrando dialog de conflicto temporal');
+            // Mostrar dialog mejorado para conflictos temporales
+            showDialog(
+              context: context,
+              builder: (context) => ConflictoTemporalDialog(
+                tipoConflicto: tipoConflicto,
+                mensaje: mensaje,
+                detallesConflicto: {
+                  'viajeConflicto': marcador.id,
+                  if (resultado.containsKey('tiempoDisponible'))
+                    'tiempoDisponible': resultado['tiempoDisponible'],
+                  if (resultado.containsKey('tiempoNecesario'))
+                    'tiempoNecesario': resultado['tiempoNecesario'],
+                },
+              ),
+            );
+          } else {
+            print('❌ DEBUG (unirseAlViaje) - Mostrando SnackBar normal para error: "$mensaje"');
+            // Mostrar SnackBar normal para otros errores
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(mensaje),
+                backgroundColor: Colors.red,
+                duration: const Duration(seconds: 4),
+              ),
+            );
+          }
+        }
       }
 
       // No recargar marcadores inmediatamente ya que el pasajero no se une directamente
@@ -896,6 +1524,652 @@ class _MapPageState extends State<MapPage> {
     }
   }
 
+  // ===== FUNCIONES PARA RADAR =====
+  
+  /// Activar/Desactivar radar de viajes
+  Future<void> _toggleRadar() async {
+    if (_radarActivo) {
+      // Desactivar radar
+      await _desactivarRadar();
+    } else {
+      // Activar radar
+      await _activarRadar();
+    }
+  }
+
+  /// Activar radar y colocar marcador en ubicación actual del centro del mapa
+  Future<void> _activarRadar() async {
+    try {
+      setState(() {
+        _mostrandoAnimacionRadar = true;
+      });
+
+      // Obtener la posición del centro del mapa (donde está mirando el usuario)
+      final centroDeMapa = await controller.centerMap;
+      debugPrint("🎯 Usando centro del mapa para radar: lat=${centroDeMapa.latitude}, lng=${centroDeMapa.longitude}");
+      
+      // Colocar marcador de radar en el centro del mapa
+      await _colocarMarcadorRadar(centroDeMapa);
+
+      setState(() {
+        _radarActivo = true;
+      });
+
+      // Iniciar búsqueda progresiva de viajes (2 segundos total)
+      await _buscarViajesProgresivamente(centroDeMapa);
+
+      // Finalizar animación y desactivar radar después de 2 segundos
+      _radarTimer = Timer(const Duration(milliseconds: 2000), () {
+        if (mounted) {
+          setState(() {
+            _mostrandoAnimacionRadar = false;
+            _radarActivo = false; // Desactivar automáticamente
+          });
+        }
+      });
+
+    } catch (e) {
+      debugPrint("❌ Error al activar radar: $e");
+      setState(() {
+        _mostrandoAnimacionRadar = false;
+        _radarActivo = false;
+      });
+    }
+  }
+
+  /// Desactivar radar y limpiar marcadores
+  Future<void> _desactivarRadar() async {
+    try {
+      // Cancelar el timer si está activo
+      _radarTimer?.cancel();
+      _radarTimer = null;
+      
+      setState(() {
+        _radarActivo = false;
+        _mostrandoAnimacionRadar = false;
+        _viajesEnRadio = [];
+        _marcadorRadar = null;
+        _marcadoresViajesIds = [];
+        _marcadorViajeMap = {};
+      });
+
+      // Limpiar marcadores del radar del mapa
+      await _limpiarMarcadoresRadar();
+
+    } catch (e) {
+      debugPrint("❌ Error al desactivar radar: $e");
+    }
+  }
+
+  /// Colocar marcador de radar movible en el mapa
+  Future<void> _colocarMarcadorRadar(GeoPoint posicion) async {
+    try {
+      // Remover marcador anterior si existe
+      if (_marcadorRadar != null) {
+        await controller.removeMarker(_marcadorRadar!);
+      }
+
+      // Añadir nuevo marcador de radar
+      await controller.addMarker(
+        posicion,
+        markerIcon: const MarkerIcon(
+          iconWidget: Icon(
+            Icons.radar,
+            color: Colors.red,
+            size: 40,
+          ),
+        ),
+      );
+
+      setState(() {
+        _marcadorRadar = posicion;
+      });
+
+      debugPrint("📍 Marcador de radar colocado en: ${posicion.latitude}, ${posicion.longitude}");
+
+    } catch (e) {
+      debugPrint("❌ Error al colocar marcador de radar: $e");
+    }
+  }
+
+  /// Buscar viajes progresivamente durante 5 segundos
+  Future<void> _buscarViajesProgresivamente(GeoPoint posicion) async {
+    try {
+      debugPrint("🎯 Iniciando búsqueda progresiva de viajes de HOY en radio de ${_radioKm}km");
+
+      // Limpiar marcadores de viajes anteriores
+      await _limpiarMarcadoresViajes();
+
+      setState(() {
+        _viajesEnRadio = [];
+        _marcadoresViajesIds = [];
+      });
+
+      // Buscar viajes más rápido: 2 intervalos de 1 segundo cada uno
+      const int intervalos = 2; // 2 intervalos de 1 segundo = 2 segundos total
+      const duracionIntervalo = Duration(milliseconds: 1000);
+
+      for (int i = 0; i < intervalos; i++) {
+        if (!_radarActivo) break; // Si se desactiva el radar, detener búsqueda
+
+        // Buscar viajes en el backend (automáticamente filtra por hoy)
+        final viajes = await ViajeService.buscarViajesEnRadio(
+          lat: posicion.latitude,
+          lng: posicion.longitude,
+          radio: _radioKm,
+        );
+
+        // Añadir nuevos viajes encontrados sin notificaciones individuales
+        for (final viaje in viajes) {
+          final viajeId = viaje['id']?.toString();
+          if (viajeId != null && !_marcadoresViajesIds.contains(viajeId)) {
+            // Viaje nuevo encontrado, añadir al mapa
+            await _marcarViajeEncontrado(viaje);
+            
+            setState(() {
+              _viajesEnRadio.add(viaje);
+              _marcadoresViajesIds.add(viajeId);
+            });
+          }
+        }
+
+        // Esperar antes del siguiente intervalo
+        await Future.delayed(duracionIntervalo);
+      }
+
+      // Mostrar solo resumen final (sin notificaciones individuales)
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('🎯 Radar completado: ${_viajesEnRadio.length} viajes de hoy en ${_radioKm} km'),
+            duration: const Duration(seconds: 4),
+            backgroundColor: _viajesEnRadio.isNotEmpty ? Colors.green : Colors.orange,
+          ),
+        );
+
+        // Vibrar si se encontraron viajes
+        if (_viajesEnRadio.isNotEmpty) {
+          try {
+            HapticFeedback.heavyImpact(); // Vibración fuerte
+          } catch (e) {
+            debugPrint("⚠️ No se pudo activar vibración: $e");
+          }
+        }
+      }
+
+      debugPrint("✅ Búsqueda progresiva completada: ${_viajesEnRadio.length} viajes de hoy encontrados");
+
+    } catch (e) {
+      debugPrint("❌ Error en búsqueda progresiva: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('❌ Error en la búsqueda de viajes'),
+            duration: Duration(seconds: 3),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  /// Marcar un viaje encontrado inmediatamente en el mapa
+  Future<void> _marcarViajeEncontrado(Map<String, dynamic> viaje) async {
+    try {
+      // Marcador para origen con ícono de vehículo
+      final origenLat = viaje['origen']['lat'];
+      final origenLng = viaje['origen']['lng'];
+      final viajeId = viaje['id']?.toString();
+      
+      if (origenLat != null && origenLng != null && viajeId != null) {
+        final origenPunto = GeoPoint(
+          latitude: origenLat.toDouble(),
+          longitude: origenLng.toDouble(),
+        );
+
+        // Determinar ícono del vehículo basado en el tipo
+        IconData vehiculoIcon = Icons.directions_car;
+        Color vehiculoColor = Colors.blue;
+        
+        final tipoVehiculo = viaje['vehiculo']?['tipo']?.toString().toLowerCase();
+        switch (tipoVehiculo) {
+          case 'suv':
+            vehiculoIcon = Icons.drive_eta;
+            vehiculoColor = Colors.green;
+            break;
+          case 'sedan':
+            vehiculoIcon = Icons.directions_car;
+            vehiculoColor = Colors.blue;
+            break;
+          case 'hatchback':
+            vehiculoIcon = Icons.directions_car_outlined;
+            vehiculoColor = Colors.purple;
+            break;
+          case 'pickup':
+            vehiculoIcon = Icons.local_shipping;
+            vehiculoColor = Colors.orange;
+            break;
+          default:
+            vehiculoIcon = Icons.directions_car;
+            vehiculoColor = Colors.blue;
+        }
+
+        await controller.addMarker(
+          origenPunto,
+          markerIcon: MarkerIcon(
+            iconWidget: GestureDetector(
+              onTap: () => _mostrarDetallesViajeRadar(viaje),
+              child: Container(
+                padding: const EdgeInsets.all(4), // Reducir padding para icono más pequeño
+                decoration: BoxDecoration(
+                  color: vehiculoColor,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.3),
+                      blurRadius: 2,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
+                ),
+                child: Icon(
+                  vehiculoIcon,
+                  color: Colors.white,
+                  size: 24, // Tamaño reducido para marcadores del radar
+                ),
+              ),
+            ),
+          ),
+        );
+
+        // Guardar la relación marcador-viaje
+        _marcadorViajeMap[origenPunto.toString()] = viajeId;
+
+        debugPrint("� Marcador de vehículo clickeable añadido en origen: ${viaje['origen']['nombre']}");
+      }
+
+    } catch (e) {
+      debugPrint("❌ Error al marcar viaje encontrado: $e");
+    }
+  }
+
+  /// Mostrar detalles de viaje encontrado por el radar
+  Future<void> _mostrarDetallesViajeRadar(Map<String, dynamic> viaje) async {
+    if (!mounted) return;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.75,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
+          ),
+        ),
+        child: Column(
+          children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: const BoxDecoration(
+                color: Color(0xFF854937),
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(20),
+                  topRight: Radius.circular(20),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    _getVehicleIcon(viaje['vehiculo']?['tipo']),
+                    color: Colors.white,
+                    size: 28,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Viaje encontrado por radar',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          '${viaje['conductor']?['nombre'] ?? 'Conductor'} - ${viaje['vehiculo']?['modelo'] ?? 'Vehículo'}',
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close, color: Colors.white),
+                  ),
+                ],
+              ),
+            ),
+
+            // Contenido
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Ruta
+                    _buildInfoRowRadar(
+                      Icons.route,
+                      'Ruta',
+                      '${viaje['origen']['nombre']} → ${viaje['destino']['nombre']}',
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Fecha y hora
+                    _buildInfoRowRadar(
+                      Icons.schedule,
+                      'Fecha y hora',
+                      _formatearFecha(viaje['fecha_ida']),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Precio y plazas
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildInfoRowRadar(
+                            Icons.attach_money,
+                            'Precio',
+                            '\$${viaje['precio']}',
+                          ),
+                        ),
+                        Expanded(
+                          child: _buildInfoRowRadar(
+                            Icons.people,
+                            'Plazas',
+                            '${viaje['plazas_disponibles']}/${viaje['max_pasajeros']}',
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Vehículo
+                    _buildInfoRowRadar(
+                      Icons.directions_car,
+                      'Vehículo',
+                      '${viaje['vehiculo']?['modelo'] ?? 'N/A'} ${viaje['vehiculo']?['color'] ?? ''}',
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Flexibilidad
+                    _buildInfoRowRadar(
+                      Icons.access_time,
+                      'Flexibilidad',
+                      viaje['flexibilidad_salida'] ?? 'Puntual',
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Solo mujeres
+                    if (viaje['solo_mujeres'] == true)
+                      _buildInfoRowRadar(
+                        Icons.female,
+                        'Restricción',
+                        'Solo mujeres',
+                      ),
+
+                    // Distancia desde radar
+                    if (viaje['distancia_minima'] != null)
+                      _buildInfoRowRadar(
+                        Icons.radar,
+                        'Distancia',
+                        '${(viaje['distancia_minima'] / 1000).toStringAsFixed(1)} km',
+                      ),
+
+                    const SizedBox(height: 24),
+
+                    // Botón de unirse
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () => _unirseViajeRadar(viaje),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF854937),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text(
+                          'Unirse al viaje',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoRowRadar(IconData icon, String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(
+          icon,
+          color: const Color(0xFF854937),
+          size: 20,
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  IconData _getVehicleIcon(String? tipo) {
+    switch (tipo?.toLowerCase()) {
+      case 'suv':
+        return Icons.drive_eta;
+      case 'sedan':
+        return Icons.directions_car;
+      case 'hatchback':
+        return Icons.directions_car_outlined;
+      case 'pickup':
+        return Icons.drive_eta;
+      default:
+        return Icons.directions_car;
+    }
+  }
+
+  String _formatearFecha(dynamic fecha) {
+    try {
+      if (fecha == null) return 'No especificada';
+      
+      DateTime fechaDateTime;
+      if (fecha is String) {
+        fechaDateTime = DateTime.parse(fecha);
+      } else if (fecha is DateTime) {
+        fechaDateTime = fecha;
+      } else {
+        return 'Fecha inválida';
+      }
+
+      return '${fechaDateTime.day}/${fechaDateTime.month}/${fechaDateTime.year} ${fechaDateTime.hour}:${fechaDateTime.minute.toString().padLeft(2, '0')}';
+    } catch (e) {
+      return 'Fecha inválida';
+    }
+  }
+
+  Future<void> _unirseViajeRadar(Map<String, dynamic> viaje) async {
+    try {
+      Navigator.pop(context); // Cerrar modal
+
+      final resultado = await ViajeService.unirseAViaje(
+        viaje['id'].toString(),
+        pasajeros: 1,
+      );
+
+      if (mounted) {
+        if (resultado['success'] == true) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✅ Solicitud enviada al conductor'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        } else {
+          // Verificar si es un conflicto temporal
+          final message = resultado['message'] ?? 'Error desconocido';
+          
+          print('🔥 DEBUG - Respuesta completa del backend: $resultado');
+          print('🔥 DEBUG - Mensaje de error recibido: "$message"');
+          
+          final tipoConflicto = _detectarTipoConflicto(message);
+          
+          if (tipoConflicto != null) {
+            print('✅ DEBUG - Mostrando dialog de conflicto temporal');
+            // Mostrar dialog mejorado para conflictos temporales
+            showDialog(
+              context: context,
+              builder: (context) => ConflictoTemporalDialog(
+                tipoConflicto: tipoConflicto,
+                mensaje: message,
+                detallesConflicto: {
+                  'viajeConflicto': viaje['id'].toString(),
+                  if (resultado.containsKey('tiempoDisponible'))
+                    'tiempoDisponible': resultado['tiempoDisponible'],
+                  if (resultado.containsKey('tiempoNecesario'))
+                    'tiempoNecesario': resultado['tiempoNecesario'],
+                },
+              ),
+            );
+          } else {
+            print('❌ DEBUG - Mostrando SnackBar normal para error: "$message"');
+            // Mostrar SnackBar normal para otros errores
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('❌ $message'),
+                backgroundColor: Colors.red,
+                duration: const Duration(seconds: 3),
+              ),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Error: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
+  String? _detectarTipoConflicto(String mensaje) {
+    final mensajeLower = mensaje.toLowerCase();
+    
+    print('🔍 DEBUG - Detectando tipo de conflicto para mensaje: "$mensaje"');
+    
+    // Detectar conflicto temporal/solapamiento
+    if (mensajeLower.contains('conflicto temporal') || 
+        mensajeLower.contains('se solapa') ||
+        mensajeLower.contains('solapamiento') ||
+        mensajeLower.contains('viaje existente') ||
+        mensajeLower.contains('nuevo viaje se solapa')) {
+      print('✅ DEBUG - Detectado como: solapamiento_temporal');
+      return 'solapamiento_temporal';
+    }
+    
+    // Detectar conductor unido a viaje
+    if (mensajeLower.contains('no puedes publicar') ||
+        mensajeLower.contains('conductor') && mensajeLower.contains('unido') ||
+        mensajeLower.contains('horario de un viaje') ||
+        mensajeLower.contains('estás unido')) {
+      print('✅ DEBUG - Detectado como: conductor_unido_a_viaje');
+      return 'conductor_unido_a_viaje';
+    }
+    
+    // Detectar tiempo de traslado insuficiente
+    if (mensajeLower.contains('tiempo insuficiente') ||
+        mensajeLower.contains('traslado') ||
+        mensajeLower.contains('no hay tiempo suficiente') ||
+        mensajeLower.contains('tiempo de viaje')) {
+      print('✅ DEBUG - Detectado como: tiempo_traslado_insuficiente');
+      return 'tiempo_traslado_insuficiente';
+    }
+    
+    print('❌ DEBUG - No se detectó tipo de conflicto específico');
+    return null;
+  }
+
+  /// Limpiar marcadores de radar del mapa
+  Future<void> _limpiarMarcadoresRadar() async {
+    try {
+      // Esto requeriría una implementación específica del controlador
+      // Por ahora, solo limpiamos la referencia
+      debugPrint("🧹 Limpiando marcadores de radar");
+    } catch (e) {
+      debugPrint("❌ Error al limpiar marcadores de radar: $e");
+    }
+  }
+
+  /// Limpiar marcadores de viajes del mapa
+  Future<void> _limpiarMarcadoresViajes() async {
+    try {
+      // Esto requeriría una implementación específica del controlador
+      // Por ahora, solo limpiamos las referencias
+      debugPrint("🧹 Limpiando marcadores de viajes");
+    } catch (e) {
+      debugPrint("❌ Error al limpiar marcadores de viajes: $e");
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -911,9 +2185,10 @@ class _MapPageState extends State<MapPage> {
             ),
           ],
         ),
-        backgroundColor: const Color(0xFF854937),
+        backgroundColor:const Color(0xFF8D4F3A),
         foregroundColor: Colors.white,
         actions: [
+          // Botón de refresh
           IconButton(
             onPressed: _cargarMarcadoresViajes,
             icon: _cargandoViajes 
@@ -936,11 +2211,20 @@ class _MapPageState extends State<MapPage> {
             controller: controller,
             onMapTap: _onMapTap,
           ),
+
+          // Barra superior de búsqueda usando MapaUIComponents
+          MapaUIComponents.buildBarraSuperiorUber(
+            regionActual: _regionActual,
+            destinoSeleccionado: direccionDestino,
+            origenSeleccionado: direccionOrigen,
+            onTap: _abrirBusquedaAvanzada,
+            mostrarBotonUber: true,
+          ),
           
           // Indicador de carga de viajes
           if (_cargandoViajes)
             Positioned(
-              top: 80,
+              top: 140, // Movido más abajo para no solapar con la barra superior
               left: 16,
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -972,40 +2256,17 @@ class _MapPageState extends State<MapPage> {
                 ),
               ),
             ),
-          
-          Positioned(
-            top: 12,
-            left: 12,
-            right: 12,
-            child: BarraBusquedaWidget(
-              controller: destinoController,
-              onChanged: _buscarSugerencias,
-              onSearch: () {
-                final destino = destinoController.text.trim();
-                if (destino.isNotEmpty) {
-                  _buscarYDibujarRuta(destino);
-                  setState(() {
-                    _mostrandoSugerencias = false;
-                  });
-                }
-              },
-              onClear: () {
-                setState(() {
-                  destinoController.clear();
-                  _sugerencias = [];
-                  _mostrandoSugerencias = false;
-                });
-              },
-              sugerencias: _sugerencias,
-              mostrandoSugerencias: _mostrandoSugerencias,
-              onSugerenciaTap: (sugerencia) {
-                destinoController.text = sugerencia.displayName;
-                _buscarYDibujarRuta(sugerencia.displayName);
-                setState(() {
-                  _mostrandoSugerencias = false;
-                });
-              },
-            ),          ),
+
+          // Animación de radar
+          if (_mostrandoAnimacionRadar)
+            Center(
+              child: RadarAnimationWidget(
+                isActive: _mostrandoAnimacionRadar,
+                size: 300.0, // Tamaño reducido para 500m
+                color: Colors.red,
+                duration: const Duration(seconds: 1), // Más lento
+              ),
+            ),
 
           // Formulario de búsqueda de viajes
           if (_mostrandoFormularioBusqueda)
@@ -1226,32 +2487,17 @@ class _MapPageState extends State<MapPage> {
                 ),
               ),
             ),
-        ],
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-      floatingActionButton: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Botón de búsqueda de viajes
-          FloatingActionButton(
-            heroTag: "searchTrips",
-            onPressed: _toggleFormularioBusqueda,
-            tooltip: 'Buscar viajes',
-            backgroundColor: const Color(0xFF854937),
-            foregroundColor: Colors.white,
-            child: const Icon(Icons.search),
+
+          // Botón de radar usando MapaUIComponents
+          MapaUIComponents.buildBotonRadar(
+            radarActivo: _radarActivo,
+            onPressed: _toggleRadar,
           ),
-          const SizedBox(height: 12),
           
-          FloatingActionButton(
-            heroTag: "centerLocation",
+          // Botón de ubicación actual usando MapaUIComponents
+          MapaUIComponents.buildBotonUbicacionActual(
             onPressed: _centrarEnMiUbicacionConRegion,
-            tooltip: 'Centrar en mi ubicación',
-            backgroundColor: const Color(0xFF854937),
-            foregroundColor: Colors.white,
-            child: const Icon(Icons.my_location),
           ),
-          const SizedBox(height: 12),
         ],
       ),
       bottomNavigationBar: NavbarConSOSDinamico(

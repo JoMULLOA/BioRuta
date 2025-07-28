@@ -3,6 +3,7 @@ class DireccionSugerida {
   final double lat;
   final double lon;
   double distancia;
+  int tiempoEstimado; // Tiempo estimado en minutos
   bool esRegional;
   bool? esOrigen; // true si es origen, false si es destino, null si no se especifica
 
@@ -11,6 +12,7 @@ class DireccionSugerida {
     required this.lat,
     required this.lon,
     this.distancia = 0.0,
+    this.tiempoEstimado = 0,
     this.esRegional = false,
     this.esOrigen,
   });
