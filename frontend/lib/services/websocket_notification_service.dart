@@ -208,6 +208,18 @@ class WebSocketNotificationService {
         _handleFriendRejectedNotification(data);
       });
       
+      // Escuchar notificaciones de chat individual
+      _socket!.on('chat_individual', (data) {
+        print('💬 chat_individual recibida: $data');
+        _handleChatIndividualNotification(data);
+      });
+      
+      // Escuchar notificaciones de chat grupal
+      _socket!.on('chat_grupal', (data) {
+        print('👥 chat_grupal recibida: $data');
+        _handleChatGrupalNotification(data);
+      });
+      
       // DESHABILITADO: nueva_notificacion - Solo usamos eventos específicos para evitar duplicados
       // Los eventos específicos (solicitud_amistad, amistad_aceptada, etc.) manejan todas las notificaciones
       /*
@@ -673,6 +685,12 @@ class WebSocketNotificationService {
             case 'amistad_rechazada':
               _navigateToFriends();
               break;
+            case 'chat_individual':
+              _navigateToChatIndividual(data);
+              break;
+            case 'chat_grupal':
+              _navigateToChatGrupal(data);
+              break;
             default:
               _navigateToNotifications();
               break;
@@ -696,11 +714,121 @@ class WebSocketNotificationService {
     NavigationService.navigateToFriends();
   }
   
+  /// Navegar al chat individual
+  static void _navigateToChatIndividual(Map<String, dynamic> data) {
+    try {
+      print('🔄 Navegando a chat individual...');
+      // final rutEmisor = data['rutEmisor'] ?? '';
+      // final nombreEmisor = data['nombreEmisor'] ?? 'Usuario';
+      
+      // TODO: Implementar navegación al chat individual
+      // NavigationService.navigateToChatIndividual(rutEmisor, nombreEmisor);
+      
+      // Por ahora, navegar a notificaciones como fallback
+      _navigateToNotifications();
+    } catch (e) {
+      print('❌ Error navegando a chat individual: $e');
+      _navigateToNotifications();
+    }
+  }
+  
+  /// Navegar al chat grupal
+  static void _navigateToChatGrupal(Map<String, dynamic> data) {
+    try {
+      print('🔄 Navegando a chat grupal...');
+      // final grupoId = data['grupoId'] ?? '';
+      // final nombreGrupo = data['nombreGrupo'] ?? 'Chat Grupal';
+      
+      // TODO: Implementar navegación al chat grupal
+      // NavigationService.navigateToChatGrupal(grupoId, nombreGrupo);
+      
+      // Por ahora, navegar a notificaciones como fallback
+      _navigateToNotifications();
+    } catch (e) {
+      print('❌ Error navegando a chat grupal: $e');
+      _navigateToNotifications();
+    }
+  }
+  
   /// Verificar si el servicio está conectado
   static bool get isConnected => _socket?.connected ?? false;
   
   /// Obtener el RUT del usuario actual
   static String? get currentUserRut => _currentUserRut;
+  
+  /// Manejar notificación de chat individual
+  static void _handleChatIndividualNotification(dynamic data) {
+    try {
+      print('💬 Procesando notificación de chat individual: $data');
+      
+      // Verificar duplicados antes de procesar
+      final notificationId = _generateNotificationId(data);
+      if (_isNotificationProcessed(notificationId)) {
+        return; // Notificación duplicada, no procesar
+      }
+      
+      final notification = data is String ? json.decode(data) : data;
+      
+      final nombreEmisor = notification['nombreEmisor'] ?? 'Usuario';
+      final mensaje = notification['mensaje'] ?? '';
+      final rutEmisor = notification['rutEmisor'] ?? '';
+      final chatId = notification['chatId'] ?? '';
+      
+      // Mostrar notificación con el mensaje
+      _showLocalNotification(
+        title: '💬 $nombreEmisor',
+        body: mensaje.length > 50 ? '${mensaje.substring(0, 50)}...' : mensaje,
+        payload: json.encode({
+          'tipo': 'chat_individual',
+          'rutEmisor': rutEmisor,
+          'nombreEmisor': nombreEmisor,
+          'chatId': chatId,
+        }),
+      );
+      
+      print('✅ Notificación de chat individual procesada correctamente');
+    } catch (e) {
+      print('❌ Error procesando notificación de chat individual: $e');
+    }
+  }
+  
+  /// Manejar notificación de chat grupal
+  static void _handleChatGrupalNotification(dynamic data) {
+    try {
+      print('👥 Procesando notificación de chat grupal: $data');
+      
+      // Verificar duplicados antes de procesar
+      final notificationId = _generateNotificationId(data);
+      if (_isNotificationProcessed(notificationId)) {
+        return; // Notificación duplicada, no procesar
+      }
+      
+      final notification = data is String ? json.decode(data) : data;
+      
+      final nombreEmisor = notification['nombreEmisor'] ?? 'Usuario';
+      final mensaje = notification['mensaje'] ?? '';
+      final rutEmisor = notification['rutEmisor'] ?? '';
+      final grupoId = notification['grupoId'] ?? '';
+      final nombreGrupo = notification['nombreGrupo'] ?? 'Chat Grupal';
+      
+      // Mostrar notificación con el mensaje grupal
+      _showLocalNotification(
+        title: '👥 $nombreGrupo',
+        body: '$nombreEmisor: ${mensaje.length > 50 ? '${mensaje.substring(0, 50)}...' : mensaje}',
+        payload: json.encode({
+          'tipo': 'chat_grupal',
+          'rutEmisor': rutEmisor,
+          'nombreEmisor': nombreEmisor,
+          'grupoId': grupoId,
+          'nombreGrupo': nombreGrupo,
+        }),
+      );
+      
+      print('✅ Notificación de chat grupal procesada correctamente');
+    } catch (e) {
+      print('❌ Error procesando notificación de chat grupal: $e');
+    }
+  }
   
   /// Función de prueba para verificar notificaciones
   static Future<void> testNotification() async {
