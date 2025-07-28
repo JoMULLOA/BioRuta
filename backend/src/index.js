@@ -64,7 +64,8 @@ async function setupServer() {
     // Inicialización de Passport para autenticación
     app.use(passport.initialize());
     app.use(passport.session());
-    passportJwtSetup();    // Registro de rutas
+    
+    // Registro de rutas
     app.use("/api", indexRoutes);
     app.use("/api/users", userRoutes); // Rutas de usuarios, que incluye /api/users/garzones
     app.use("/api/chat", chatRoutes); // Rutas de chat
@@ -97,6 +98,10 @@ async function setupAPI() {
   try {
     await connectDB();            // Postgres 
     await connectMongoDB();      // Mongo Atlas
+    
+    // Configurar Passport después de que la base de datos esté conectada
+    passportJwtSetup();
+    
     await setupServer();
     await createInitialData();
   } catch (error) {
