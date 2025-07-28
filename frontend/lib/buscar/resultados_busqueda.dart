@@ -64,9 +64,13 @@ class _ResultadosBusquedaScreenState extends State<ResultadosBusquedaScreen> {
       // Debug: Verificar datos del conductor
       for (int i = 0; i < viajes.length; i++) {
         print('🚗 Viaje ${i + 1}:');
+        print('  - ID: "${viajes[i].id}"');
+        print('  - ID length: ${viajes[i].id.length}');
         print('  - RUT: ${viajes[i].usuarioRut}');
         print('  - Conductor: ${viajes[i].conductor?.nombre ?? "null"}');
-        print('  - Conductor objeto completo: ${viajes[i].conductor}');
+        print('  - Precio: ${viajes[i].precio}');
+        print('  - Origen: ${viajes[i].origen.nombre}');
+        print('  - Destino: ${viajes[i].destino.nombre}');
       }
 
       // Ordenar por distancia total (origen + destino)
@@ -90,8 +94,27 @@ class _ResultadosBusquedaScreenState extends State<ResultadosBusquedaScreen> {
 
   Future<void> _unirseAlViaje(ViajeProximidad viaje) async {
     try {
-      print('🚗 Iniciando unirse al viaje: ${viaje.id}');
-      
+      print('🚗 Datos del viaje seleccionado:');
+      print('  - ID: "${viaje.id}"');
+      print('  - ID length: ${viaje.id.length}');
+      print('  - ID isEmpty: ${viaje.id.isEmpty}');
+      print('  - Origen: ${viaje.origen.nombre}');
+      print('  - Destino: ${viaje.destino.nombre}');
+      print('  - Precio: ${viaje.precio}');
+
+      // Verificar que el ID no esté vacío
+      if (viaje.id.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Error: ID del viaje no válido'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
       // Mostrar modal de selección de método de pago
       final metodoPagoResult = await showModalBottomSheet<Map<String, dynamic>>(
         context: context,
@@ -111,11 +134,8 @@ class _ResultadosBusquedaScreenState extends State<ResultadosBusquedaScreen> {
         ),
       );
 
-      print('💳 Método de pago seleccionado: $metodoPagoResult');
-
       if (metodoPagoResult == null) {
         // Usuario canceló la selección de pago
-        print('❌ Usuario canceló la selección de pago');
         return;
       }
 
@@ -129,12 +149,6 @@ class _ResultadosBusquedaScreenState extends State<ResultadosBusquedaScreen> {
         );
       }
 
-      print('📤 Enviando solicitud...');
-      print('  - Viaje ID: ${viaje.id}');
-      print('  - Método: ${metodoPagoResult['metodoPago']}');
-      print('  - Datos: ${metodoPagoResult['datosAdicionales']}');
-      print('  - Mensaje: ${metodoPagoResult['mensaje']}');
-
       // Enviar solicitud con información de pago
       final resultado = await ViajeService.unirseAViajeConPago(
         viaje.id,
@@ -142,8 +156,6 @@ class _ResultadosBusquedaScreenState extends State<ResultadosBusquedaScreen> {
         metodoPagoResult['datosAdicionales'],
         mensaje: metodoPagoResult['mensaje'],
       );
-
-      print('📥 Resultado recibido: $resultado');
 
       if (mounted) {
         // Mensaje específico para el nuevo flujo de notificaciones con pago
@@ -163,7 +175,6 @@ class _ResultadosBusquedaScreenState extends State<ResultadosBusquedaScreen> {
         );
       }
     } catch (e) {
-      print('❌ Error en _unirseAlViaje: $e');
       debugPrint('❌ Error al unirse al viaje: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

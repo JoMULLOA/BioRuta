@@ -375,6 +375,20 @@ class ViajeService {
     String? mensaje,
   }) async {
     try {
+      print('🔍 Iniciando unirseAViajeConPago para viaje: $viajeId');
+      
+      // Verificar autenticación antes de hacer la petición
+      final headers = await _getHeaders();
+      if (headers == null) {
+        print('❌ No hay headers de autenticación disponibles');
+        return {
+          'success': false,
+          'message': 'Sesión expirada. Por favor, inicia sesión nuevamente.'
+        };
+      }
+      
+      print('✅ Headers de autenticación obtenidos');
+
       final body = {
         'pasajeros_solicitados': pasajeros,
         'metodo_pago': metodoPago,
@@ -382,26 +396,49 @@ class ViajeService {
         if (mensaje != null && mensaje.isNotEmpty) 'mensaje': mensaje,
       };
 
+      final url = '$baseUrl/viajes/$viajeId/unirse-con-pago';
+      print('🌐 Enviando petición a: $url');
+      print('📦 Body: ${json.encode(body)}');
+
       final response = await http.post(
-        Uri.parse('$baseUrl/viajes/$viajeId/unirse-con-pago'),
-        headers: await _getHeaders(),
+        Uri.parse(url),
+        headers: headers,
         body: json.encode(body),
       );
 
-      final data = json.decode(response.body);
+      print('📡 Respuesta recibida: ${response.statusCode}');
+      print('📄 Contenido de respuesta: ${response.body}');
+
+      // Verificar si la respuesta es JSON válido
+      dynamic data;
+      try {
+        data = json.decode(response.body);
+        print('✅ Respuesta JSON válida decodificada');
+      } catch (e) {
+        // Si no es JSON válido, probablemente es HTML (error del servidor)
+        print('❌ Error decodificando JSON: $e');
+        print('📄 Contenido raw: ${response.body.substring(0, 200)}...');
+        return {
+          'success': false,
+          'message': 'Error del servidor: Respuesta no válida (Código: ${response.statusCode})'
+        };
+      }
 
       if (response.statusCode == 200) {
+        print('✅ Petición exitosa');
         return {
           'success': true,
           'message': data['message'] ?? 'Solicitud con pago enviada exitosamente'
         };
       } else {
+        print('❌ Error en la petición: ${response.statusCode}');
         return {
           'success': false,
           'message': data['message'] ?? 'Error al unirse al viaje con pago'
         };
       }
     } catch (e) {
+      print('💥 Exception en unirseAViajeConPago: $e');
       return {
         'success': false,
         'message': 'Error de conexión: $e'

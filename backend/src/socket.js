@@ -536,6 +536,52 @@ export function initSocket(server) {
 
     // ===== FIN EVENTOS CHAT GRUPAL =====
 
+    // ===== EVENTOS DE PROCESAMIENTO AUTOMÁTICO =====
+    
+    // Procesar estados automáticos de viajes (solo para admins o sistema automatizado)
+    socket.on("procesar_estados_automaticos", async () => {
+      try {
+        console.log(`🔄 Procesamiento automático solicitado por usuario: ${socket.userId}`);
+        
+        // Importar la función de procesamiento
+        const { procesarCambiosEstadoAutomaticos } = await import('./services/viaje.validation.service.js');
+        
+        const resultado = await procesarCambiosEstadoAutomaticos();
+        
+        if (resultado.exito) {
+          // Emitir resultado al usuario que solicitó
+          socket.emit("estados_automaticos_procesados", {
+            exito: true,
+            procesados: resultado.procesados,
+            cancelados: resultado.cancelados,
+            iniciados: resultado.iniciados,
+            timestamp: new Date().toISOString()
+          });
+          
+          // Emitir a todos los usuarios sobre cambios de estado si hubo procesos
+          if (resultado.procesados > 0) {
+            io.emit("viajes_estado_actualizado", {
+              procesados: resultado.procesados,
+              cancelados: resultado.cancelados,
+              iniciados: resultado.iniciados
+            });
+          }
+          
+          console.log(`✅ Procesamiento automático completado: ${resultado.procesados} viajes procesados`);
+        } else {
+          socket.emit("estados_automaticos_error", { 
+            error: resultado.mensaje || "Error en procesamiento automático" 
+          });
+        }
+        
+      } catch (error) {
+        console.error("❌ Error en procesamiento automático via socket:", error.message);
+        socket.emit("estados_automaticos_error", { error: error.message });
+      }
+    });
+
+    // ===== FIN EVENTOS PROCESAMIENTO AUTOMÁTICO =====
+
     socket.on("disconnect", () => {
       console.log(`🔌 Usuario desconectado: ${socket.id} (RUT: ${socket.userId})`);
     });
