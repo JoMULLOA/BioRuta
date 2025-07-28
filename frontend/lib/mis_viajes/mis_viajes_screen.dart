@@ -793,14 +793,8 @@ void _cambiarPeriodo(String nuevoPeriodo) {
                 ),
                 Row(
                   children: [
-                    // Botones de editar y borrar solo para el creador
+                    // Botón de borrar solo para el creador
                     if (esCreadorReal) ...[
-                      IconButton(
-                        icon: const Icon(Icons.edit, size: 20),
-                        onPressed: () {
-                          // TODO: Implementar edición
-                        },
-                      ),
                       IconButton(
                         icon: const Icon(Icons.delete, size: 20, color: Colors.red),
                         onPressed: () {

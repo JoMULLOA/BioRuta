@@ -189,10 +189,21 @@ async function createInitialData() {
     if (vehiculoCount === 0) {
       console.log("🚗 Creando vehículos para todos los usuarios...");
       
-      // Obtener todos los usuarios estudiantes
+      // Obtener todos los usuarios estudiantes (incluyendo user1, user2, user3)
       const todosLosUsuarios = await userRepository.find({
         where: { rol: "estudiante" }
       });
+      
+      // Asegurar que user1, user2 y user3 estén incluidos si existen
+      const usuariosBase = [user1, user2, user3].filter(u => u !== null);
+      
+      // Combinar usuarios base con el resto, evitando duplicados
+      const usuariosParaVehiculos = [...usuariosBase];
+      for (const usuario of todosLosUsuarios) {
+        if (!usuariosParaVehiculos.find(u => u.rut === usuario.rut)) {
+          usuariosParaVehiculos.push(usuario);
+        }
+      }
       
       const marcas = ["Toyota", "Hyundai", "Ford", "Chevrolet", "Nissan", "Volkswagen", "Kia", "Mazda", "Honda", "Suzuki"];
       const modelos = {
@@ -214,8 +225,8 @@ async function createInitialData() {
       
       const vehiculos = [];
       
-      for (let i = 0; i < todosLosUsuarios.length; i++) {
-        const usuario = todosLosUsuarios[i];
+      for (let i = 0; i < usuariosParaVehiculos.length; i++) {
+        const usuario = usuariosParaVehiculos[i];
         const marca = marcas[i % marcas.length];
         const modelo = modelos[marca][i % modelos[marca].length];
         const color = colores[i % colores.length];
@@ -244,14 +255,14 @@ async function createInitialData() {
         vehiculos.push(vehiculo);
         
         // Guardar en lotes de 20 para mejor rendimiento
-        if (vehiculos.length === 20 || i === todosLosUsuarios.length - 1) {
+        if (vehiculos.length === 20 || i === usuariosParaVehiculos.length - 1) {
           await vehiculoRepository.save(vehiculos);
           console.log(`   🚙 Vehículos ${i - vehiculos.length + 2} al ${i + 1} creados`);
           vehiculos.length = 0; // Limpiar array
         }
       }
       
-      console.log(`✅ Se crearon ${todosLosUsuarios.length} vehículos exitosamente (uno por usuario)`);
+      console.log(`✅ Se crearon ${usuariosParaVehiculos.length} vehículos exitosamente (uno por usuario)`);
     }
 
     // Crear amistades de prueba usando la entidad Amistad
