@@ -32,10 +32,9 @@ class _ConfigurarContactosScreenState extends State<ConfigurarContactosScreen> {
 
   // Validar email
   bool _validarEmail(String email) {
-    if (email.trim().isEmpty) return true; // Email es opcional
-    // Si no está vacío, validar formato y longitud mínima
-    if (email.trim().length < 12) return false; // Mínimo 12 caracteres
-    return RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(email.trim());
+    if (email.trim().isEmpty) return false; // Email es obligatorio ahora
+    // Validación más estricta de formato de email
+    return RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$').hasMatch(email.trim());
   }
 
   @override
@@ -77,7 +76,7 @@ class _ConfigurarContactosScreenState extends State<ConfigurarContactosScreen> {
         id: const Uuid().v4(),
         nombre: _nombreController.text.trim(),
         telefono: _telefonoController.text.trim(),
-        email: _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
+        email: _emailController.text.trim(), // Ahora siempre se incluye
         fechaCreacion: DateTime.now(),
       );
 
@@ -561,26 +560,22 @@ class _ConfigurarContactosScreenState extends State<ConfigurarContactosScreen> {
             
             const SizedBox(height: 16),
             
-            // Campo email (opcional)
+            // Campo email (obligatorio)
             TextFormField(
               controller: _emailController,
               decoration: const InputDecoration(
-                labelText: 'Email (opcional)',
+                labelText: 'Email *',
                 prefixIcon: Icon(Icons.email),
                 border: OutlineInputBorder(),
+                helperText: 'Campo obligatorio',
               ),
               keyboardType: TextInputType.emailAddress,
               inputFormatters: [
                 LengthLimitingTextInputFormatter(50), // Máximo 50 caracteres
               ],
               validator: (value) {
-                // Si está vacío, está bien (es opcional)
-                if (value == null || value.trim().isEmpty) {
-                  return null;
-                }
-                // Si no está vacío, validar
-                if (!_validarEmail(value)) {
-                  return 'Email debe tener mínimo 12 caracteres y contener @ y .';
+                if (!_validarEmail(value ?? '')) {
+                  return 'Ingrese un email válido';
                 }
                 return null;
               },

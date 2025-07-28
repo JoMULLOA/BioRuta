@@ -7,8 +7,10 @@ import 'dart:async';
 import '../config/confGlobal.dart';
 import '../services/socket_service.dart';
 import '../services/websocket_notification_service.dart';
+import '../services/location_service.dart';
 import '../utils/date_utils.dart' as date_utils;
 import '../widgets/reportar_usuario_dialog.dart';
+import '../widgets/location_message_widget.dart';
 import '../models/reporte_model.dart';
 
 // Clase Message temporal inline para debugging
@@ -19,6 +21,8 @@ class Message {
   final DateTime timestamp;
   final bool isEdited;
   final bool isDeleted;
+  final String type; // 'text' o 'location'
+  final Map<String, dynamic>? locationData; // Para mensajes de ubicación
 
   Message({
     this.id,
@@ -27,6 +31,8 @@ class Message {
     required this.timestamp,
     this.isEdited = false,
     this.isDeleted = false,
+    this.type = 'text',
+    this.locationData,
   });
 
   // Crear copia del mensaje con cambios
@@ -37,6 +43,8 @@ class Message {
     DateTime? timestamp,
     bool? isEdited,
     bool? isDeleted,
+    String? type,
+    Map<String, dynamic>? locationData,
   }) {
     return Message(
       id: id ?? this.id,
@@ -45,6 +53,28 @@ class Message {
       timestamp: timestamp ?? this.timestamp,
       isEdited: isEdited ?? this.isEdited,
       isDeleted: isDeleted ?? this.isDeleted,
+      type: type ?? this.type,
+      locationData: locationData ?? this.locationData,
+    );
+  }
+  
+  // Factory constructor para crear mensaje de ubicación
+  factory Message.location({
+    required String senderRut,
+    required double latitude,
+    required double longitude,
+    int? id,
+  }) {
+    return Message(
+      id: id,
+      senderRut: senderRut,
+      text: 'Ubicación compartida',
+      timestamp: DateTime.now(),
+      type: 'location',
+      locationData: {
+        'latitude': latitude,
+        'longitude': longitude,
+      },
     );
   }
 }
@@ -267,14 +297,36 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
       }
       
       if (esParaEstaConversacion) {
+        final contenido = messageData['contenido'].toString();
+        String tipoMensaje = 'text';
+        Map<String, dynamic>? locationData;
+        
+        // Verificar si es un mensaje de ubicación
+        try {
+          final parsedContent = json.decode(contenido);
+          if (parsedContent is Map<String, dynamic> && parsedContent['type'] == 'location') {
+            tipoMensaje = 'location';
+            locationData = {
+              'latitude': parsedContent['latitude'],
+              'longitude': parsedContent['longitude'],
+              'accuracy': parsedContent['accuracy'],
+              'timestamp': parsedContent['timestamp'],
+            };
+          }
+        } catch (e) {
+          // No es JSON válido, es un mensaje de texto normal
+        }
+        
         // Crear mensaje usando el constructor directo con conversión correcta
         final nuevoMensaje = Message(
           id: messageData['id'] is String ? int.tryParse(messageData['id']) : messageData['id'],
           senderRut: messageData['emisor'].toString(),
-          text: messageData['contenido'].toString(),
+          text: tipoMensaje == 'location' ? 'Ubicación compartida' : contenido,
           timestamp: DateTime.parse(messageData['fecha']),
           isEdited: messageData['editado'] ?? false,
           isDeleted: messageData['eliminado'] ?? false,
+          type: tipoMensaje,
+          locationData: locationData,
         );
         
         setState(() {
@@ -442,13 +494,35 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
               }
               
               // Crear mensaje
+              final contenido = messageData['contenido'].toString();
+              String tipoMensaje = 'text';
+              Map<String, dynamic>? locationData;
+              
+              // Verificar si es un mensaje de ubicación
+              try {
+                final parsedContent = json.decode(contenido);
+                if (parsedContent is Map<String, dynamic> && parsedContent['type'] == 'location') {
+                  tipoMensaje = 'location';
+                  locationData = {
+                    'latitude': parsedContent['latitude'],
+                    'longitude': parsedContent['longitude'],
+                    'accuracy': parsedContent['accuracy'],
+                    'timestamp': parsedContent['timestamp'],
+                  };
+                }
+              } catch (e) {
+                // No es JSON válido, es un mensaje de texto normal
+              }
+              
               final message = Message(
                 id: messageId,
                 senderRut: messageData['emisor'].toString(),
-                text: messageData['contenido'].toString(),
+                text: tipoMensaje == 'location' ? 'Ubicación compartida' : contenido,
                 timestamp: DateTime.parse(messageData['fecha']),
                 isEdited: messageData['editado'] ?? false,
                 isDeleted: messageData['eliminado'] ?? false,
+                type: tipoMensaje,
+                locationData: locationData,
               );
               
               newMessages.add(message);
@@ -514,6 +588,88 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
       print('ERROR enviando mensaje: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error al enviar mensaje: $e')),
+      );
+    }
+  }
+
+  /// Enviar ubicación actual
+  Future<void> _sendLocation() async {
+    // Validar que tenemos el RUT del usuario autenticado
+    if (_rutUsuarioAutenticadoReal == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error: No se pudo identificar el usuario para enviar la ubicación.')),
+      );
+      return;
+    }
+
+    // Mostrar diálogo de carga
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const AlertDialog(
+        content: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 16),
+            Text('Obteniendo ubicación...'),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      // Obtener ubicación actual
+      final locationData = await LocationService.getCurrentLocation();
+      
+      // Cerrar diálogo de carga
+      Navigator.of(context).pop();
+      
+      if (locationData == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se pudo obtener la ubicación. Verifica los permisos.')),
+        );
+        return;
+      }
+
+      // Verificar que el socket esté conectado
+      if (!_socketService.isConnected) {
+        await _socketService.connect();
+        
+        if (!_socketService.isConnected) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Error de conexión. Intenta nuevamente.')),
+          );
+          return;
+        }
+      }
+
+      // Crear mensaje de ubicación
+      final locationMessage = {
+        'type': 'location',
+        'latitude': locationData['latitude'],
+        'longitude': locationData['longitude'],
+        'accuracy': locationData['accuracy'],
+        'timestamp': locationData['timestamp'],
+      };
+
+      // Enviar mensaje de ubicación via WebSocket
+      _socketService.sendMessage(
+        contenido: json.encode(locationMessage),
+        receptorRut: widget.rutAmigo,
+      );
+
+      print('✅ Ubicación enviada: ${locationData['latitude']}, ${locationData['longitude']}');
+      
+    } catch (e) {
+      // Cerrar diálogo si aún está abierto
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+      
+      print('❌ Error enviando ubicación: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al enviar ubicación: $e')),
       );
     }
   }
@@ -768,7 +924,18 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
                 final message = _messages[index];
                 final isMe = message.senderRut == _rutUsuarioAutenticadoReal;
 
-                // Colores personalizados
+                // Si es un mensaje de ubicación, usar el widget especializado
+                if (message.type == 'location' && message.locationData != null) {
+                  return LocationMessageWidget(
+                    latitude: message.locationData!['latitude'],
+                    longitude: message.locationData!['longitude'],
+                    senderName: isMe ? 'Tú' : widget.nombre,
+                    timestamp: message.timestamp,
+                    isOwnMessage: isMe,
+                  );
+                }
+
+                // Mensaje de texto normal
                 final cafeClaro = const Color(0xFFD7BFAE); // Café claro para mensaje propio
                 final cafeOscuro = const Color(0xFF854937); // Café oscuro para globo 'Tú'
                 final colorMensaje = isMe ? cafeClaro : Colors.grey[300];
@@ -871,6 +1038,13 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
             ),
             child: Row(
               children: [
+                // Botón de ubicación
+                IconButton(
+                  onPressed: _sendLocation,
+                  icon: const Icon(Icons.location_on),
+                  color: const Color(0xFF854937),
+                  tooltip: 'Compartir ubicación',
+                ),
                 Expanded(
                   child: TextField(
                     controller: _messageController,

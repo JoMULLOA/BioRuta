@@ -96,6 +96,61 @@ class ViajeService {
     }
   }
   
+  /// Validar publicación de viaje con validación inteligente de tiempo de traslado
+  static Future<Map<String, dynamic>> validarPublicacionViajeConTiempo({
+    required DateTime fechaHoraIda,
+    DateTime? fechaHoraVuelta,
+    required double origenLat,
+    required double origenLng,
+    required double destinoLat,
+    required double destinoLng,
+  }) async {
+    try {
+      // Validar viaje de ida
+      final validacionIda = await ViajeValidator.validarViajeConTiempo(
+        fechaHoraIda: fechaHoraIda,
+        origenLat: origenLat,
+        origenLng: origenLng,
+        destinoLat: destinoLat,
+        destinoLng: destinoLng,
+      );
+      
+      if (!validacionIda['success']) {
+        return validacionIda;
+      }
+      
+      // Si hay viaje de vuelta, validarlo también
+      if (fechaHoraVuelta != null) {
+        final validacionVuelta = await ViajeValidator.validarViajeConTiempo(
+          fechaHoraIda: fechaHoraVuelta,
+          origenLat: destinoLat, // Origen de vuelta es destino de ida
+          origenLng: destinoLng,
+          destinoLat: origenLat, // Destino de vuelta es origen de ida
+          destinoLng: origenLng,
+        );
+        
+        if (!validacionVuelta['success']) {
+          return {
+            'success': false,
+            'message': 'Conflicto con viaje de vuelta: ${validacionVuelta['message']}',
+            'tipoConflicto': validacionVuelta['tipoConflicto'],
+          };
+        }
+      }
+      
+      return {
+        'success': true,
+        'message': 'Viajes válidos - no hay conflictos de tiempo',
+      };
+      
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Error validando viajes: $e',
+      };
+    }
+  }
+  
   /// Obtener viajes activos del usuario para validaciones (método público)
   static Future<List<Map<String, dynamic>>> obtenerViajesActivosUsuario() async {
     return await _obtenerViajesActivosUsuario();

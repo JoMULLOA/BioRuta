@@ -7,9 +7,277 @@ import { convertirFechaChile, obtenerFechaActualChile } from "../utils/dateChile
 const userRepository = AppDataSource.getRepository("User");
 
 /**
- * Validar si un viaje puede cambiar automáticamente de estado
- * @param {String} viajeId - ID del viaje
+ * Calcular la distancia en kilómetros entre dos puntos geográficos usando la fórmula de Haversine
+ * @param {number} lat1 - Latitud del primer punto
+ * @param {number} lon1 - Longitud del primer punto
+ * @param {number} lat2 - Latitud del segundo punto
+ * @param {number} lon2 - Longitud del segundo punto
+ * @returns {number} Distancia en kilómetros
+ */
+function calcularDistanciaKm(lat1, lon1, lat2, lon2) {
+  const R = 6371; // Radio de la Tierra en kilómetros
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = 
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+    Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  const distancia = R * c;
+  
+  return Math.round(distancia * 100) / 100; // Redondear a 2 decimales
+}
+
+/**
+ * Calcular distancia por carretera usando factor de corrección basado en Haversine
+ * @param {number} lat1 - Latitud del primer punto
+ * @param {number} lon1 - Longitud del primer punto
+ * @param {number} lat2 - Latitud del segundo punto
+ * @param {number} lon2 - Longitud del segundo punto
+ * @returns {number} Distancia estimada por carretera en kilómetros
+ */
+function calcularDistanciaCarretera(lat1, lon1, lat2, lon2) {
+  // Primero calcular distancia en línea recta usando Haversine
+  const distanciaLineal = calcularDistanciaKm(lat1, lon1, lat2, lon2);
+  
+  // Factor de corrección según distancia (basado en estadísticas reales de Chile)
+  let factor = 1.2; // 20% más por defecto
+  
+  if (distanciaLineal < 5) {
+    factor = 1.6; // Ciudades: +60% (muchas vueltas)
+  } else if (distanciaLineal < 15) {
+    factor = 1.4; // Urbano: +40%
+  } else if (distanciaLineal < 50) {
+    factor = 1.3; // Regional: +30%
+  } else if (distanciaLineal < 200) {
+    factor = 1.2; // Interprovincial: +20%
+  } else {
+    factor = 1.15; // Larga distancia: +15% (autopistas más directas)
+  }
+  
+  return distanciaLineal * factor;
+}
+
+/**
+ * Calcular tiempo estimado de viaje basado en distancia y tipo de terreno
+ * @param {number} distanciaKm - Distancia en kilómetros
+ * @returns {number} Tiempo estimado en minutos
+ */
+function calcularTiempoEstimado(distanciaKm) {
+  let velocidadPromedio;
+  
+  if (distanciaKm < 3) {
+    velocidadPromedio = 15; // Centro ciudad: 15 km/h
+  } else if (distanciaKm < 8) {
+    velocidadPromedio = 20; // Ciudad: 20 km/h
+  } else if (distanciaKm < 20) {
+    velocidadPromedio = 30; // Urbano/suburbano: 30 km/h
+  } else if (distanciaKm < 50) {
+    velocidadPromedio = 55; // Regional: 55 km/h
+  } else if (distanciaKm < 150) {
+    velocidadPromedio = 75; // Interprovincial: 75 km/h
+  } else {
+    velocidadPromedio = 85; // Larga distancia: 85 km/h
+  }
+  
+  return Math.round((distanciaKm / velocidadPromedio) * 60); // Convertir a minutos
+}
+
+/**
+ * Validar conflictos de viajes considerando tiempos de traslado
+ * @param {String} usuarioRut - RUT del usuario
+ * @param {Object} nuevoViaje - Datos del nuevo viaje {fechaHoraIda, origen, destino}
+ * @param {String} viajeExcluidoId - ID del viaje a excluir (para ediciones)
  * @returns {Object} - Resultado de la validación
+ */
+export async function validarConflictosConTiempo(usuarioRut, nuevoViaje, viajeExcluidoId = null) {
+  try {
+    console.log('🕒 Validando conflictos con tiempo de traslado...');
+    
+    // Obtener viajes activos y en curso del usuario
+    const filtroBase = {
+      $or: [
+        { usuario_rut: usuarioRut }, // Viajes como conductor
+        { 
+          'pasajeros.usuario_rut': usuarioRut,
+          'pasajeros.estado': { $in: ['confirmado', 'pendiente'] }
+        } // Viajes como pasajero
+      ],
+      estado: { $in: ['activo', 'en_curso'] }
+    };
+
+    if (viajeExcluidoId) {
+      filtroBase._id = { $ne: viajeExcluidoId };
+    }
+
+    const viajesExistentes = await Viaje.find(filtroBase);
+    
+    const nuevaFechaIda = convertirFechaChile(nuevoViaje.fechaHoraIda);
+    const nuevoOrigenLat = nuevoViaje.origen.lat;
+    const nuevoOrigenLng = nuevoViaje.origen.lon;
+    const nuevoDestinoLat = nuevoViaje.destino.lat;
+    const nuevoDestinoLng = nuevoViaje.destino.lon;
+    
+    // Calcular duración del nuevo viaje
+    const distanciaNuevoViaje = calcularDistanciaCarretera(nuevoOrigenLat, nuevoOrigenLng, nuevoDestinoLat, nuevoDestinoLng);
+    const duracionNuevoViaje = calcularTiempoEstimado(distanciaNuevoViaje);
+    const finNuevoViaje = new Date(nuevaFechaIda.getTime() + (duracionNuevoViaje * 60 * 1000));
+
+    console.log(`📊 Nuevo viaje: ${nuevaFechaIda.toISOString()} (duración: ${duracionNuevoViaje} min)`);
+
+    for (const viajeExistente of viajesExistentes) {
+      const fechaExistente = convertirFechaChile(viajeExistente.fecha_ida);
+      const origenExistenteLat = viajeExistente.origen.ubicacion.coordinates[1];
+      const origenExistenteLng = viajeExistente.origen.ubicacion.coordinates[0];
+      const destinoExistenteLat = viajeExistente.destino.ubicacion.coordinates[1];
+      const destinoExistenteLng = viajeExistente.destino.ubicacion.coordinates[0];
+      
+      // Calcular duración del viaje existente
+      const distanciaExistente = calcularDistanciaCarretera(
+        origenExistenteLat, origenExistenteLng, 
+        destinoExistenteLat, destinoExistenteLng
+      );
+      const duracionExistente = calcularTiempoEstimado(distanciaExistente);
+      const finViajeExistente = new Date(fechaExistente.getTime() + (duracionExistente * 60 * 1000));
+
+      // VERIFICACIÓN 1: Solapamiento temporal directo
+      const inicioNuevo = nuevaFechaIda.getTime();
+      const finNuevo = finNuevoViaje.getTime();
+      const inicioExistente = fechaExistente.getTime();
+      const finExistente = finViajeExistente.getTime();
+
+      const haySolapamiento = (inicioNuevo < finExistente) && (finNuevo > inicioExistente);
+
+      if (haySolapamiento) {
+        return {
+          valido: false,
+          razon: `Conflicto temporal: El nuevo viaje se solapa con un viaje existente del ${fechaExistente.toLocaleDateString('es-CL')} a las ${fechaExistente.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}`,
+          tipoConflicto: 'solapamiento_temporal',
+          viajeConflicto: viajeExistente._id
+        };
+      }
+
+      // VERIFICACIÓN 2: Tiempo de traslado insuficiente
+      let conflictoTraslado = false;
+      let mensajeTraslado = '';
+      let tiempoTotalNecesario = 0;
+      let tiempoDisponible = 0;
+
+      // Caso A: El nuevo viaje es DESPUÉS del existente
+      if (inicioNuevo > finExistente) {
+        // ¿Puede llegar desde el destino del viaje existente al origen del nuevo viaje?
+        const distanciaTraslado = calcularDistanciaCarretera(
+          destinoExistenteLat, destinoExistenteLng,
+          nuevoOrigenLat, nuevoOrigenLng
+        );
+        const tiempoTraslado = calcularTiempoEstimado(distanciaTraslado);
+        const tiempoBuffer = 10; // 10 minutos de buffer mínimo
+        tiempoTotalNecesario = tiempoTraslado + tiempoBuffer;
+        
+        tiempoDisponible = (inicioNuevo - finExistente) / (1000 * 60); // en minutos
+
+        if (tiempoDisponible < tiempoTotalNecesario) {
+          conflictoTraslado = true;
+          mensajeTraslado = `No hay tiempo suficiente para trasladarse desde el destino del viaje anterior (${viajeExistente.destino.nombre}) al origen del nuevo viaje (${nuevoViaje.origen.displayName}). Necesitas ${tiempoTotalNecesario} minutos pero solo tienes ${Math.round(tiempoDisponible)} minutos disponibles.`;
+        }
+      }
+
+      // Caso B: El nuevo viaje es ANTES del existente
+      if (finNuevo < inicioExistente) {
+        const distanciaTraslado = calcularDistanciaCarretera(
+          nuevoDestinoLat, nuevoDestinoLng,
+          origenExistenteLat, origenExistenteLng
+        );
+        const tiempoTraslado = calcularTiempoEstimado(distanciaTraslado);
+        const tiempoBuffer = 10; // 10 minutos de buffer
+        tiempoTotalNecesario = tiempoTraslado + tiempoBuffer;
+        
+        tiempoDisponible = (inicioExistente - finNuevo) / (1000 * 60);
+
+        if (tiempoDisponible < tiempoTotalNecesario) {
+          conflictoTraslado = true;
+          mensajeTraslado = `No hay tiempo suficiente para trasladarse desde el destino del nuevo viaje (${nuevoViaje.destino.displayName}) al origen del viaje siguiente (${viajeExistente.origen.nombre}). Necesitas ${tiempoTotalNecesario} minutos pero solo tienes ${Math.round(tiempoDisponible)} minutos disponibles.`;
+        }
+      }
+
+      if (conflictoTraslado) {
+        return {
+          valido: false,
+          razon: mensajeTraslado,
+          tipoConflicto: 'tiempo_traslado_insuficiente',
+          viajeConflicto: viajeExistente._id,
+          tiempoNecesario: tiempoTotalNecesario,
+          tiempoDisponible: Math.round(tiempoDisponible)
+        };
+      }
+    }
+
+    return {
+      valido: true,
+      razon: 'No hay conflictos de tiempo'
+    };
+
+  } catch (error) {
+    console.error('Error validando conflictos con tiempo:', error);
+    return {
+      valido: false,
+      razon: 'Error interno en la validación de conflictos'
+    };
+  }
+}
+
+/**
+ * Validar que un usuario no tenga múltiples viajes en curso simultáneamente
+ * @param {String} usuarioRut - RUT del usuario
+ * @param {String} viajeExcluidoId - ID del viaje a excluir (opcional)
+ * @returns {Object} - Resultado de la validación
+ */
+export async function validarConflictosViajesEnCurso(usuarioRut, viajeExcluidoId = null) {
+  try {
+    // Buscar viajes en curso del usuario
+    const filtroViajesEnCurso = {
+      $or: [
+        { usuario_rut: usuarioRut }, // Como conductor
+        { 
+          'pasajeros.usuario_rut': usuarioRut,
+          'pasajeros.estado': 'confirmado'
+        } // Como pasajero confirmado
+      ],
+      estado: 'en_curso'
+    };
+
+    if (viajeExcluidoId) {
+      filtroViajesEnCurso._id = { $ne: viajeExcluidoId };
+    }
+
+    const viajesEnCurso = await Viaje.find(filtroViajesEnCurso);
+
+    if (viajesEnCurso.length > 0) {
+      const viajeConflicto = viajesEnCurso[0];
+      return {
+        valido: false,
+        razon: `El usuario ya tiene un viaje en curso desde ${viajeConflicto.origen.nombre} hacia ${viajeConflicto.destino.nombre}`,
+        viajeConflicto: viajeConflicto._id
+      };
+    }
+
+    return {
+      valido: true,
+      razon: 'No hay conflictos con viajes en curso'
+    };
+
+  } catch (error) {
+    console.error('Error validando conflictos de viajes en curso:', error);
+    return {
+      valido: false,
+      razon: 'Error interno validando viajes en curso'
+    };
+  }
+}
+
+/**
+ * Validar si un viaje puede cambiar automáticamente de estado
+ * MODIFICADO: Cancelar si no hay pasajeros confirmados y verificar conflictos en_curso
  */
 export async function validarCambioEstadoAutomatico(viajeId) {
   try {
@@ -22,16 +290,15 @@ export async function validarCambioEstadoAutomatico(viajeId) {
       };
     }
 
-    // Validación 1: Si es hora de iniciar y no hay pasajeros confirmados, cancelar
     if (viaje.estado === 'activo') {
-      // Hora actual Chile
       const now = obtenerFechaActualChile();
       const fechaIda = convertirFechaChile(viaje.fecha_ida);
       
-      // Si ya pasó la hora de salida
-      if (now >= fechaIda) {
+      // Si ya pasó la hora de salida (+5 minutos de gracia)
+      if (now >= fechaIda.getTime() + (5 * 60 * 1000)) {
         const pasajerosConfirmados = viaje.pasajeros.filter(p => p.estado === 'confirmado');
         
+        // NUEVA REGLA: Cancelar automáticamente si no hay pasajeros confirmados
         if (pasajerosConfirmados.length === 0) {
           return {
             valido: true,
@@ -40,7 +307,18 @@ export async function validarCambioEstadoAutomatico(viajeId) {
           };
         }
         
-        // Si hay pasajeros confirmados, cambiar a en_curso
+        // NUEVA VALIDACIÓN: Verificar que no hay conflictos con otros viajes en_curso
+        const conflictosEnCurso = await validarConflictosViajesEnCurso(viaje.usuario_rut, viaje._id);
+        
+        if (!conflictosEnCurso.valido) {
+          return {
+            valido: true,
+            nuevoEstado: 'cancelado',
+            razon: `Viaje cancelado automáticamente: ${conflictosEnCurso.razon}`
+          };
+        }
+        
+        // Si hay pasajeros confirmados y no hay conflictos, iniciar viaje
         return {
           valido: true,
           nuevoEstado: 'en_curso',
@@ -65,9 +343,7 @@ export async function validarCambioEstadoAutomatico(viajeId) {
 
 /**
  * Validar si un conductor puede iniciar un viaje manualmente
- * @param {String} viajeId - ID del viaje
- * @param {String} conductorRut - RUT del conductor
- * @returns {Object} - Resultado de la validación
+ * MODIFICADO: Verificar que no hay conflictos con viajes en curso y que hay pasajeros
  */
 export async function validarInicioViaje(viajeId, conductorRut) {
   try {
@@ -96,7 +372,27 @@ export async function validarInicioViaje(viajeId, conductorRut) {
       };
     }
 
-    // Validación 2: Verificar que no hay notificaciones pendientes
+    // NUEVA VALIDACIÓN: Verificar que hay al menos un pasajero confirmado
+    const pasajerosConfirmados = viaje.pasajeros.filter(p => p.estado === 'confirmado');
+    
+    if (pasajerosConfirmados.length === 0) {
+      return {
+        valido: false,
+        razon: 'No puedes iniciar un viaje sin pasajeros confirmados. El viaje debe ser cancelado.'
+      };
+    }
+
+    // NUEVA VALIDACIÓN: Verificar que no hay conflictos con otros viajes en curso
+    const conflictosEnCurso = await validarConflictosViajesEnCurso(conductorRut, viajeId);
+    
+    if (!conflictosEnCurso.valido) {
+      return {
+        valido: false,
+        razon: `No puedes iniciar este viaje: ${conflictosEnCurso.razon}`
+      };
+    }
+
+    // Validación 3: Verificar que no hay notificaciones pendientes
     const [notificacionesPendientes, error] = await obtenerNotificacionesService(conductorRut);
     
     if (error) {
@@ -116,16 +412,6 @@ export async function validarInicioViaje(viajeId, conductorRut) {
           razon: `Tienes ${solicitudesPendientes.length} solicitud(es) de pasajeros pendientes para este viaje. Debes responderlas antes de iniciarlo.`
         };
       }
-    }
-
-    // Validación 3: Verificar que hay al menos un pasajero confirmado
-    const pasajerosConfirmados = viaje.pasajeros.filter(p => p.estado === 'confirmado');
-    
-    if (pasajerosConfirmados.length === 0) {
-      return {
-        valido: false,
-        razon: 'No puedes iniciar un viaje sin pasajeros confirmados'
-      };
     }
 
     return {

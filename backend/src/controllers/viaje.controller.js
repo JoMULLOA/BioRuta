@@ -13,7 +13,8 @@ import {
   validarConflictoHorarios, 
   validarInicioViaje,
   validarCambioEstadoAutomatico,
-  aplicarCambioEstadoAutomatico
+  aplicarCambioEstadoAutomatico,
+  validarConflictosConTiempo
 } from "../services/viaje.validation.service.js";
 import fetch from 'node-fetch';
 
@@ -1934,6 +1935,19 @@ export async function cambiarEstadoViaje(req, res) {
       return handleErrorServer(res, 400, `No se puede cambiar de "${estadoActual}" a "${nuevoEstado}"`);
     }
 
+    // NUEVA VALIDACIÓN: Al cambiar a 'en_curso'
+    if (nuevoEstado === 'en_curso') {
+      console.log('🚀 Validando inicio de viaje...');
+      
+      const validacionInicio = await validarInicioViaje(viajeId, conductorRut);
+      
+      if (!validacionInicio.valido) {
+        return handleErrorServer(res, 400, validacionInicio.razon);
+      }
+      
+      console.log('✅ Validación de inicio de viaje exitosa');
+    }
+
     // Actualizar el estado
     viaje.estado = nuevoEstado;
     viaje.fecha_actualizacion = new Date();
@@ -2076,6 +2090,30 @@ export async function unirseAViaje(req, res) {
       return handleErrorServer(res, 400, "Este viaje no está disponible para nuevos pasajeros");
     }
 
+    // NUEVA VALIDACIÓN: Verificar conflictos de tiempo de traslado al unirse
+    console.log('🕒 Validando conflictos de tiempo para unirse al viaje...');
+    
+    const validacionConflictos = await validarConflictosConTiempo(userRut, {
+      fechaHoraIda: viaje.fecha_ida,
+      origen: {
+        lat: viaje.origen.ubicacion.coordinates[1],
+        lon: viaje.origen.ubicacion.coordinates[0],
+        displayName: viaje.origen.nombre
+      },
+      destino: {
+        lat: viaje.destino.ubicacion.coordinates[1],
+        lon: viaje.destino.ubicacion.coordinates[0],
+        displayName: viaje.destino.nombre
+      }
+    });
+
+    if (!validacionConflictos.valido) {
+      console.log(`❌ Conflicto de tiempo detectado: ${validacionConflictos.razon}`);
+      return handleErrorServer(res, 400, `No puedes unirte a este viaje: ${validacionConflictos.razon}`);
+    }
+
+    console.log('✅ Validación de conflictos de tiempo exitosa');
+
     // Crear la solicitud de notificación
     const { crearSolicitudViaje } = await import('../services/notificacion.service.js');
     
@@ -2150,6 +2188,30 @@ export async function unirseAViajeConPago(req, res) {
       console.log(`❌ Viaje ${viajeId} no está disponible para unirse (estado: ${viaje.estado})`);
       return handleErrorServer(res, 400, "Este viaje no está disponible para nuevos pasajeros");
     }
+
+    // NUEVA VALIDACIÓN: Verificar conflictos de tiempo de traslado al unirse
+    console.log('🕒 Validando conflictos de tiempo para unirse al viaje con pago...');
+    
+    const validacionConflictos = await validarConflictosConTiempo(userRut, {
+      fechaHoraIda: viaje.fecha_ida,
+      origen: {
+        lat: viaje.origen.ubicacion.coordinates[1],
+        lon: viaje.origen.ubicacion.coordinates[0],
+        displayName: viaje.origen.nombre
+      },
+      destino: {
+        lat: viaje.destino.ubicacion.coordinates[1],
+        lon: viaje.destino.ubicacion.coordinates[0],
+        displayName: viaje.destino.nombre
+      }
+    });
+
+    if (!validacionConflictos.valido) {
+      console.log(`❌ Conflicto de tiempo detectado: ${validacionConflictos.razon}`);
+      return handleErrorServer(res, 400, `No puedes unirte a este viaje: ${validacionConflictos.razon}`);
+    }
+
+    console.log('✅ Validación de conflictos de tiempo exitosa');
 
     // Validaciones específicas por método de pago
     let informacionPago = {
