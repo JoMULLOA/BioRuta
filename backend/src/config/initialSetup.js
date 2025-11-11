@@ -291,14 +291,16 @@ async function createInitialData() {
     // Crear tarjetas de sandbox para pruebas de pagos
     await createSandboxCards();
 
-    // Crear índices geoespaciales para MongoDB
-    await createMongoIndexes();
+    // Crear índices geoespaciales para MongoDB - DESACTIVADO
+    // await createMongoIndexes();
 
   } catch (error) {
     console.error("❌ Error al crear datos iniciales:", error);
   }
 }
 
+// FUNCIÓN MONGODB DESACTIVADA - COMENTADA PARA EVITAR ERRORES
+/*
 async function createMongoIndexes() {
   try {
     // Verificar si los índices ya existen
@@ -351,6 +353,7 @@ async function createMongoIndexes() {
     console.error("❌ Error al crear índices de MongoDB:", error);
   }
 }
+*/
 
 async function createInitialReports() {
   try {

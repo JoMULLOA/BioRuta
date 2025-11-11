@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../widgets/navbar_con_sos_dinamico.dart';
 import '../services/user_service.dart';
 import '../models/viaje_model.dart';
 import 'publicar_viaje_paso1.dart';
+import '../providers/theme_provider.dart';
+import '../config/app_colors.dart';
 
 class PublicarPage extends StatefulWidget {
   const PublicarPage({super.key});
@@ -78,25 +81,33 @@ class PublicarPageState extends State<PublicarPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF2EEED),
-      appBar: AppBar(
-        title: const Text('Publicar Viaje'),
-        backgroundColor: const Color(0xFF854937),
-        foregroundColor: Colors.white,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            if (Navigator.canPop(context)) {
-              Navigator.pop(context);
-            } else {
-              Navigator.pushReplacementNamed(context, '/mapa');
-            }
-          },
-        ),
-      ),
-      body: _buildBody(),
-      bottomNavigationBar: NavbarConSOSDinamico(
+    return Consumer<ThemeProvider>(
+      builder: (context, themeProvider, child) {
+        final isDark = themeProvider.isDarkMode;
+        final backgroundColor = isDark ? AppColors.darkBackground : AppColors.lightBackground;
+        final primaryColor = isDark ? AppColors.primaryDark : AppColors.primaryLight;
+        final textColor = isDark ? AppColors.darkText : AppColors.lightText;
+        final surfaceColor = isDark ? AppColors.darkSurface : AppColors.lightSurface;
+
+        return Scaffold(
+          backgroundColor: backgroundColor,
+          appBar: AppBar(
+            title: const Text('Publicar Viaje'),
+            backgroundColor: primaryColor,
+            foregroundColor: Colors.white,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () {
+                if (Navigator.canPop(context)) {
+                  Navigator.pop(context);
+                } else {
+                  Navigator.pushReplacementNamed(context, '/mapa');
+                }
+              },
+            ),
+          ),
+          body: _buildBody(primaryColor, textColor, surfaceColor),
+          bottomNavigationBar: NavbarConSOSDinamico(
         currentIndex: _selectedIndex,
         onTap: (index) {
           if (index == _selectedIndex) return;
@@ -125,36 +136,38 @@ class PublicarPageState extends State<PublicarPage> {
               break;
           }
         },
-      ),
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildBody() {
+  Widget _buildBody(Color primaryColor, Color textColor, Color surfaceColor) {
     if (_cargandoVehiculos) {
-      return _buildLoadingState();
+      return _buildLoadingState(primaryColor);
     } else if (_mensajeError != null) {
-      return _buildErrorState();
+      return _buildErrorState(primaryColor, textColor);
     } else if (_vehiculosDisponibles.isEmpty) {
-      return _buildNoVehiclesState();
+      return _buildNoVehiclesState(primaryColor, textColor);
     } else {
-      return _buildPublishOptions();
+      return _buildPublishOptions(primaryColor, textColor, surfaceColor);
     }
   }
 
-  Widget _buildLoadingState() {
-    return const Center(
+  Widget _buildLoadingState(Color primaryColor) {
+    return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           CircularProgressIndicator(
-            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF854937)),
+            valueColor: AlwaysStoppedAnimation<Color>(primaryColor),
           ),
-          SizedBox(height: 16),
+          const SizedBox(height: 16),
           Text(
             'Verificando vehículos...',
             style: TextStyle(
               fontSize: 16,
-              color: Color(0xFF854937),
+              color: primaryColor,
             ),
           ),
         ],
@@ -162,7 +175,7 @@ class PublicarPageState extends State<PublicarPage> {
     );
   }
 
-  Widget _buildErrorState() {
+  Widget _buildErrorState(Color primaryColor, Color textColor) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(20.0),
@@ -175,20 +188,20 @@ class PublicarPageState extends State<PublicarPage> {
               color: Colors.red[400],
             ),
             const SizedBox(height: 20),
-            const Text(
+            Text(
               'Error al verificar vehículos',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF854937),
+                color: textColor,
               ),
             ),
             const SizedBox(height: 10),
             Text(
               _mensajeError ?? 'Error desconocido',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 16,
-                color: Color(0xFF6B3B2D),
+                color: textColor,
               ),
               textAlign: TextAlign.center,
             ),
@@ -196,7 +209,7 @@ class PublicarPageState extends State<PublicarPage> {
             ElevatedButton(
               onPressed: _verificarVehiculos,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF854937),
+                backgroundColor: primaryColor,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
                 shape: RoundedRectangleBorder(
@@ -214,7 +227,7 @@ class PublicarPageState extends State<PublicarPage> {
     );
   }
 
-  Widget _buildNoVehiclesState() {
+  Widget _buildNoVehiclesState(Color primaryColor, Color textColor) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(20.0),
@@ -227,20 +240,20 @@ class PublicarPageState extends State<PublicarPage> {
               color: Colors.grey[400],
             ),
             const SizedBox(height: 30),
-            const Text(
+            Text(
               '¡Necesitas un vehículo!',
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF854937),
+                color: textColor,
               ),
             ),
             const SizedBox(height: 15),
-            const Text(
+            Text(
               'Para publicar viajes necesitas tener al menos un vehículo registrado.',
               style: TextStyle(
                 fontSize: 16,
-                color: Color(0xFF6B3B2D),
+                color: textColor,
               ),
               textAlign: TextAlign.center,
             ),
@@ -250,16 +263,16 @@ class PublicarPageState extends State<PublicarPage> {
             ElevatedButton(
               onPressed: () {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Ve a tu perfil para agregar un vehículo'),
-                    backgroundColor: Color(0xFF854937),
-                    duration: Duration(seconds: 3),
+                  SnackBar(
+                    content: const Text('Ve a tu perfil para agregar un vehículo'),
+                    backgroundColor: primaryColor,
+                    duration: const Duration(seconds: 3),
                   ),
                 );
                 Navigator.pushReplacementNamed(context, '/perfil');
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF854937),
+                backgroundColor: primaryColor,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
                 shape: RoundedRectangleBorder(
@@ -285,8 +298,8 @@ class PublicarPageState extends State<PublicarPage> {
             OutlinedButton(
               onPressed: _verificarVehiculos,
               style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFF854937),
-                side: const BorderSide(color: Color(0xFF854937)),
+                foregroundColor: primaryColor,
+                side: BorderSide(color: primaryColor),
                 padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(25),
@@ -303,7 +316,7 @@ class PublicarPageState extends State<PublicarPage> {
     );
   }
 
-  Widget _buildPublishOptions() {
+  Widget _buildPublishOptions(Color primaryColor, Color textColor, Color surfaceColor) {
     return Padding(
       padding: const EdgeInsets.all(20.0),
       child: Column(
@@ -312,22 +325,22 @@ class PublicarPageState extends State<PublicarPage> {
           const SizedBox(height: 30),
           
           // Título principal
-          const Text(
+          Text(
             '¡Comparte tu viaje!',
             style: TextStyle(
               fontSize: 28,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF854937),
+              color: textColor,
             ),
           ),
           
           const SizedBox(height: 15),
           
-          const Text(
+          Text(
             'Conecta con otros viajeros y ahorra en tus trayectos',
             style: TextStyle(
               fontSize: 16,
-              color: Color(0xFF6B3B2D),
+              color: textColor,
             ),
             textAlign: TextAlign.center,
           ),
@@ -365,6 +378,9 @@ class PublicarPageState extends State<PublicarPage> {
           // Opciones de publicación
           _buildPublishOption(
             context,
+            primaryColor: primaryColor,
+            textColor: textColor,
+            surfaceColor: surfaceColor,
             icon: Icons.location_on,
             title: 'Publicar un viaje',
             description: 'Comparte tu ruta y ahorra combustible',
@@ -383,6 +399,9 @@ class PublicarPageState extends State<PublicarPage> {
   }
 
   Widget _buildPublishOption(BuildContext context, {
+    required Color primaryColor,
+    required Color textColor,
+    required Color surfaceColor,
     required IconData icon,
     required String title,
     required String description,
@@ -394,7 +413,7 @@ class PublicarPageState extends State<PublicarPage> {
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: surfaceColor,
           borderRadius: BorderRadius.circular(15),
           boxShadow: [
             BoxShadow(
@@ -410,12 +429,12 @@ class PublicarPageState extends State<PublicarPage> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: const Color(0xFF854937).withOpacity(0.1),
+                color: primaryColor.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
                 icon,
-                color: const Color(0xFF854937),
+                color: primaryColor,
                 size: 24,
               ),
             ),
@@ -426,26 +445,26 @@ class PublicarPageState extends State<PublicarPage> {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF070505),
+                      color: textColor,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     description,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 14,
-                      color: Color(0xFF6B3B2D),
+                      color: textColor.withOpacity(0.7),
                     ),
                   ),
                 ],
               ),
             ),
-            const Icon(
+            Icon(
               Icons.arrow_forward_ios,
-              color: Color(0xFF854937),
+              color: primaryColor,
               size: 16,
             ),
           ],

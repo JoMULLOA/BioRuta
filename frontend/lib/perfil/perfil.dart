@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:provider/provider.dart';
 import '../widgets/navbar_con_sos_dinamico.dart';
 import '../chat/Chatsoporte.dart';
 import './amistad_menu.dart';
@@ -12,6 +13,9 @@ import 'saldo_tarjetas_screen.dart';
 import '../utils/token_manager.dart';
 import '../auth/login.dart';
 import '../services/socket_service.dart';
+import '../providers/theme_provider.dart';
+import '../config/app_colors.dart';
+import '../widgets/theme_toggle_button.dart';
 
 class Perfil extends StatefulWidget {
   @override
@@ -264,7 +268,7 @@ class Perfil_ extends State<Perfil> {
 
   // Mostrar diálogo de confirmación para cerrar sesión
   void _showLogoutDialog(BuildContext context) {
-    final Color primario = Color(0xFF6B3B2D);
+    final Color primario = AppColors.primaryLight;
     
     showDialog(
       context: context,
@@ -335,13 +339,13 @@ class Perfil_ extends State<Perfil> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF6B3B2D)),
+                    valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryLight),
                   ),
                   SizedBox(height: 16),
                   Text(
                     'Cerrando sesión...',
                     style: TextStyle(
-                      color: Color(0xFF6B3B2D),
+                      color: AppColors.primaryLight,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -495,12 +499,26 @@ class Perfil_ extends State<Perfil> {
 
   @override
   Widget build(BuildContext context) {
-    final Color fondo = Color(0xFFF8F2EF);
-    final Color primario = Color(0xFF6B3B2D);
-    final Color secundario = Color(0xFF8D4F3A);
+    return Consumer<ThemeProvider>(
+      builder: (context, themeProvider, child) {
+        final Color fondo = themeProvider.isDarkMode 
+            ? AppColors.darkBackground 
+            : AppColors.lightBackground;
+        final Color primario = themeProvider.isDarkMode 
+            ? AppColors.primaryDark      // Morado elegante para AppBar oscuro
+            : AppColors.primaryLight;    // Morado claro para modo claro
+        final Color secundario = themeProvider.isDarkMode 
+            ? AppColors.primaryDark      // Morado elegante para AppBar oscuro
+            : AppColors.primaryLight;    // Morado claro para modo claro
+        final Color textoPrimario = themeProvider.isDarkMode 
+            ? AppColors.darkText         // Texto blanco para modo oscuro
+            : AppColors.lightText;       // Texto oscuro para modo claro
+        final Color textoSecundario = themeProvider.isDarkMode 
+            ? AppColors.darkSecondaryText // Texto gris claro para modo oscuro
+            : AppColors.lightSecondaryText; // Texto gris para modo claro
 
-    return Scaffold(
-      backgroundColor: fondo,
+        return Scaffold(
+          backgroundColor: fondo,
       appBar: AppBar(
         title: const Text('Perfil'),
         backgroundColor: secundario,
@@ -553,20 +571,26 @@ class Perfil_ extends State<Perfil> {
                         gradient: LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
-                          colors: [
-                            Color(0xFF8D4F3A), // Color secundario (marrón medio)
-                            Color(0xFF6B3B2D), // Color primario (marrón oscuro)
-                            Color(0xFFA0613B), // Marrón más claro para transición
+                          colors: themeProvider.isDarkMode ? [
+                            AppColors.darkProfileBox,          // Azul oscuro principal #0B0D3A
+                            AppColors.darkAccent,              // Azul oscuro acento #10124A
+                            Color(0xFF1A1C35),                 // Azul oscuro suave para elegancia
+                          ] : [
+                            AppColors.lightProfileBox,         // Morado claro principal  
+                            AppColors.lightProfileBox.withOpacity(0.9), // Morado claro con transparencia
+                            Color(0xFF9575CD),                 // Morado más suave para transición
                           ],
-                          stops: [0.0, 0.7, 1.0],
+                          stops: themeProvider.isDarkMode ? [0.0, 0.6, 1.0] : [0.0, 0.7, 1.0],
                         ),
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.15),
-                            spreadRadius: 2,
-                            blurRadius: 12,
-                            offset: Offset(0, 6),
+                            color: themeProvider.isDarkMode 
+                                ? Colors.black.withOpacity(0.3)
+                                : Colors.black.withOpacity(0.15),
+                            spreadRadius: themeProvider.isDarkMode ? 1 : 2,
+                            blurRadius: themeProvider.isDarkMode ? 8 : 12,
+                            offset: Offset(0, themeProvider.isDarkMode ? 4 : 6),
                           ),
                         ],
                       ),
@@ -710,9 +734,12 @@ class Perfil_ extends State<Perfil> {
                     width: double.infinity,
                     padding: EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: themeProvider.isDarkMode ? AppColors.darkSurface : Colors.white,
                       borderRadius: BorderRadius.circular(16),
-                      boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 6)],
+                      boxShadow: [BoxShadow(
+                        color: themeProvider.isDarkMode ? Colors.black26 : Colors.black12, 
+                        blurRadius: 6
+                      )],
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -722,13 +749,13 @@ class Perfil_ extends State<Perfil> {
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: primario,
+                            color: textoPrimario,
                           ),
                         ),
                         SizedBox(height: 8),
                         Text(
                           _userDescription,
-                          style: TextStyle(color: secundario, height: 1.5),
+                          style: TextStyle(color: textoSecundario, height: 1.5),
                         ),
                       ],
                     ),
@@ -741,9 +768,12 @@ class Perfil_ extends State<Perfil> {
                     width: double.infinity,
                     padding: EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: themeProvider.isDarkMode ? AppColors.darkSurface : Colors.white,
                       borderRadius: BorderRadius.circular(16),
-                      boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 6)],
+                      boxShadow: [BoxShadow(
+                        color: themeProvider.isDarkMode ? Colors.black26 : Colors.black12, 
+                        blurRadius: 6
+                      )],
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -753,13 +783,13 @@ class Perfil_ extends State<Perfil> {
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: primario,
+                            color: textoPrimario,
                           ),
                         ),
                         SizedBox(height: 8),
                         Text(
                           '• $_userCareer',
-                          style: TextStyle(color: secundario),
+                          style: TextStyle(color: textoSecundario),
                         ),
                       ],
                     ),
@@ -772,9 +802,12 @@ class Perfil_ extends State<Perfil> {
                     width: double.infinity,
                     padding: EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: themeProvider.isDarkMode ? AppColors.darkSurface : Colors.white,
                       borderRadius: BorderRadius.circular(16),
-                      boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 6)],
+                      boxShadow: [BoxShadow(
+                        color: themeProvider.isDarkMode ? Colors.black26 : Colors.black12, 
+                        blurRadius: 6
+                      )],
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -787,7 +820,7 @@ class Perfil_ extends State<Perfil> {
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
-                                color: primario,
+                                color: textoPrimario,
                               ),
                             ),
                             Icon(Icons.directions_car, color: secundario),
@@ -815,18 +848,27 @@ class Perfil_ extends State<Perfil> {
               ),
             ),
           ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => ChatSoporte(),
-            ),
-          );
-        },
-        backgroundColor: primario,
-        child: Icon(Icons.support_agent, color: Colors.white),
-        tooltip: 'Gestionar Amistades',
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Botón de cambio de tema
+          ThemeToggleButton(),
+          SizedBox(height: 8),
+          // Botón de soporte existente
+          FloatingActionButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ChatSoporte(),
+                ),
+              );
+            },
+            backgroundColor: primario,
+            child: Icon(Icons.support_agent, color: Colors.white),
+            tooltip: 'Chat de Soporte',
+          ),
+        ],
       ),
       bottomNavigationBar: NavbarConSOSDinamico(
         currentIndex: _selectedIndex,
@@ -859,6 +901,8 @@ class Perfil_ extends State<Perfil> {
           }
         },
       ),
+        );
+      },
     );
   }
 }

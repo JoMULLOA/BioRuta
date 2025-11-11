@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../services/emergencia_service.dart';
 import 'configurar_contactos_screen.dart';
+import '../providers/theme_provider.dart';
+import '../config/app_colors.dart';
 
 class TutorialSOSScreen extends StatefulWidget {
   const TutorialSOSScreen({super.key});
@@ -20,7 +23,7 @@ class _TutorialSOSScreenState extends State<TutorialSOSScreen> {
       title: '¡Bienvenido al Sistema SOS!',
       description: 'El botón SOS está diseñado para situaciones de emergencia real durante tus viajes.',
       icon: Icons.shield_outlined,
-      color: const Color(0xFF854937), // Color principal de la app
+      color: AppColors.primaryLight, // Color principal de la app
       details: [
         'Envía tu ubicación automáticamente',
         'Alerta a tus contactos de confianza',
@@ -44,7 +47,7 @@ class _TutorialSOSScreenState extends State<TutorialSOSScreen> {
       title: 'Cómo Activar la Emergencia',
       description: 'El botón SOS requiere una acción deliberada para evitar activaciones accidentales.',
       icon: Icons.touch_app,
-      color: const Color(0xFF854937), // Color principal
+      color: AppColors.primaryLight, // Color principal
       details: [
         'Mantén presionado el botón por 2 segundos',
         'Aparecerá un diálogo de confirmación',
@@ -149,7 +152,7 @@ class _TutorialSOSScreenState extends State<TutorialSOSScreen> {
       backgroundColor: const Color(0xFFF2EEED),
       appBar: AppBar(
         title: const Text('Tutorial SOS'),
-        backgroundColor: const Color(0xFF854937), // Color café de la app
+        backgroundColor: context.watch<ThemeProvider>().isDarkMode ? AppColors.primaryDark : AppColors.primaryLight,
         foregroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(

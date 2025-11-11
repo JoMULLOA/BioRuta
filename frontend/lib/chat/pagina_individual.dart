@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // Agrega este import
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:async';
 import '../config/confGlobal.dart';
+import '../providers/theme_provider.dart';
+import '../config/app_colors.dart';
 import '../services/socket_service.dart';
 import '../services/websocket_notification_service.dart';
 import '../services/location_service.dart';
@@ -796,17 +799,25 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF854937),
+    return Consumer<ThemeProvider>(
+      builder: (context, themeProvider, child) {
+        final isDark = themeProvider.isDarkMode;
+        final backgroundColor = isDark ? AppColors.darkBackground : AppColors.lightBackground;
+        final primaryColor = isDark ? AppColors.primaryDark : AppColors.primaryLight;
+        final surfaceColor = isDark ? AppColors.darkSurface : AppColors.lightSurface;
+        final textColor = isDark ? AppColors.darkText : AppColors.lightText;
+        
+        return Scaffold(
+          backgroundColor: backgroundColor,
+          appBar: AppBar(
+            backgroundColor: primaryColor,
         title: Row(
           children: [
             CircleAvatar(
               backgroundColor: Colors.white,
               child: Text(
                 widget.nombre.isNotEmpty ? widget.nombre[0] : '?',
-                style: const TextStyle(color: Color(0xFF854937)),
+                style: TextStyle(color: primaryColor),
               ),
             ),
             const SizedBox(width: 8),
@@ -935,12 +946,12 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
                   );
                 }
 
-                // Mensaje de texto normal
-                final cafeClaro = const Color(0xFFD7BFAE); // Café claro para mensaje propio
-                final cafeOscuro = const Color(0xFF854937); // Café oscuro para globo 'Tú'
-                final colorMensaje = isMe ? cafeClaro : Colors.grey[300];
-                final colorTextoMensaje = isMe ? Colors.black : Colors.black;
-                final colorHora = isMe ? Colors.black54 : Colors.black54;
+                // Mensaje de texto normal - usando colores del tema
+                final colorMensajePropio = isDark ? primaryColor : primaryColor.withOpacity(0.2);
+                final colorMensajeOtro = isDark ? AppColors.darkSurface : Colors.grey[300];
+                final colorMensaje = isMe ? colorMensajePropio : colorMensajeOtro;
+                final colorTextoMensaje = isMe ? (isDark ? Colors.white : AppColors.lightText) : (isDark ? AppColors.darkText : Colors.black);
+                final colorHora = isDark ? Colors.white70 : Colors.black54;
 
                 return Container(
                   margin: const EdgeInsets.symmetric(vertical: 4),
@@ -950,7 +961,7 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
                       if (!isMe) ...[
                         CircleAvatar(
                           radius: 16,
-                          backgroundColor: cafeOscuro,
+                          backgroundColor: primaryColor,
                           child: Text(
                             widget.nombre.isNotEmpty ? widget.nombre[0] : '?',
                             style: const TextStyle(color: Colors.white, fontSize: 12),
@@ -1010,7 +1021,7 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
                         const SizedBox(width: 8),
                         CircleAvatar(
                           radius: 16,
-                          backgroundColor: cafeOscuro,
+                          backgroundColor: primaryColor,
                           child: const Text(
                             'Tú',
                             style: TextStyle(color: Colors.white, fontSize: 10),
@@ -1064,7 +1075,7 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
                 const SizedBox(width: 8),
                 FloatingActionButton(
                   onPressed: _sendMessage,
-                  backgroundColor: const Color(0xFF854937),
+                  backgroundColor: primaryColor,
                   mini: true,
                   child: const Icon(Icons.send, color: Colors.white),
                 ),
@@ -1073,6 +1084,8 @@ class _PaginaIndividualWebSocketState extends State<PaginaIndividualWebSocket> {
           ),
         ],
       ),
+        );
+      },
     );
   }
 

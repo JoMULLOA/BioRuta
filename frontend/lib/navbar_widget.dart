@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:async';
+import 'package:provider/provider.dart';
 import 'services/emergencia_service.dart';
+import 'providers/theme_provider.dart';
+import 'config/app_colors.dart';
 
 class CustomNavbar extends StatelessWidget {
   final int currentIndex;
@@ -19,8 +22,10 @@ class CustomNavbar extends StatelessWidget {
   
   @override
   Widget build(BuildContext context) {
-    // Lista base de items sin SOS
-    List<BottomNavigationBarItem> items = const [
+    return Consumer<ThemeProvider>(
+      builder: (context, themeProvider, child) {
+        // Lista base de items sin SOS
+        List<BottomNavigationBarItem> items = const [
       BottomNavigationBarItem(icon: Icon(Icons.directions_car), label: 'Viajes'),
       BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Buscar'),
       BottomNavigationBarItem(icon: Icon(Icons.add), label: 'Publicar'),
@@ -46,15 +51,23 @@ class CustomNavbar extends StatelessWidget {
       ];
     }
 
-    return BottomNavigationBar(
-      currentIndex: currentIndex.clamp(0, items.length - 1), // 🔒 PROTECCIÓN: Asegurar que el índice esté en rango válido
-      selectedItemColor: const Color(0xFF854937),
-      unselectedItemColor: const Color(0xFF070505).withOpacity(0.5),
-      backgroundColor: const Color(0xFFF2EEED),
-      type: BottomNavigationBarType.fixed,
-      elevation: 8,
-      onTap: onTap,
-      items: items,
+        return BottomNavigationBar(
+          currentIndex: currentIndex.clamp(0, items.length - 1),
+          selectedItemColor: themeProvider.isDarkMode 
+              ? AppColors.primaryDark 
+              : AppColors.primaryLight,
+          unselectedItemColor: themeProvider.isDarkMode
+              ? AppColors.darkSecondaryText
+              : AppColors.lightSecondaryText,
+          backgroundColor: themeProvider.isDarkMode
+              ? AppColors.darkSurface
+              : Colors.white,
+          type: BottomNavigationBarType.fixed,
+          elevation: 8,
+          onTap: onTap,
+          items: items,
+        );
+      },
     );
   }
 

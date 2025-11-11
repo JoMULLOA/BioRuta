@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../widgets/navbar_con_sos_dinamico.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert'; // Para parsear JSON
 import '../config/confGlobal.dart';
+import '../providers/theme_provider.dart';
+import '../config/app_colors.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/amistad_service.dart'; // Importar servicio de amistad
 import '../helpers/notificacion_helpers.dart'; // Importar helpers de notificación
@@ -84,20 +87,23 @@ class _RankingState extends State<ranking> {
     _fetchRanking();
   }
 
-  final Color fondo = const Color(0xFFF8F2EF);
-  final Color principal = const Color(0xFF6B3B2D);
-  final Color secundario = const Color(0xFF8D4F3A);
-
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: fondo,
-      appBar: AppBar(
-        title: const Text('Ranking'),
-        backgroundColor: secundario,
-        foregroundColor: Colors.white,
-        elevation: 0,
-      ),
+    return Consumer<ThemeProvider>(
+      builder: (context, themeProvider, child) {
+        final isDark = themeProvider.isDarkMode;
+        final backgroundColor = isDark ? AppColors.darkBackground : AppColors.lightBackground;
+        final primaryColor = isDark ? AppColors.primaryDark : AppColors.primaryLight;
+        final textColor = isDark ? AppColors.darkText : AppColors.lightText;
+        
+        return Scaffold(
+          backgroundColor: backgroundColor,
+          appBar: AppBar(
+            title: const Text('Ranking'),
+            backgroundColor: primaryColor,
+            foregroundColor: Colors.white,
+            elevation: 0,
+          ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -105,7 +111,7 @@ class _RankingState extends State<ranking> {
           children: [
             Text(
               _isClasificaciones ? 'Top Calificaciones' : 'Top Usuarios',
-              style: TextStyle(color: principal, fontSize: 20, fontWeight: FontWeight.bold),
+              style: TextStyle(color: textColor, fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
             
@@ -134,7 +140,7 @@ class _RankingState extends State<ranking> {
                       child: Container(
                         padding: EdgeInsets.symmetric(vertical: 12),
                         decoration: BoxDecoration(
-                          color: !_isClasificaciones ? principal : Colors.transparent,
+                          color: !_isClasificaciones ? primaryColor : Colors.transparent,
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Row(
@@ -142,14 +148,14 @@ class _RankingState extends State<ranking> {
                           children: [
                             Icon(
                               Icons.stars,
-                              color: !_isClasificaciones ? Colors.white : secundario,
+                              color: !_isClasificaciones ? Colors.white : primaryColor,
                               size: 20,
                             ),
                             SizedBox(width: 8),
                             Text(
                               'Puntos',
                               style: TextStyle(
-                                color: !_isClasificaciones ? Colors.white : secundario,
+                                color: !_isClasificaciones ? Colors.white : primaryColor,
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16,
                               ),
@@ -167,7 +173,7 @@ class _RankingState extends State<ranking> {
                       child: Container(
                         padding: EdgeInsets.symmetric(vertical: 12),
                         decoration: BoxDecoration(
-                          color: _isClasificaciones ? principal : Colors.transparent,
+                          color: _isClasificaciones ? primaryColor : Colors.transparent,
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Row(
@@ -175,14 +181,14 @@ class _RankingState extends State<ranking> {
                           children: [
                             Icon(
                               Icons.grade,
-                              color: _isClasificaciones ? Colors.white : secundario,
+                              color: _isClasificaciones ? Colors.white : primaryColor,
                               size: 20,
                             ),
                             SizedBox(width: 8),
                             Text(
                               'Calificaciones',
                               style: TextStyle(
-                                color: _isClasificaciones ? Colors.white : secundario,
+                                color: _isClasificaciones ? Colors.white : primaryColor,
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16,
                               ),
@@ -210,6 +216,9 @@ class _RankingState extends State<ranking> {
                       index + 1,
                       isCurrentUser,
                       true, // Es clasificación
+                      primaryColor,
+                      backgroundColor,
+                      textColor,
                     );
                   } else {
                     return _buildRankingItem(
@@ -218,6 +227,9 @@ class _RankingState extends State<ranking> {
                       index + 1,
                       isCurrentUser,
                       false, // Es puntuación
+                      primaryColor,
+                      backgroundColor,
+                      textColor,
                     );
                   }
                 },
@@ -257,10 +269,12 @@ class _RankingState extends State<ranking> {
           }
         },
       ),
+        );
+      },
     );
   }
 
-  Widget _buildRankingItem(Map<String, dynamic> userData, double valor, int posicion, bool isCurrentUser, bool isClasificacion) {
+  Widget _buildRankingItem(Map<String, dynamic> userData, double valor, int posicion, bool isCurrentUser, bool isClasificacion, Color primaryColor, Color backgroundColor, Color textColor) {
     final String nombre = userData['nombreCompleto'] ?? '';
     final String rutUsuario = userData['rut'] ?? '';
     
@@ -312,15 +326,15 @@ class _RankingState extends State<ranking> {
         child: Card(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
-            side: _buildBorder(isCurrentUser, marcoColor, posicion),
+            side: _buildBorder(isCurrentUser, marcoColor, posicion, primaryColor),
           ),
           margin: const EdgeInsets.symmetric(vertical: 2),
           elevation: _getElevation(isCurrentUser, posicion),
           color: isCurrentUser 
-            ? fondo.withOpacity(0.9) 
+            ? backgroundColor.withOpacity(0.9) 
             : Colors.white,
           child: Container(
-            decoration: _buildContainerDecoration(isCurrentUser, marcoColor, posicion),
+            decoration: _buildContainerDecoration(isCurrentUser, marcoColor, posicion, primaryColor, backgroundColor),
             child: ListTile(
               onTap: isCurrentUser ? null : () => _mostrarDialogoSolicitudAmistad(context, nombre, userData),
               onLongPress: isCurrentUser ? null : () => _mostrarDialogoReporte(context, rutUsuario, nombre),
@@ -346,7 +360,7 @@ class _RankingState extends State<ranking> {
                       child: Container(
                         padding: EdgeInsets.all(2),
                         decoration: BoxDecoration(
-                          color: principal,
+                          color: primaryColor,
                           shape: BoxShape.circle,
                         ),
                         child: Icon(
@@ -361,7 +375,7 @@ class _RankingState extends State<ranking> {
               title: Text(
                 nombre, 
                 style: TextStyle(
-                  color: posicion <= 3 ? principal : Colors.grey[700], // Color más neutro fuera del podio
+                  color: posicion <= 3 ? primaryColor : Colors.grey[700], // Color más neutro fuera del podio
                   fontWeight: isCurrentUser ? FontWeight.w900 : (posicion <= 3 ? FontWeight.bold : FontWeight.w500),
                   fontSize: isCurrentUser ? 18 : 14, // Texto más grande para usuario actual
                 ),
@@ -369,7 +383,7 @@ class _RankingState extends State<ranking> {
               subtitle: Text(
                 isClasificacion ? 'Calificación: $valorTexto ⭐' : 'Puntos: $valorTexto', 
                 style: TextStyle(
-                  color: posicion <= 3 ? secundario : Colors.grey[500], // Color más neutro fuera del podio
+                  color: posicion <= 3 ? primaryColor.withOpacity(0.8) : Colors.grey[500], // Color más neutro fuera del podio
                   fontWeight: isCurrentUser ? FontWeight.w600 : FontWeight.normal,
                   fontSize: isCurrentUser ? 15 : 12, // Subtítulo más grande para usuario actual
                 ),
@@ -380,13 +394,13 @@ class _RankingState extends State<ranking> {
                   vertical: isCurrentUser ? 6 : 4,
                 ),
                 decoration: BoxDecoration(
-                  color: _getTrailingColor(isCurrentUser, marcoColor, posicion),
+                  color: _getTrailingColor(isCurrentUser, marcoColor, posicion, primaryColor),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   '#$posicion', 
                   style: TextStyle(
-                    color: _getTrailingTextColor(isCurrentUser, marcoColor, posicion), 
+                    color: _getTrailingTextColor(isCurrentUser, marcoColor, posicion, primaryColor), 
                     fontSize: isCurrentUser ? 18 : 16, // Posición más grande para usuario actual
                     fontWeight: FontWeight.bold,
                   ),
@@ -395,19 +409,18 @@ class _RankingState extends State<ranking> {
             ),
           ),
         ),
-      )
-      )
-      ;
+      ),
+    );
   }
 
   // Función para determinar el borde
-  BorderSide _buildBorder(bool isCurrentUser, Color? marcoColor, int posicion) {
+  BorderSide _buildBorder(bool isCurrentUser, Color? marcoColor, int posicion, Color primaryColor) {
     if (posicion <= 3 && marcoColor != null) {
       // Marco especial solo para top 3
       return BorderSide(color: marcoColor, width: 3);
     } else if (isCurrentUser && posicion <= 3) {
       // Marco para usuario actual solo si está en el podio
-      return BorderSide(color: principal, width: 3);
+      return BorderSide(color: primaryColor, width: 3);
     } else {
       // Sin marco para usuarios fuera del podio, incluso si es el usuario actual
       return BorderSide.none;
@@ -429,7 +442,7 @@ class _RankingState extends State<ranking> {
   }
 
   // Función para determinar la decoración del contenedor
-  BoxDecoration? _buildContainerDecoration(bool isCurrentUser, Color? marcoColor, int posicion) {
+  BoxDecoration? _buildContainerDecoration(bool isCurrentUser, Color? marcoColor, int posicion, Color primaryColor, Color backgroundColor) {
     if (marcoColor != null && posicion <= 3) {
       // Gradiente especial solo para top 3
       return BoxDecoration(
@@ -451,8 +464,8 @@ class _RankingState extends State<ranking> {
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
           colors: [
-            principal.withOpacity(0.1),
-            fondo.withOpacity(0.5),
+            primaryColor.withOpacity(0.1),
+            backgroundColor.withOpacity(0.5),
           ],
         ),
       );
@@ -462,12 +475,12 @@ class _RankingState extends State<ranking> {
   }
 
   // Función para determinar el color de fondo del trailing
-  Color _getTrailingColor(bool isCurrentUser, Color? marcoColor, int posicion) {
+  Color _getTrailingColor(bool isCurrentUser, Color? marcoColor, int posicion, Color primaryColor) {
     if (marcoColor != null && posicion <= 3) {
       return marcoColor;
     } else if (isCurrentUser && posicion <= 3) {
       // Solo usar color principal si el usuario actual está en el podio
-      return principal;
+      return primaryColor;
     } else {
       // Color transparente para usuarios fuera del podio, incluso si es el usuario actual
       return Colors.transparent;
@@ -475,7 +488,7 @@ class _RankingState extends State<ranking> {
   }
 
   // Función para determinar el color del texto del trailing
-  Color _getTrailingTextColor(bool isCurrentUser, Color? marcoColor, int posicion) {
+  Color _getTrailingTextColor(bool isCurrentUser, Color? marcoColor, int posicion, Color primaryColor) {
     if (marcoColor != null && posicion <= 3) {
       return Colors.white;
     } else if (isCurrentUser && posicion <= 3) {
@@ -498,13 +511,13 @@ class _RankingState extends State<ranking> {
           ),
           title: Row(
             children: [
-              Icon(Icons.person_add, color: principal, size: 28),
+              Icon(Icons.person_add, color: AppColors.primaryLight, size: 28),
               SizedBox(width: 8),
               Expanded(
                 child: Text(
                   'Enviar solicitud',
                   style: TextStyle(
-                    color: principal,
+                    color: AppColors.primaryLight,
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
@@ -519,13 +532,13 @@ class _RankingState extends State<ranking> {
               Container(
                 padding: EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: fondo.withOpacity(0.3),
+                  color: AppColors.lightBackground.withOpacity(0.3),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
                   children: [
                     CircleAvatar(
-                      backgroundColor: secundario,
+                      backgroundColor: AppColors.primaryLight,
                       child: Icon(Icons.person, color: Colors.white),
                     ),
                     SizedBox(width: 12),
@@ -538,13 +551,13 @@ class _RankingState extends State<ranking> {
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 16,
-                              color: principal,
+                              color: AppColors.primaryLight,
                             ),
                           ),
                           Text(
-                            'Posición #${_rankingData.indexOf(userData) + 1}',
+                            'Usuario del ranking',
                             style: TextStyle(
-                              color: secundario,
+                              color: AppColors.primaryLight.withOpacity(0.8),
                               fontSize: 14,
                             ),
                           ),
@@ -580,7 +593,7 @@ class _RankingState extends State<ranking> {
                 await _enviarSolicitudAmistad(context, userData['rut'], nombreUsuario);
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: principal,
+                backgroundColor: AppColors.primaryLight,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:provider/provider.dart';
 import 'services/websocket_notification_service.dart';
+import 'providers/theme_provider.dart';
 import 'auth/login.dart';
 import 'mapa/mapa.dart';
 import 'viajes/mapa_viajes_screen.dart';
@@ -62,7 +64,12 @@ void main() async {
     print('❌ Error inicializando notificaciones: $e');
   }
   
-  runApp(const MyApp());
+  runApp(
+    ChangeNotifierProvider(
+      create: (context) => ThemeProvider(),
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {

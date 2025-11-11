@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../services/notificacion_service.dart';
+import '../providers/theme_provider.dart';
+import '../config/app_colors.dart';
 
 class CustomNavbarConNotificaciones extends StatefulWidget {
   final int currentIndex;
@@ -84,14 +87,21 @@ class _CustomNavbarConNotificacionesState extends State<CustomNavbarConNotificac
 
   @override
   Widget build(BuildContext context) {
-    return BottomNavigationBar(
-      currentIndex: widget.currentIndex,
-      selectedItemColor: const Color(0xFF854937),
-      unselectedItemColor: const Color(0xFF070505).withOpacity(0.5),
-      backgroundColor: const Color(0xFFF2EEED),
-      type: BottomNavigationBarType.fixed,
-      elevation: 8,
-      onTap: widget.onTap,
+    return Consumer<ThemeProvider>(
+      builder: (context, themeProvider, child) {
+        final isDark = themeProvider.isDarkMode;
+        final selectedColor = isDark ? AppColors.primaryDark : AppColors.primaryLight;
+        final unselectedColor = isDark ? AppColors.darkSecondaryText : AppColors.lightSecondaryText;
+        final backgroundColor = isDark ? AppColors.darkSurface : AppColors.lightSurface;
+        
+        return BottomNavigationBar(
+          currentIndex: widget.currentIndex,
+          selectedItemColor: selectedColor,
+          unselectedItemColor: unselectedColor,
+          backgroundColor: backgroundColor,
+          type: BottomNavigationBarType.fixed,
+          elevation: 8,
+          onTap: widget.onTap,
       items: [
         BottomNavigationBarItem(icon: Icon(Icons.directions_car), label: 'Viajes'),
         BottomNavigationBarItem(icon: Icon(Icons.map), label: 'Mapa'),
@@ -103,6 +113,8 @@ class _CustomNavbarConNotificacionesState extends State<CustomNavbarConNotificac
           label: 'Perfil',
         ),
       ],
+        );
+      },
     );
   }
 }

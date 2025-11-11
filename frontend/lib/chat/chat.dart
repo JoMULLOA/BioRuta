@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart'; // Importa SecureStorage
 import '../widgets/navbar_con_sos_dinamico.dart';
+import '../providers/theme_provider.dart';
+import '../config/app_colors.dart';
 import 'pagina_individual.dart'; // Cambiar a la versión WebSocket
 import 'chat_grupal.dart'; // Importar chat grupal
 import '../models/user_models.dart';
@@ -212,17 +215,21 @@ class ChatState extends State<Chat> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    final Color fondo = const Color(0xFFF8F2EF);
-    final Color principal = const Color(0xFF6B3B2D);
-    final Color secundario = const Color(0xFF8D4F3A);
+    return Consumer<ThemeProvider>(
+      builder: (context, themeProvider, child) {
+        final isDark = themeProvider.isDarkMode;
+        final backgroundColor = isDark ? AppColors.darkBackground : AppColors.lightBackground;
+        final primaryColor = isDark ? AppColors.primaryDark : AppColors.primaryLight;
+        final textColor = isDark ? AppColors.darkText : AppColors.lightText;
+        final surfaceColor = isDark ? AppColors.darkSurface : AppColors.lightSurface;
 
-    return Scaffold(
-      backgroundColor: fondo,
-      appBar: AppBar(
-        title: const Text('Chats'),
-        backgroundColor: secundario,
-        foregroundColor: Colors.white,
-        elevation: 0,
+        return Scaffold(
+          backgroundColor: backgroundColor,
+          appBar: AppBar(
+            title: const Text('Chats'),
+            backgroundColor: primaryColor,
+            foregroundColor: Colors.white,
+            elevation: 0,
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: Colors.white,
@@ -238,9 +245,9 @@ class ChatState extends State<Chat> with TickerProviderStateMixin {
         controller: _tabController,
         children: [
           // TAB 1: Chats Personales (contenido actual)
-          _buildChatPersonalesTab(fondo, principal, secundario),
+          _buildChatPersonalesTab(backgroundColor, primaryColor, textColor, surfaceColor),
           // TAB 2: Chats de Viajes (nuevo)
-          _buildChatViajesTab(fondo, principal, secundario),
+          _buildChatViajesTab(backgroundColor, primaryColor, textColor, surfaceColor),
         ],
       ),
       bottomNavigationBar: NavbarConSOSDinamico(
@@ -275,16 +282,18 @@ class ChatState extends State<Chat> with TickerProviderStateMixin {
               break;
           }
         },
-      ),
+          ),
+        );
+      },
     );
   }
 
   // --- Método para construir la pestaña de Chats Personales ---
-  Widget _buildChatPersonalesTab(Color fondo, Color principal, Color secundario) {
+  Widget _buildChatPersonalesTab(Color backgroundColor, Color primaryColor, Color textColor, Color surfaceColor) {
     return Padding(
       padding: const EdgeInsets.all(12.0),
       child: isLoading
-          ? Center(child: CircularProgressIndicator(color: principal))
+          ? Center(child: CircularProgressIndicator(color: primaryColor))
           : errorMessage != null
               ? Center(
                   child: Column(
@@ -294,7 +303,7 @@ class ChatState extends State<Chat> with TickerProviderStateMixin {
                       ElevatedButton(
                         onPressed: _cargarAmigosDisponibles,
                         child: const Text('Reintentar', style: TextStyle(color: Colors.white)),
-                        style: ElevatedButton.styleFrom(backgroundColor: principal),
+                        style: ElevatedButton.styleFrom(backgroundColor: primaryColor),
                       )
                     ],
                   ),
@@ -316,7 +325,7 @@ class ChatState extends State<Chat> with TickerProviderStateMixin {
                               Text(
                                 'No tienes amigos para chatear',
                                 style: TextStyle(
-                                  color: principal,
+                                  color: primaryColor,
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -324,13 +333,13 @@ class ChatState extends State<Chat> with TickerProviderStateMixin {
                               const SizedBox(height: 4),
                               Text(
                                 'Ve a tu perfil para enviar solicitudes de amistad',
-                                style: TextStyle(color: secundario),
+                                style: TextStyle(color: primaryColor.withOpacity(0.8)),
                                 textAlign: TextAlign.center,
                               ),
                               const SizedBox(height: 8),
                               ElevatedButton(
                                 onPressed: () => Navigator.pushNamed(context, '/perfil'),
-                                style: ElevatedButton.styleFrom(backgroundColor: principal),
+                                style: ElevatedButton.styleFrom(backgroundColor: primaryColor),
                                 child: const Text('Ir a Perfil', style: TextStyle(color: Colors.white)),
                               ),
                             ],
@@ -347,11 +356,11 @@ class ChatState extends State<Chat> with TickerProviderStateMixin {
                           margin: const EdgeInsets.symmetric(vertical: 6),
                           child: ListTile(
                             leading: CircleAvatar(
-                              backgroundColor: principal.withOpacity(0.8),
+                              backgroundColor: primaryColor.withOpacity(0.8),
                               child: Text(user.nombreCompleto[0], style: const TextStyle(color: Colors.white)),
                             ),
-                            title: Text(user.nombreCompleto, style: TextStyle(color: principal)),
-                            subtitle: Text(user.email, style: TextStyle(color: secundario)),
+                            title: Text(user.nombreCompleto, style: TextStyle(color: primaryColor, fontWeight: FontWeight.w600)),
+                            subtitle: Text(user.email, style: TextStyle(color: Colors.grey[600])),
                             onTap: () {
                               Navigator.push(
                                 context,
@@ -373,11 +382,11 @@ class ChatState extends State<Chat> with TickerProviderStateMixin {
   }
 
   // --- Método para construir la pestaña de Chats de Viajes ---
-  Widget _buildChatViajesTab(Color fondo, Color principal, Color secundario) {
+  Widget _buildChatViajesTab(Color backgroundColor, Color primaryColor, Color textColor, Color surfaceColor) {
     return Padding(
       padding: const EdgeInsets.all(12.0),
       child: isLoading
-          ? Center(child: CircularProgressIndicator(color: principal))
+          ? Center(child: CircularProgressIndicator(color: primaryColor))
           : ListView(
               children: [
                 const SizedBox(height: 4),
@@ -395,7 +404,7 @@ class ChatState extends State<Chat> with TickerProviderStateMixin {
                           Text(
                             'No tienes viajes para chatear',
                             style: TextStyle(
-                              color: principal,
+                              color: primaryColor,
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
                             ),
@@ -403,13 +412,13 @@ class ChatState extends State<Chat> with TickerProviderStateMixin {
                           const SizedBox(height: 4),
                           Text(
                             'Únete a viajes como pasajero o crea uno como conductor',
-                            style: TextStyle(color: secundario),
+                            style: TextStyle(color: primaryColor.withOpacity(0.8)),
                             textAlign: TextAlign.center,
                           ),
                           const SizedBox(height: 8),
                           ElevatedButton(
                             onPressed: () => Navigator.pushNamed(context, '/publicar'),
-                            style: ElevatedButton.styleFrom(backgroundColor: principal),
+                            style: ElevatedButton.styleFrom(backgroundColor: primaryColor),
                             child: const Text('Crear Viaje', style: TextStyle(color: Colors.white)),
                           ),
                         ],
@@ -426,7 +435,7 @@ class ChatState extends State<Chat> with TickerProviderStateMixin {
                       margin: const EdgeInsets.symmetric(vertical: 6),
                       child: ListTile(
                         leading: CircleAvatar(
-                          backgroundColor: principal.withOpacity(0.8),
+                          backgroundColor: primaryColor.withOpacity(0.8),
                           child: Icon(
                             viaje.soyElConductor ? Icons.drive_eta : Icons.person,
                             color: Colors.white,
@@ -434,14 +443,14 @@ class ChatState extends State<Chat> with TickerProviderStateMixin {
                         ),
                         title: Text(
                           viaje.infoTitulo,
-                          style: TextStyle(color: principal, fontWeight: FontWeight.bold),
+                          style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold),
                         ),
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               viaje.rutaCompleta,
-                              style: TextStyle(color: secundario, fontSize: 13),
+                              style: TextStyle(color: primaryColor.withOpacity(0.8), fontSize: 13),
                               overflow: TextOverflow.ellipsis,
                             ),
                             Text(
@@ -450,7 +459,7 @@ class ChatState extends State<Chat> with TickerProviderStateMixin {
                             ),
                           ],
                         ),
-                        trailing: Icon(Icons.chevron_right, color: secundario),
+                        trailing: Icon(Icons.chevron_right, color: Colors.grey[400]),
                         onTap: () {
                           // Navegar al chat grupal de este viaje específico
                           Navigator.push(

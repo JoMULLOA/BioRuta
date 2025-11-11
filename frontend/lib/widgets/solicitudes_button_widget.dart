@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../services/notificacion_service.dart';
 import '../services/websocket_notification_service.dart';
 import '../mis_viajes/solicitudes_pasajeros_modal.dart';
+import '../providers/theme_provider.dart';
+import '../config/app_colors.dart';
 
 class SolicitudesButtonWidget extends StatefulWidget {
   final VoidCallback? onSolicitudProcesada;
@@ -144,7 +147,7 @@ class _SolicitudesButtonWidgetState extends State<SolicitudesButtonWidget> {
     if (widget.showAsFloatingButton) {
       return FloatingActionButton.extended(
         onPressed: _mostrarSolicitudesPasajeros,
-        backgroundColor: widget.backgroundColor ?? const Color(0xFF854937),
+        backgroundColor: widget.backgroundColor ?? (context.watch<ThemeProvider>().isDarkMode ? AppColors.primaryDark : AppColors.primaryLight),
         foregroundColor: widget.foregroundColor ?? Colors.white,
         icon: Stack(
           children: [
@@ -161,7 +164,7 @@ class _SolicitudesButtonWidgetState extends State<SolicitudesButtonWidget> {
       return ElevatedButton.icon(
         onPressed: _mostrarSolicitudesPasajeros,
         style: ElevatedButton.styleFrom(
-          backgroundColor: widget.backgroundColor ?? const Color(0xFF854937),
+          backgroundColor: widget.backgroundColor ?? (context.watch<ThemeProvider>().isDarkMode ? AppColors.primaryDark : AppColors.primaryLight),
           foregroundColor: widget.foregroundColor ?? Colors.white,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           shape: RoundedRectangleBorder(

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../services/notificacion_service.dart';
 import '../perfil/notificaciones.dart';
+import '../providers/theme_provider.dart';
+import '../config/app_colors.dart';
 
 class CustomAppBar extends StatefulWidget implements PreferredSizeWidget {
   final String title;
@@ -45,11 +48,16 @@ class _CustomAppBarState extends State<CustomAppBar> {
 
   @override
   Widget build(BuildContext context) {
-    return AppBar(
-      title: Text(widget.title),
-      backgroundColor: const Color(0xFF854937),
-      foregroundColor: Colors.white,
-      elevation: 0,
+    return Consumer<ThemeProvider>(
+      builder: (context, themeProvider, child) {
+        final isDark = themeProvider.isDarkMode;
+        final backgroundColor = isDark ? AppColors.primaryDark : AppColors.primaryLight;
+        
+        return AppBar(
+          title: Text(widget.title),
+          backgroundColor: backgroundColor,
+          foregroundColor: Colors.white,
+          elevation: 0,
       actions: widget.showNotifications
           ? [
               Stack(
@@ -97,6 +105,8 @@ class _CustomAppBarState extends State<CustomAppBar> {
               ),
             ]
           : null,
+        );
+      },
     );
   }
 }
