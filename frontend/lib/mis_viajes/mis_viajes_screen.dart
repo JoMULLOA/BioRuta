@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import '../providers/theme_provider.dart';
+import '../config/app_colors.dart';
 import '../services/viaje_service.dart';
 import '../services/websocket_notification_service.dart';
 import '../models/viaje_model.dart';
@@ -257,8 +260,23 @@ void _cambiarPeriodo(String nuevoPeriodo) {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF2EEED),
+    return Consumer<ThemeProvider>(
+      builder: (context, themeProvider, child) {
+        final primaryColor = themeProvider.isDarkMode 
+            ? AppColors.primaryDark 
+            : AppColors.primaryLight;
+        final backgroundColor = themeProvider.isDarkMode 
+            ? AppColors.darkBackground 
+            : AppColors.lightBackground;
+        final surfaceColor = themeProvider.isDarkMode 
+            ? AppColors.darkSurface 
+            : AppColors.lightSurface;
+        final textColor = themeProvider.isDarkMode 
+            ? AppColors.darkText 
+            : AppColors.lightText;
+
+        return Scaffold(
+      backgroundColor: backgroundColor,
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
@@ -267,15 +285,15 @@ void _cambiarPeriodo(String nuevoPeriodo) {
             if (_periodoSeleccionado != 'Todos')
               Text(
                 _periodoSeleccionado,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.normal,
-                  color: Color(0xFFEDCAB6),
+                  color: AppColors.white.withOpacity(0.8),
                 ),
               ),
           ],
         ),
-        backgroundColor: const Color(0xFF8D4F3A),
+        backgroundColor: primaryColor,
         foregroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
@@ -332,7 +350,7 @@ void _cambiarPeriodo(String nuevoPeriodo) {
             : TabBar(
                 controller: _tabController,
                 labelColor: Colors.white,
-                unselectedLabelColor: const Color(0xFFEDCAB6),
+                unselectedLabelColor: AppColors.white.withOpacity(0.7),
                 indicatorColor: Colors.white,
                 tabs: const [
                   Tab(text: 'Mis Publicaciones'),
@@ -341,9 +359,9 @@ void _cambiarPeriodo(String nuevoPeriodo) {
               ),
       ),
       body: cargando
-          ? const Center(
+          ? Center(
               child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF854937)),
+                valueColor: AlwaysStoppedAnimation<Color>(primaryColor),
               ),
             )
           : Column(
@@ -353,8 +371,8 @@ void _cambiarPeriodo(String nuevoPeriodo) {
                   child: TabBarView(
                     controller: _tabController,
                     children: [
-                      _buildViajesCreados(),
-                      _buildViajesUnidos(),
+                      _buildViajesCreados(primaryColor, backgroundColor, surfaceColor, textColor),
+                      _buildViajesUnidos(primaryColor, backgroundColor, surfaceColor, textColor),
                     ],
                   ),
                 ),
@@ -365,6 +383,8 @@ void _cambiarPeriodo(String nuevoPeriodo) {
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
       ),
+    );
+      }
     );
   }
 
@@ -387,7 +407,7 @@ void _cambiarPeriodo(String nuevoPeriodo) {
         : null;
   }
 
-  Widget _buildViajesCreados() {
+  Widget _buildViajesCreados(Color primaryColor, Color backgroundColor, Color surfaceColor, Color textColor) {
     if (viajesCreados.isEmpty) {
       String mensaje;
       String submensaje;
@@ -463,7 +483,7 @@ void _cambiarPeriodo(String nuevoPeriodo) {
                 Navigator.pushNamed(context, '/publicar');
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF854937),
+                backgroundColor: primaryColor,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 shape: RoundedRectangleBorder(
@@ -484,13 +504,13 @@ void _cambiarPeriodo(String nuevoPeriodo) {
         itemCount: viajesCreados.length,
         itemBuilder: (context, index) {
           final viaje = viajesCreados[index];
-          return _buildViajeCard(viaje, esCreador: viaje.esCreador ?? true);
+          return _buildViajeCard(viaje, primaryColor, backgroundColor, surfaceColor, textColor, esCreador: viaje.esCreador ?? true);
         },
       ),
     );
   }
 
-  Widget _buildViajesUnidos() {
+  Widget _buildViajesUnidos(Color primaryColor, Color backgroundColor, Color surfaceColor, Color textColor) {
     if (viajesUnidos.isEmpty) {
       String mensaje;
       String submensaje;
@@ -566,7 +586,7 @@ void _cambiarPeriodo(String nuevoPeriodo) {
                 Navigator.pushNamed(context, '/mapa');
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF854937),
+                backgroundColor: primaryColor,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 shape: RoundedRectangleBorder(
@@ -588,13 +608,13 @@ void _cambiarPeriodo(String nuevoPeriodo) {
         itemCount: viajesUnidos.length,
         itemBuilder: (context, index) {
           final viaje = viajesUnidos[index];
-          return _buildViajeCard(viaje, esCreador: viaje.esCreador ?? false);
+          return _buildViajeCard(viaje, primaryColor, backgroundColor, surfaceColor, textColor, esCreador: viaje.esCreador ?? false);
         },
       ),
     );
   }
 
-  Widget _buildViajeCard(Viaje viaje, {required bool esCreador}) {
+  Widget _buildViajeCard(Viaje viaje, Color primaryColor, Color backgroundColor, Color surfaceColor, Color textColor, {required bool esCreador}) {
     // Usar la propiedad del modelo si está disponible, sino usar el parámetro
     final esCreadorReal = viaje.esCreador ?? esCreador;
     
@@ -639,7 +659,7 @@ void _cambiarPeriodo(String nuevoPeriodo) {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: esCreadorReal ? const Color(0xFF854937) : Colors.green,
+                        color: esCreadorReal ? primaryColor : Colors.green,
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
@@ -674,10 +694,10 @@ void _cambiarPeriodo(String nuevoPeriodo) {
                 ),
                 Text(
                   '\$${viaje.precio.toInt()}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF854937),
+                    color: primaryColor,
                   ),
                 ),
               ],
@@ -688,14 +708,14 @@ void _cambiarPeriodo(String nuevoPeriodo) {
             if (!esCreadorReal && viaje.conductor != null) ...[
               Row(
                 children: [
-                  const Icon(Icons.person, color: Color(0xFF854937), size: 20),
+                  Icon(Icons.person, color: primaryColor, size: 20),
                   const SizedBox(width: 8),
                   Text(
                     'Conductor: ${viaje.conductor!.nombre}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
-                      color: Color(0xFF854937),
+                      color: primaryColor,
                     ),
                   ),
                 ],
@@ -765,7 +785,7 @@ void _cambiarPeriodo(String nuevoPeriodo) {
               const SizedBox(height: 8),
               Row(
                 children: [
-                  const Icon(Icons.directions_car, color: Color(0xFF854937), size: 16),
+                  Icon(Icons.directions_car, color: primaryColor, size: 16),
                   const SizedBox(width: 8),
                   Text(
                     '${viaje.vehiculo!.modelo} - ${viaje.vehiculo!.patente}',
