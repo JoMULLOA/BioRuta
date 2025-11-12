@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'dart:async';
 import 'dart:convert';
 import '../models/chat_grupal_models.dart';
@@ -11,6 +12,8 @@ import '../widgets/participantes_header_widget.dart';
 import '../widgets/reportar_usuario_dialog.dart';
 import '../widgets/location_message_widget.dart';
 import '../models/reporte_model.dart';
+import '../config/app_colors.dart';
+import '../providers/theme_provider.dart';
 
 class ChatGrupalScreen extends StatefulWidget {
   final String idViaje;
@@ -58,11 +61,7 @@ class ChatGrupalScreenState extends State<ChatGrupalScreen> {
   StreamSubscription? _eventsSubscription;
   StreamSubscription? _connectionSubscription;
   
-  // --- Colores del tema ---
-  final Color fondo = const Color(0xFFF8F2EF);
-  final Color principal = const Color(0xFF6B3B2D);
-  final Color secundario = const Color(0xFF8D4F3A);
-  final Color fondoMensaje = const Color(0xFFF5F5F5);
+
   
   @override
   void initState() {
@@ -282,10 +281,14 @@ class ChatGrupalScreenState extends State<ChatGrupalScreen> {
     
     if (eventType == 'participant_joined') {
       final nuevoParticipante = data['nuevoParticipante'];
-      _showParticipantNotification('$nuevoParticipante se unió al chat', Icons.person_add, Colors.green);
+      final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+      final primaryColor = themeProvider.isDarkMode ? AppColors.primaryDark : AppColors.primaryLight;
+      _showParticipantNotification('$nuevoParticipante se unió al chat', Icons.person_add, primaryColor);
     } else if (eventType == 'participant_left') {
       final participanteSalio = data['participanteSalio'];
-      _showParticipantNotification('$participanteSalio salió del chat', Icons.person_remove, Colors.orange);
+      final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+      final primaryColor = themeProvider.isDarkMode ? AppColors.primaryDark : AppColors.primaryLight;
+      _showParticipantNotification('$participanteSalio salió del chat', Icons.person_remove, primaryColor);
     }
     
     // Actualizar lista de participantes
@@ -316,11 +319,13 @@ class ChatGrupalScreenState extends State<ChatGrupalScreen> {
     
     try {
       // Mostrar mensaje al usuario
+      final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+      final primaryColor = themeProvider.isDarkMode ? AppColors.primaryDark : AppColors.primaryLight;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text('🔧 Inicializando chat grupal, intenta enviar el mensaje nuevamente...'),
           duration: Duration(seconds: 3),
-          backgroundColor: Colors.orange,
+          backgroundColor: primaryColor,
         ),
       );
       
@@ -333,20 +338,24 @@ class ChatGrupalScreenState extends State<ChatGrupalScreen> {
         // Volver a unirse al chat
         ChatGrupalService.unirseAlChatGrupal(widget.idViaje);
         
+        final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+        final primaryColor = themeProvider.isDarkMode ? AppColors.primaryDark : AppColors.primaryLight;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text('✅ Chat grupal listo, puedes enviar mensajes ahora'),
             duration: Duration(seconds: 2),
-            backgroundColor: Colors.green,
+            backgroundColor: primaryColor,
           ),
         );
       } else {
         print('🚗❌ Falló la re-inicialización del chat grupal');
+        final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+        final primaryColor = themeProvider.isDarkMode ? AppColors.primaryDark : AppColors.primaryLight;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text('❌ No se pudo inicializar el chat. Contacta al conductor.'),
             duration: Duration(seconds: 3),
-            backgroundColor: Colors.red,
+            backgroundColor: primaryColor,
           ),
         );
       }
@@ -453,7 +462,7 @@ class ChatGrupalScreenState extends State<ChatGrupalScreen> {
           ],
         ),
         duration: const Duration(seconds: 2),
-        backgroundColor: Colors.grey[800],
+        backgroundColor: Theme.of(context).colorScheme.surface,
       ),
     );
   }
@@ -619,10 +628,16 @@ class ChatGrupalScreenState extends State<ChatGrupalScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: fondo,
+    return Consumer<ThemeProvider>(
+      builder: (context, themeProvider, child) {
+        final isDarkMode = themeProvider.isDarkMode;
+        final primaryColor = isDarkMode ? AppColors.primaryDark : AppColors.primaryLight;
+        final backgroundColor = isDarkMode ? AppColors.darkBackground : AppColors.lightBackground;
+        
+        return Scaffold(
+      backgroundColor: backgroundColor,
       appBar: AppBar(
-        backgroundColor: secundario,
+        backgroundColor: primaryColor,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -647,7 +662,7 @@ class ChatGrupalScreenState extends State<ChatGrupalScreen> {
         actions: [
           // Botón de prueba de notificaciones grupales
           IconButton(
-            icon: Icon(Icons.notifications_active, color: Colors.amber),
+            icon: Icon(Icons.notifications_active, color: Colors.white),
             onPressed: () async {
               print('[CHAT-GRUPAL] 🧪 PRUEBA DE NOTIFICACIÓN GRUPAL INICIADA');
               WebSocketNotificationService.showLocalNotification(
@@ -673,7 +688,7 @@ class ChatGrupalScreenState extends State<ChatGrupalScreen> {
             margin: const EdgeInsets.only(right: 16),
             child: Icon(
               isConnected ? Icons.wifi : Icons.wifi_off,
-              color: isConnected ? Colors.green : Colors.red,
+              color: isConnected ? Colors.white : Colors.white70,
               size: 20,
             ),
           ),
@@ -681,18 +696,18 @@ class ChatGrupalScreenState extends State<ChatGrupalScreen> {
       ),
       body: isLoading
           ? Center(
-              child: CircularProgressIndicator(color: principal),
+              child: CircularProgressIndicator(color: primaryColor),
             )
           : errorMessage != null
               ? Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.error_outline, size: 64, color: Colors.red),
+                      Icon(Icons.error_outline, size: 64, color: primaryColor),
                       const SizedBox(height: 16),
                       Text(
                         errorMessage!,
-                        style: const TextStyle(color: Colors.red),
+                        style: TextStyle(color: primaryColor),
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 16),
@@ -785,14 +800,14 @@ class ChatGrupalScreenState extends State<ChatGrupalScreen> {
                           // Botón de ubicación
                           Container(
                             decoration: BoxDecoration(
-                              color: principal.withOpacity(0.1),
+                              color: primaryColor.withOpacity(0.1),
                               shape: BoxShape.circle,
                             ),
                             child: IconButton(
                               onPressed: _sendLocation,
                               icon: Icon(
                                 Icons.location_on,
-                                color: principal,
+                                color: primaryColor,
                               ),
                               tooltip: 'Compartir ubicación',
                             ),
@@ -801,7 +816,7 @@ class ChatGrupalScreenState extends State<ChatGrupalScreen> {
                           Expanded(
                             child: Container(
                               decoration: BoxDecoration(
-                                color: fondoMensaje,
+                                color: isDarkMode ? Colors.grey[800] : Colors.grey[100],
                                 borderRadius: BorderRadius.circular(25),
                                 border: Border.all(
                                   color: Colors.grey[300]!,
@@ -829,7 +844,7 @@ class ChatGrupalScreenState extends State<ChatGrupalScreen> {
                           const SizedBox(width: 8),
                           Container(
                             decoration: BoxDecoration(
-                              color: principal, // Siempre habilitado
+                              color: primaryColor, // Siempre habilitado
                               shape: BoxShape.circle,
                             ),
                             child: IconButton(
@@ -845,6 +860,8 @@ class ChatGrupalScreenState extends State<ChatGrupalScreen> {
                     ),
                   ],
                 ),
+        );
+      },
     );
   }
 
@@ -864,14 +881,14 @@ class ChatGrupalScreenState extends State<ChatGrupalScreen> {
             children: [
               Row(
                 children: [
-                  Icon(Icons.people, color: Color(0xFF8D4F3A)),
+                  Icon(Icons.people, color: Theme.of(context).primaryColor),
                   SizedBox(width: 8),
                   Text(
                     'Participantes del Chat',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF8D4F3A),
+                      color: Theme.of(context).primaryColor,
                     ),
                   ),
                 ],
