@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../services/amistad_service.dart';
+import '../config/app_colors.dart';
+import '../providers/theme_provider.dart';
 
 class NotificacionesScreen extends StatefulWidget {
   @override
@@ -137,13 +140,22 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        title: const Text('Solicitudes de Amistad'),
-        backgroundColor: const Color(0xFF854937),
-        foregroundColor: Colors.white,
-        elevation: 0,
+    return Consumer<ThemeProvider>(
+      builder: (context, themeProvider, child) {
+        final primaryColor = themeProvider.isDarkMode 
+            ? AppColors.primaryDark 
+            : AppColors.primaryLight;
+        final backgroundColor = themeProvider.isDarkMode 
+            ? AppColors.darkBackground 
+            : AppColors.lightBackground;
+        
+        return Scaffold(
+          backgroundColor: backgroundColor,
+          appBar: AppBar(
+            title: const Text('Solicitudes de Amistad'),
+            backgroundColor: primaryColor,
+            foregroundColor: Colors.white,
+            elevation: 0,
         actions: [
           IconButton(
             icon: Icon(Icons.refresh),
@@ -157,13 +169,13 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF854937)),
+                    valueColor: AlwaysStoppedAnimation<Color>(primaryColor),
                   ),
                   SizedBox(height: 16),
                   Text(
                     'Cargando notificaciones...',
                     style: TextStyle(
-                      color: Color(0xFF854937),
+                      color: primaryColor,
                       fontSize: 16,
                     ),
                   ),
@@ -222,7 +234,7 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
                             ),
                           ],
                           border: Border.all(
-                            color: Color(0xFF854937).withOpacity(0.2),
+                            color: primaryColor.withOpacity(0.2),
                             width: 1,
                           ),
                         ),
@@ -388,6 +400,8 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
                     },
                   ),
                 ),
+        );
+      },
     );
   }
 

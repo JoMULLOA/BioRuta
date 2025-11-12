@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:provider/provider.dart';
 import '../config/confGlobal.dart';
 import '../services/amistad_service.dart';
 import '../utils/token_manager.dart';
 import '../helpers/notificacion_helpers.dart';
+import '../config/app_colors.dart';
+import '../providers/theme_provider.dart';
 
 class Solicitud extends StatefulWidget {
   @override
@@ -194,34 +197,43 @@ class _SolicitudState extends State<Solicitud> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        title: const Text('Agregar Amigo'),
-        backgroundColor: const Color(0xFF854937),
-        foregroundColor: Colors.white,
-        elevation: 0,
-      ),
+    return Consumer<ThemeProvider>(
+      builder: (context, themeProvider, child) {
+        final primaryColor = themeProvider.isDarkMode 
+            ? AppColors.primaryDark 
+            : AppColors.primaryLight;
+        final backgroundColor = themeProvider.isDarkMode 
+            ? AppColors.darkBackground 
+            : AppColors.lightBackground;
+        
+        return Scaffold(
+          backgroundColor: backgroundColor,
+          appBar: AppBar(
+            title: const Text('Agregar Amigo'),
+            backgroundColor: primaryColor,
+            foregroundColor: Colors.white,
+            elevation: 0,
+          ),
       body: Padding(
         padding: const EdgeInsets.all(20.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Título
-            const Text(
+            Text(
               'Buscar por RUT',
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF6B3B2D),
+                color: primaryColor,
               ),
             ),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               'Ingresa el RUT de la persona que quieres agregar',
               style: TextStyle(
                 fontSize: 16,
-                color: Color(0xFF854937),
+                color: primaryColor,
               ),
             ),
             const SizedBox(height: 30),
@@ -229,7 +241,7 @@ class _SolicitudState extends State<Solicitud> {
             // Barra de búsqueda - igual que antes
             Container(
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: themeProvider.isDarkMode ? AppColors.darkSurface : Colors.white,
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
@@ -244,6 +256,9 @@ class _SolicitudState extends State<Solicitud> {
                 focusNode: _focusNode,
                 keyboardType: TextInputType.text,
                 textCapitalization: TextCapitalization.characters,
+                style: TextStyle(
+                  color: themeProvider.isDarkMode ? AppColors.darkText : Colors.black87,
+                ),
                 inputFormatters: [
                   FilteringTextInputFormatter.allow(RegExp(r'[0-9kK.-]')),
                   LengthLimitingTextInputFormatter(12),
@@ -262,7 +277,7 @@ class _SolicitudState extends State<Solicitud> {
                   hintStyle: TextStyle(color: Colors.grey[400]),
                   prefixIcon: Icon(
                     Icons.search,
-                    color: _isValidRut ? Color(0xFF854937) : Colors.grey[400],
+                    color: _isValidRut ? primaryColor : Colors.grey[400],
                   ),
                   suffixIcon: _rutController.text.isNotEmpty
                       ? IconButton(
@@ -276,7 +291,7 @@ class _SolicitudState extends State<Solicitud> {
                     borderSide: BorderSide.none,
                   ),
                   filled: true,
-                  fillColor: Colors.white,
+                  fillColor: themeProvider.isDarkMode ? AppColors.darkSurface : Colors.white,
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 16,
                     vertical: 16,
@@ -305,7 +320,7 @@ class _SolicitudState extends State<Solicitud> {
               child: ElevatedButton(
                 onPressed: _isValidRut && !_isLoading ? _buscarAmigo : null,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _isValidRut ? Color(0xFF854937) : Colors.grey[300],
+                  backgroundColor: _isValidRut ? primaryColor : Colors.grey[300],
                   foregroundColor: _isValidRut ? Colors.white : Colors.grey[500],
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
@@ -347,7 +362,7 @@ class _SolicitudState extends State<Solicitud> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: themeProvider.isDarkMode ? AppColors.darkSurface : Colors.white,
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
@@ -357,7 +372,7 @@ class _SolicitudState extends State<Solicitud> {
                     ),
                   ],
                   border: Border.all(
-                    color: Color(0xFF854937).withOpacity(0.2),
+                    color: primaryColor.withOpacity(0.2),
                     width: 1,
                   ),
                 ),
@@ -369,13 +384,13 @@ class _SolicitudState extends State<Solicitud> {
                       width: 80,
                       height: 80,
                       decoration: BoxDecoration(
-                        color: Color(0xFF854937).withOpacity(0.1),
+                        color: primaryColor.withOpacity(0.1),
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
                         Icons.person,
                         size: 40,
-                        color: Color(0xFF854937),
+                        color: primaryColor,
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -386,7 +401,7 @@ class _SolicitudState extends State<Solicitud> {
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF854937),
+                        color: primaryColor,
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -396,7 +411,9 @@ class _SolicitudState extends State<Solicitud> {
                       width: double.infinity,
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: Color(0xFFF8F2EF),
+                        color: themeProvider.isDarkMode 
+                            ? AppColors.darkBackground.withOpacity(0.5)
+                            : Color(0xFFF8F2EF),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Column(
@@ -458,19 +475,27 @@ class _SolicitudState extends State<Solicitud> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Color(0xFFF8F2EF),
+                color: themeProvider.isDarkMode 
+                    ? AppColors.darkSurface.withOpacity(0.5)
+                    : Color(0xFFF8F2EF),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Color(0xFFF3D5C0)),
+                border: Border.all(
+                  color: themeProvider.isDarkMode 
+                      ? primaryColor.withOpacity(0.3)
+                      : Color(0xFFF3D5C0)
+                ),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.info_outline, color: Color(0xFF854937)),
+                  Icon(Icons.info_outline, color: primaryColor),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
                       'El RUT debe incluir el dígito verificador (ej: 12.345.678-9)',
                       style: TextStyle(
-                        color: Color(0xFF854937),
+                        color: themeProvider.isDarkMode 
+                            ? AppColors.darkText 
+                            : primaryColor,
                         fontSize: 14,
                       ),
                     ),
@@ -481,33 +506,43 @@ class _SolicitudState extends State<Solicitud> {
           ],
         ),
       ),
+        );
+      },
     );
   }
 
   Widget _buildInfoRow(String label, String value) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          '$label:',
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: Color(0xFF854937),
-          ),
-        ),
+    return Consumer<ThemeProvider>(
+      builder: (context, themeProvider, child) {
+        final primaryColor = themeProvider.isDarkMode 
+            ? AppColors.primaryDark 
+            : AppColors.primaryLight;
+            
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              '$label:',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: primaryColor,
+              ),
+            ),
         Expanded(
           child: Text(
             value,
             textAlign: TextAlign.right,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
-              color: Colors.black87,
+              color: themeProvider.isDarkMode ? AppColors.darkText : Colors.black87,
             ),
           ),
         ),
-      ],
+          ],
+        );
+      },
     );
   }
 }

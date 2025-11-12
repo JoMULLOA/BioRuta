@@ -1,14 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../perfil/solicitudes.dart';
 import '../perfil/amigos.dart';
 import '../perfil/notificaciones.dart';
 import '../utils/custom_app_bar.dart';
+import '../config/app_colors.dart';
+import '../providers/theme_provider.dart';
 
 class AmistadMenuScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey[50],
+    return Consumer<ThemeProvider>(
+      builder: (context, themeProvider, child) {
+        final primaryColor = themeProvider.isDarkMode 
+            ? AppColors.primaryDark 
+            : AppColors.primaryLight;
+        final backgroundColor = themeProvider.isDarkMode 
+            ? AppColors.darkBackground 
+            : AppColors.lightBackground;
+        
+        return Scaffold(
+          backgroundColor: backgroundColor,
       appBar: CustomAppBar(
         title: 'Amistades',
         showNotifications: false,
@@ -19,20 +31,20 @@ class AmistadMenuScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Título principal
-            const Text(
+            Text(
               'Gestiona tus Amistades',
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF6B3B2D),
+                color: primaryColor,
               ),
             ),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               'Conecta con otros usuarios de BioRuta',
               style: TextStyle(
                 fontSize: 16,
-                color: Color(0xFF854937),
+                color: primaryColor,
               ),
             ),
             const SizedBox(height: 30),
@@ -44,6 +56,8 @@ class AmistadMenuScreen extends StatelessWidget {
               title: 'Solicitudes',
               subtitle: 'Gestiona las solicitudes de amistad pendientes',
               color: Colors.orange,
+              primaryColor: primaryColor,
+              backgroundColor: backgroundColor,
               onTap: () {
                 Navigator.push(
                   context,
@@ -60,6 +74,8 @@ class AmistadMenuScreen extends StatelessWidget {
               title: 'Agregar Amigos',
               subtitle: 'Busca y envía solicitudes de amistad',
               color: Colors.blue,
+              primaryColor: primaryColor,
+              backgroundColor: backgroundColor,
               onTap: () {
                 Navigator.push(
                   context,
@@ -76,6 +92,8 @@ class AmistadMenuScreen extends StatelessWidget {
               title: 'Mis Amigos',
               subtitle: 'Ve tu lista de amigos y chatea con ellos',
               color: Colors.green,
+              primaryColor: primaryColor,
+              backgroundColor: backgroundColor,
               onTap: () {
                 Navigator.push(
                   context,
@@ -86,6 +104,8 @@ class AmistadMenuScreen extends StatelessWidget {
           ],
         ),
       ),
+        );
+      },
     );
   }
 
@@ -95,11 +115,17 @@ class AmistadMenuScreen extends StatelessWidget {
     required String title,
     required String subtitle,
     required Color color,
+    required Color primaryColor,
+    required Color backgroundColor,
     required VoidCallback onTap,
   }) {
+    final surfaceColor = backgroundColor == AppColors.darkBackground 
+        ? AppColors.darkSurface 
+        : Colors.white;
+        
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: surfaceColor,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -138,10 +164,12 @@ class AmistadMenuScreen extends StatelessWidget {
                     children: [
                       Text(
                         title,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: Colors.black87,
+                          color: backgroundColor == AppColors.darkBackground 
+                              ? AppColors.darkText 
+                              : Colors.black87,
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -149,7 +177,9 @@ class AmistadMenuScreen extends StatelessWidget {
                         subtitle,
                         style: TextStyle(
                           fontSize: 14,
-                          color: Colors.grey[600],
+                          color: backgroundColor == AppColors.darkBackground 
+                              ? AppColors.darkSecondaryText 
+                              : Colors.grey[600],
                         ),
                       ),
                     ],
@@ -157,7 +187,9 @@ class AmistadMenuScreen extends StatelessWidget {
                 ),
                 Icon(
                   Icons.arrow_forward_ios,
-                  color: Colors.grey[400],
+                  color: backgroundColor == AppColors.darkBackground 
+                      ? AppColors.darkSecondaryText 
+                      : Colors.grey[400],
                   size: 20,
                 ),
               ],

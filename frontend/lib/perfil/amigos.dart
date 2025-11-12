@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:provider/provider.dart';
 import '../services/amistad_service.dart';
 import '../chat/pagina_individual.dart';
+import '../config/app_colors.dart';
+import '../providers/theme_provider.dart';
 
 class AmigosScreen extends StatefulWidget {
   @override
@@ -164,27 +167,36 @@ class _AmigosScreenState extends State<AmigosScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        title: Text('Mis Amigos (${_amigos.length})'),
-        backgroundColor: const Color(0xFF854937),
-        foregroundColor: Colors.white,
-        elevation: 0,
-      ),
+    return Consumer<ThemeProvider>(
+      builder: (context, themeProvider, child) {
+        final primaryColor = themeProvider.isDarkMode 
+            ? AppColors.primaryDark 
+            : AppColors.primaryLight;
+        final backgroundColor = themeProvider.isDarkMode 
+            ? AppColors.darkBackground 
+            : AppColors.lightBackground;
+        
+        return Scaffold(
+          backgroundColor: backgroundColor,
+          appBar: AppBar(
+            title: Text('Mis Amigos (${_amigos.length})'),
+            backgroundColor: primaryColor,
+            foregroundColor: Colors.white,
+            elevation: 0,
+          ),
       body: _isLoading
           ? Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF854937)),
+                    valueColor: AlwaysStoppedAnimation<Color>(primaryColor),
                   ),
                   SizedBox(height: 16),
                   Text(
                     'Cargando amigos...',
                     style: TextStyle(
-                      color: Color(0xFF854937),
+                      color: primaryColor,
                       fontSize: 16,
                     ),
                   ),
@@ -222,7 +234,7 @@ class _AmigosScreenState extends State<AmigosScreen> {
                       ElevatedButton(
                         onPressed: () => Navigator.pop(context),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Color(0xFF854937),
+                          backgroundColor: primaryColor,
                           foregroundColor: Colors.white,
                           padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                           shape: RoundedRectangleBorder(
@@ -368,18 +380,20 @@ class _AmigosScreenState extends State<AmigosScreen> {
       floatingActionButton: _amigos.isNotEmpty 
         ? FloatingActionButton(
             onPressed: () => Navigator.pushReplacementNamed(context, '/chat'),
-            backgroundColor: Color(0xFF854937),
+            backgroundColor: primaryColor,
             foregroundColor: Colors.white,
             child: Icon(Icons.chat),
             tooltip: 'Ir al Chat',
           )
         : FloatingActionButton(
             onPressed: () => Navigator.pop(context),
-            backgroundColor: Color(0xFF854937),
+            backgroundColor: primaryColor,
             foregroundColor: Colors.white,
             child: Icon(Icons.person_add),
             tooltip: 'Agregar Amigos',
           ),
+        );
+      },
     );
   }
 
