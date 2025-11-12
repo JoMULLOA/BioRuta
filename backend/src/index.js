@@ -97,7 +97,7 @@ async function setupServer() {
 async function setupAPI() {
   try {
     await connectDB();            // Postgres 
-    // await connectMongoDB();      // Mongo Atlas - DESACTIVADO
+    await connectMongoDB();      // Mongo Atlas - ACTIVADO
     
     // Configurar Passport después de que la base de datos esté conectada
     passportJwtSetup();
