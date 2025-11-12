@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:provider/provider.dart';
 import 'dart:convert';
+import '../providers/theme_provider.dart';
+import '../config/app_colors.dart';
 import '../utils/token_manager.dart';
 import '../config/confGlobal.dart';
 import 'agregar_vehiculo.dart';
@@ -137,7 +140,7 @@ class _MisVehiculosPageState extends State<MisVehiculosPage> {
           builder: (BuildContext context) {
             return Center(
               child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF6B3B2D)),
+                valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
               ),
             );
           },
@@ -246,32 +249,46 @@ class _MisVehiculosPageState extends State<MisVehiculosPage> {
 
   @override
   Widget build(BuildContext context) {
-    final Color fondo = Color(0xFFF8F2EF);
-    final Color primario = Color(0xFF6B3B2D);
+    return Consumer<ThemeProvider>(
+      builder: (context, themeProvider, child) {
+        final primaryColor = themeProvider.isDarkMode 
+            ? AppColors.primaryDark 
+            : AppColors.primaryLight;
+        final backgroundColor = themeProvider.isDarkMode 
+            ? AppColors.darkBackground 
+            : AppColors.lightBackground;
+        final surfaceColor = themeProvider.isDarkMode 
+            ? AppColors.darkSurface 
+            : AppColors.lightSurface;
+        final textColor = themeProvider.isDarkMode 
+            ? AppColors.darkText 
+            : AppColors.lightText;
 
-    return Scaffold(
-      backgroundColor: fondo,
+        return Scaffold(
+      backgroundColor: backgroundColor,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF8D4F3A),
+        backgroundColor: primaryColor,
         elevation: 0,
-        title: Text('Mis Vehículos', style: TextStyle(color: fondo)),
-        iconTheme: IconThemeData(color: fondo),
+        title: Text('Mis Vehículos', style: TextStyle(color: Colors.white)),
+        iconTheme: IconThemeData(color: Colors.white),
       ),
-      body: _buildBody(),
+      body: _buildBody(primaryColor, backgroundColor, surfaceColor, textColor),
       floatingActionButton: FloatingActionButton(
         onPressed: _navigateToAgregarVehiculo,
-        backgroundColor: primario,
+        backgroundColor: primaryColor,
         child: Icon(Icons.add, color: Colors.white),
         tooltip: 'Agregar Vehículo',
       ),
     );
+      }
+    );
   }
 
-  Widget _buildBody() {
+  Widget _buildBody(Color primaryColor, Color backgroundColor, Color surfaceColor, Color textColor) {
     if (_isLoading) {
       return Center(
         child: CircularProgressIndicator(
-          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF6B3B2D)),
+          valueColor: AlwaysStoppedAnimation<Color>(primaryColor),
         ),
       );
     }
@@ -292,7 +309,7 @@ class _MisVehiculosPageState extends State<MisVehiculosPage> {
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF6B3B2D),
+                color: textColor,
               ),
             ),
             SizedBox(height: 8),
@@ -313,7 +330,7 @@ class _MisVehiculosPageState extends State<MisVehiculosPage> {
               icon: Icon(Icons.refresh),
               label: Text('Reintentar'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Color(0xFF6B3B2D),
+                backgroundColor: primaryColor,
                 foregroundColor: Colors.white,
               ),
             ),
@@ -338,7 +355,7 @@ class _MisVehiculosPageState extends State<MisVehiculosPage> {
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF6B3B2D),
+                color: textColor,
               ),
             ),
             SizedBox(height: 8),
@@ -356,7 +373,7 @@ class _MisVehiculosPageState extends State<MisVehiculosPage> {
               icon: Icon(Icons.add),
               label: Text('Agregar Vehículo'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Color(0xFF6B3B2D),
+                backgroundColor: primaryColor,
                 foregroundColor: Colors.white,
                 padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               ),
@@ -368,27 +385,24 @@ class _MisVehiculosPageState extends State<MisVehiculosPage> {
 
     return RefreshIndicator(
       onRefresh: _loadVehiculos,
-      color: Color(0xFF6B3B2D),
+      color: primaryColor,
       child: ListView.builder(
         padding: EdgeInsets.all(16),
         itemCount: _vehiculos.length,
         itemBuilder: (context, index) {
           final vehiculo = _vehiculos[index];
-          return _buildVehiculoCard(vehiculo);
+          return _buildVehiculoCard(vehiculo, primaryColor, backgroundColor, surfaceColor, textColor);
         },
       ),
     );
   }
 
-  Widget _buildVehiculoCard(Map<String, dynamic> vehiculo) {
-    final Color primario = Color(0xFF6B3B2D);
-    final Color secundario = Color(0xFF8D4F3A);
-
+  Widget _buildVehiculoCard(Map<String, dynamic> vehiculo, Color primaryColor, Color backgroundColor, Color surfaceColor, Color textColor) {
     return Container(
       margin: EdgeInsets.only(bottom: 16),
       padding: EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: surfaceColor,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -408,7 +422,7 @@ class _MisVehiculosPageState extends State<MisVehiculosPage> {
               Container(
                 padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: primario,
+                  color: primaryColor,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
@@ -425,7 +439,7 @@ class _MisVehiculosPageState extends State<MisVehiculosPage> {
                 children: [
                   IconButton(
                     onPressed: () => _navigateToEditarVehiculo(vehiculo),
-                    icon: Icon(Icons.edit, color: secundario),
+                    icon: Icon(Icons.edit, color: primaryColor),
                     tooltip: 'Editar vehículo',
                   ),
                   IconButton(
@@ -441,34 +455,32 @@ class _MisVehiculosPageState extends State<MisVehiculosPage> {
           SizedBox(height: 16),
           
           // Información del vehículo
-          _buildInfoRow(Icons.category, 'Tipo', _getNombreTipo(vehiculo['tipo'] ?? 'otro')),
+          _buildInfoRow(Icons.category, 'Tipo', _getNombreTipo(vehiculo['tipo'] ?? 'otro'), primaryColor, textColor),
           SizedBox(height: 12),
-          _buildInfoRow(Icons.directions_car, 'Modelo', vehiculo['modeloCompleto'] ?? vehiculo['modelo'] ?? 'No especificado'),
+          _buildInfoRow(Icons.directions_car, 'Modelo', vehiculo['modeloCompleto'] ?? vehiculo['modelo'] ?? 'No especificado', primaryColor, textColor),
           SizedBox(height: 12),
-          _buildInfoRow(Icons.palette, 'Color', vehiculo['color'] ?? 'No especificado'),
+          _buildInfoRow(Icons.palette, 'Color', vehiculo['color'] ?? 'No especificado', primaryColor, textColor),
           SizedBox(height: 12),
-          _buildInfoRow(Icons.local_gas_station, 'Combustible', _getNombreCombustible(vehiculo['tipoCombustible'] ?? 'bencina')),
+          _buildInfoRow(Icons.local_gas_station, 'Combustible', _getNombreCombustible(vehiculo['tipoCombustible'] ?? 'bencina'), primaryColor, textColor),
           SizedBox(height: 12),
-          _buildInfoRow(Icons.people, 'Asientos', '${vehiculo['nro_asientos'] ?? 0} asientos'),
+          _buildInfoRow(Icons.people, 'Asientos', '${vehiculo['nro_asientos'] ?? 0} asientos', primaryColor, textColor),
           SizedBox(height: 12),
-          _buildInfoRow(Icons.description, 'Documentación', vehiculo['documentacion'] ?? 'No especificado'),
+          _buildInfoRow(Icons.description, 'Documentación', vehiculo['documentacion'] ?? 'No especificado', primaryColor, textColor),
         ],
       ),
     );
   }
 
-  Widget _buildInfoRow(IconData icon, String label, String value) {
-    final Color primario = Color(0xFF6B3B2D);
-    
+  Widget _buildInfoRow(IconData icon, String label, String value, Color primaryColor, Color textColor) {
     return Row(
       children: [
-        Icon(icon, color: primario, size: 20),
+        Icon(icon, color: primaryColor, size: 20),
         SizedBox(width: 12),
         Text(
           '$label: ',
           style: TextStyle(
             fontWeight: FontWeight.bold,
-            color: primario,
+            color: primaryColor,
             fontSize: 14,
           ),
         ),
@@ -476,7 +488,7 @@ class _MisVehiculosPageState extends State<MisVehiculosPage> {
           child: Text(
             value,
             style: TextStyle(
-              color: Colors.grey[700],
+              color: textColor.withOpacity(0.7),
               fontSize: 14,
             ),
           ),
