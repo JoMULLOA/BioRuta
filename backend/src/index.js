@@ -96,16 +96,32 @@ async function setupServer() {
 
 async function setupAPI() {
   try {
-    await connectDB();            // Postgres 
-    await connectMongoDB();      // Mongo Atlas - ACTIVADO
+    console.log("🔄 Iniciando configuración de la API...");
     
-    // Configurar Passport después de que la base de datos esté conectada
+    // 1. Conectar a PostgreSQL y esperar a que las tablas se creen
+    console.log("📦 Paso 1: Conectando a PostgreSQL...");
+    await connectDB();
+    
+    // 2. Conectar a MongoDB
+    console.log("📦 Paso 2: Conectando a MongoDB...");
+    await connectMongoDB();
+    
+    // 3. Configurar Passport después de que la base de datos esté conectada
+    console.log("📦 Paso 3: Configurando autenticación...");
     passportJwtSetup();
     
-    await setupServer();
+    // 4. Crear datos iniciales ANTES de iniciar el servidor
+    console.log("📦 Paso 4: Creando datos iniciales...");
     await createInitialData();
+    
+    // 5. Iniciar el servidor después de que todo esté configurado
+    console.log("📦 Paso 5: Iniciando servidor...");
+    await setupServer();
+    
+    console.log("✅ API configurada exitosamente");
   } catch (error) {
-    console.error("Error en index.js -> setupAPI():", error);
+    console.error("❌ Error en index.js -> setupAPI():", error);
+    process.exit(1);
   }
 }
 

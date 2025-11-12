@@ -28,10 +28,17 @@ function calcularDV(rut) {
   return dv.toString();
 }
 
-//Los ruts estan hasta un maximo de 29.999.999-9, por lo que no se pueden crear usuarios con ruts mayores a ese valor, se creara, 
-//pero no se podra buscar como un amigo.
 async function createInitialData() {
   try {
+    console.log("🔧 Iniciando creación de datos iniciales...");
+    
+    // Verificar que la conexión esté activa
+    if (!AppDataSource.isInitialized) {
+      throw new Error("La conexión a la base de datos no está inicializada");
+    }
+    
+    console.log("✅ Conexión verificada, procediendo con la creación de datos...");
+    
     // Crear Usuarios
     const userRepository = AppDataSource.getRepository(User);
     const userCount = await userRepository.count();
