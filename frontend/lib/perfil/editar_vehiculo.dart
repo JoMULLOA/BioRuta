@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:provider/provider.dart';
 import '../utils/token_manager.dart';
 import '../config/confGlobal.dart';
+import '../config/app_colors.dart';
+import '../providers/theme_provider.dart';
 
 class EditarVehiculoPage extends StatefulWidget {
   final Map<String, dynamic> vehiculo;
@@ -214,21 +217,27 @@ class _EditarVehiculoPageState extends State<EditarVehiculoPage> {
 
   @override
   Widget build(BuildContext context) {
-    final Color fondo = Color(0xFFF8F2EF);
-    final Color primario = Color(0xFF6B3B2D);
+    return Consumer<ThemeProvider>(
+      builder: (context, themeProvider, child) {
+        final primaryColor = themeProvider.isDarkMode 
+            ? AppColors.primaryDark 
+            : AppColors.primaryLight;
+        final backgroundColor = themeProvider.isDarkMode 
+            ? AppColors.darkBackground 
+            : AppColors.lightBackground;
 
-    return Scaffold(
-      backgroundColor: fondo,
+        return Scaffold(
+      backgroundColor: backgroundColor,
       appBar: AppBar(
-        backgroundColor: fondo,
+        backgroundColor: primaryColor,
         elevation: 0,
-        title: Text('Editar Vehículo', style: TextStyle(color: primario)),
-        iconTheme: IconThemeData(color: primario),
+        title: Text('Editar Vehículo', style: TextStyle(color: Colors.white)),
+        iconTheme: IconThemeData(color: Colors.white),
       ),
       body: _isLoading
           ? Center(
               child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(primario),
+                valueColor: AlwaysStoppedAnimation<Color>(primaryColor),
               ),
             )
           : SingleChildScrollView(
@@ -245,18 +254,18 @@ class _EditarVehiculoPageState extends State<EditarVehiculoPage> {
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: primario.withOpacity(0.3)),
+                        border: Border.all(color: primaryColor.withOpacity(0.3)),
                       ),
                       child: Column(
                         children: [
-                          Icon(Icons.info, color: primario, size: 24),
+                          Icon(Icons.info, color: primaryColor, size: 24),
                           SizedBox(height: 8),
                           Text(
                             'Patente: ${widget.vehiculo['patente']}',
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
-                              color: primario,
+                              color: primaryColor,
                             ),
                           ),
                           SizedBox(height: 4),
@@ -295,7 +304,7 @@ class _EditarVehiculoPageState extends State<EditarVehiculoPage> {
                             style: TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
-                              color: primario,
+                              color: primaryColor,
                             ),
                           ),
                           
@@ -307,15 +316,15 @@ class _EditarVehiculoPageState extends State<EditarVehiculoPage> {
                             hint: Text('Selecciona el tipo de vehículo'),
                             decoration: InputDecoration(
                               labelText: 'Tipo de Vehículo',
-                              prefixIcon: Icon(Icons.category, color: primario),
-                              labelStyle: TextStyle(color: primario),
+                              prefixIcon: Icon(Icons.category, color: primaryColor),
+                              labelStyle: TextStyle(color: primaryColor),
                               enabledBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(color: primario.withOpacity(0.3)),
+                                borderSide: BorderSide(color: primaryColor.withOpacity(0.3)),
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(color: primario, width: 2),
+                                borderSide: BorderSide(color: primaryColor, width: 2),
                               ),
                               filled: true,
                               fillColor: Colors.grey[50],
@@ -347,15 +356,15 @@ class _EditarVehiculoPageState extends State<EditarVehiculoPage> {
                             hint: Text('Selecciona el tipo de combustible'),
                             decoration: InputDecoration(
                               labelText: 'Tipo de Combustible',
-                              prefixIcon: Icon(Icons.local_gas_station, color: primario),
-                              labelStyle: TextStyle(color: primario),
+                              prefixIcon: Icon(Icons.local_gas_station, color: primaryColor),
+                              labelStyle: TextStyle(color: primaryColor),
                               enabledBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(color: primario.withOpacity(0.3)),
+                                borderSide: BorderSide(color: primaryColor.withOpacity(0.3)),
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(color: primario, width: 2),
+                                borderSide: BorderSide(color: primaryColor, width: 2),
                               ),
                               filled: true,
                               fillColor: Colors.grey[50],
@@ -386,6 +395,7 @@ class _EditarVehiculoPageState extends State<EditarVehiculoPage> {
                             controller: _marcaController,
                             label: 'Marca',
                             icon: Icons.branding_watermark,
+                            isDarkMode: themeProvider.isDarkMode,
                             validator: (value) {
                               if (value == null || value.trim().isEmpty) {
                                 return 'La marca es obligatoria';
@@ -401,6 +411,7 @@ class _EditarVehiculoPageState extends State<EditarVehiculoPage> {
                             controller: _modeloController,
                             label: 'Modelo',
                             icon: Icons.directions_car,
+                            isDarkMode: themeProvider.isDarkMode,
                             validator: (value) {
                               if (value == null || value.trim().isEmpty) {
                                 return 'El modelo es obligatorio';
@@ -416,6 +427,7 @@ class _EditarVehiculoPageState extends State<EditarVehiculoPage> {
                             controller: _anoController,
                             label: 'Año',
                             icon: Icons.calendar_today,
+                            isDarkMode: themeProvider.isDarkMode,
                             keyboardType: TextInputType.number,
                             validator: (value) {
                               if (value == null || value.trim().isEmpty) {
@@ -437,6 +449,7 @@ class _EditarVehiculoPageState extends State<EditarVehiculoPage> {
                             controller: _colorController,
                             label: 'Color',
                             icon: Icons.palette,
+                            isDarkMode: themeProvider.isDarkMode,
                             validator: (value) {
                               if (value == null || value.trim().isEmpty) {
                                 return 'El color es obligatorio';
@@ -452,6 +465,7 @@ class _EditarVehiculoPageState extends State<EditarVehiculoPage> {
                             controller: _nroAsientosController,
                             label: 'Número de Asientos',
                             icon: Icons.people,
+                            isDarkMode: themeProvider.isDarkMode,
                             keyboardType: TextInputType.number,
                             validator: (value) {
                               if (value == null || value.trim().isEmpty) {
@@ -472,6 +486,7 @@ class _EditarVehiculoPageState extends State<EditarVehiculoPage> {
                             controller: _documentacionController,
                             label: 'Documentación',
                             icon: Icons.description,
+                            isDarkMode: themeProvider.isDarkMode,
                             maxLines: 3,
                             validator: (value) {
                               if (value == null || value.trim().isEmpty) {
@@ -501,7 +516,7 @@ class _EditarVehiculoPageState extends State<EditarVehiculoPage> {
                           ),
                         ),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: primario,
+                          backgroundColor: primaryColor,
                           padding: EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -514,6 +529,8 @@ class _EditarVehiculoPageState extends State<EditarVehiculoPage> {
                 ),
               ),
             ),
+        );
+      },
     );
   }
 
@@ -521,11 +538,13 @@ class _EditarVehiculoPageState extends State<EditarVehiculoPage> {
     required TextEditingController controller,
     required String label,
     required IconData icon,
+    required bool isDarkMode,
     TextInputType? keyboardType,
     int maxLines = 1,
     String? Function(String?)? validator,
   }) {
-    final Color primario = Color(0xFF6B3B2D);
+    final primaryColor = isDarkMode ? AppColors.primaryDark : AppColors.primaryLight;
+    final backgroundColor = isDarkMode ? AppColors.darkBackground : AppColors.lightBackground;
     
     return TextFormField(
       controller: controller,
@@ -534,20 +553,22 @@ class _EditarVehiculoPageState extends State<EditarVehiculoPage> {
       validator: validator,
       decoration: InputDecoration(
         labelText: label,
-        prefixIcon: Icon(icon, color: primario),
+        prefixIcon: Icon(icon, color: primaryColor),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: primario.withOpacity(0.3)),
+          borderSide: BorderSide(color: primaryColor.withOpacity(0.3)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: primario, width: 2),
+          borderSide: BorderSide(color: primaryColor, width: 2),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: Colors.red, width: 2),
         ),
-        labelStyle: TextStyle(color: primario),
+        labelStyle: TextStyle(color: primaryColor),
+        filled: true,
+        fillColor: backgroundColor.withOpacity(0.1),
       ),
     );
   }

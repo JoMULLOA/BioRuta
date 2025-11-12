@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:provider/provider.dart';
 import 'dart:convert';
+import '../providers/theme_provider.dart';
+import '../config/app_colors.dart';
 import '../utils/token_manager.dart';
 import '../config/confGlobal.dart';
 
@@ -196,16 +199,23 @@ class _AgregarVehiculoPageState extends State<AgregarVehiculoPage> {
 
   @override
   Widget build(BuildContext context) {
-    final Color fondo = Color(0xFFF8F2EF);
-    final Color primario = Color(0xFF6B3B2D);
+    return Consumer<ThemeProvider>(
+      builder: (context, themeProvider, child) {
+        final primaryColor = themeProvider.isDarkMode 
+            ? AppColors.primaryDark 
+            : AppColors.primaryLight;
+        final backgroundColor = themeProvider.isDarkMode 
+            ? AppColors.darkBackground 
+            : AppColors.lightBackground;
 
-    return Scaffold(
-      backgroundColor: fondo,
+
+        return Scaffold(
+      backgroundColor: backgroundColor,
       appBar: AppBar(
-        backgroundColor: fondo,
+        backgroundColor: primaryColor,
         elevation: 0,
-        title: Text('Agregar Vehículo', style: TextStyle(color: primario)),
-        iconTheme: IconThemeData(color: primario),
+        title: Text('Agregar Vehículo', style: TextStyle(color: Colors.white)),
+        iconTheme: IconThemeData(color: Colors.white),
         actions: [
           if (!_isSaving)
             TextButton(
@@ -213,7 +223,7 @@ class _AgregarVehiculoPageState extends State<AgregarVehiculoPage> {
               child: Text(
                 'Guardar',
                 style: TextStyle(
-                  color: primario,
+                  color: primaryColor,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -244,7 +254,7 @@ class _AgregarVehiculoPageState extends State<AgregarVehiculoPage> {
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: primario,
+                        color: primaryColor,
                       ),
                     ),
                     SizedBox(height: 20),
@@ -253,6 +263,7 @@ class _AgregarVehiculoPageState extends State<AgregarVehiculoPage> {
                       controller: _patenteController,
                       label: 'Patente',
                       icon: Icons.confirmation_number,
+                      isDarkMode: themeProvider.isDarkMode,
                       hint: 'XXXX11 o XX1111',
                       validator: (value) {
                         if (value == null || value.isEmpty) {
@@ -281,15 +292,15 @@ class _AgregarVehiculoPageState extends State<AgregarVehiculoPage> {
                       hint: Text('Selecciona el tipo de vehículo'),
                       decoration: InputDecoration(
                         labelText: 'Tipo de Vehículo',
-                        prefixIcon: Icon(Icons.category, color: primario),
-                        labelStyle: TextStyle(color: primario),
+                        prefixIcon: Icon(Icons.category, color: primaryColor),
+                        labelStyle: TextStyle(color: primaryColor),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Color(0xFF8D4F3A).withOpacity(0.3)),
+                          borderSide: BorderSide(color: primaryColor.withOpacity(0.3)),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: primario, width: 2),
+                          borderSide: BorderSide(color: primaryColor, width: 2),
                         ),
                         errorBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -326,6 +337,7 @@ class _AgregarVehiculoPageState extends State<AgregarVehiculoPage> {
                       controller: _marcaController,
                       label: 'Marca',
                       icon: Icons.branding_watermark,
+                      isDarkMode: themeProvider.isDarkMode,
                       hint: 'Ej: Toyota, Ford, Chevrolet',
                       validator: (value) {
                         if (value == null || value.isEmpty) {
@@ -343,6 +355,7 @@ class _AgregarVehiculoPageState extends State<AgregarVehiculoPage> {
                       controller: _modeloController,
                       label: 'Modelo',
                       icon: Icons.directions_car,
+                      isDarkMode: themeProvider.isDarkMode,
                       hint: 'Ej: Corolla, Focus, Aveo',
                       validator: (value) {
                         if (value == null || value.isEmpty) {
@@ -360,6 +373,7 @@ class _AgregarVehiculoPageState extends State<AgregarVehiculoPage> {
                       controller: _anoController,
                       label: 'Año',
                       icon: Icons.calendar_today,
+                      isDarkMode: themeProvider.isDarkMode,
                       hint: 'Ej: 2020, 2018, 2015',
                       keyboardType: TextInputType.number,
                       validator: (value) {
@@ -380,6 +394,7 @@ class _AgregarVehiculoPageState extends State<AgregarVehiculoPage> {
                       controller: _colorController,
                       label: 'Color',
                       icon: Icons.palette,
+                      isDarkMode: themeProvider.isDarkMode,
                       hint: 'Ej: Blanco, Negro, Rojo',
                       validator: (value) {
                         if (value == null || value.isEmpty) {
@@ -394,6 +409,7 @@ class _AgregarVehiculoPageState extends State<AgregarVehiculoPage> {
                       controller: _asientosController,
                       label: 'Número de Asientos',
                       icon: Icons.people,
+                      isDarkMode: themeProvider.isDarkMode,
                       hint: 'Ej: 4, 5, 7',
                       keyboardType: TextInputType.number,
                       validator: (value) {
@@ -413,6 +429,7 @@ class _AgregarVehiculoPageState extends State<AgregarVehiculoPage> {
                       controller: _documentacionController,
                       label: 'Documentación',
                       icon: Icons.description,
+                      isDarkMode: themeProvider.isDarkMode,
                       hint: 'Ej: Revisión técnica al día, seguro vigente',
                       maxLines: 2,
                       validator: (value) {
@@ -430,15 +447,15 @@ class _AgregarVehiculoPageState extends State<AgregarVehiculoPage> {
                       hint: Text('Selecciona el tipo de combustible'),
                       decoration: InputDecoration(
                         labelText: 'Tipo de Combustible',
-                        prefixIcon: Icon(Icons.local_gas_station, color: primario),
-                        labelStyle: TextStyle(color: primario),
+                        prefixIcon: Icon(Icons.local_gas_station, color: primaryColor),
+                        labelStyle: TextStyle(color: primaryColor),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Color(0xFF8D4F3A).withOpacity(0.3)),
+                          borderSide: BorderSide(color: primaryColor.withOpacity(0.3)),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: primario, width: 2),
+                          borderSide: BorderSide(color: primaryColor, width: 2),
                         ),
                         errorBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -481,7 +498,7 @@ class _AgregarVehiculoPageState extends State<AgregarVehiculoPage> {
                 child: ElevatedButton(
                   onPressed: _isSaving ? null : _saveVehiculo,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: primario,
+                    backgroundColor: primaryColor,
                     foregroundColor: Colors.white,
                     padding: EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
@@ -505,21 +522,24 @@ class _AgregarVehiculoPageState extends State<AgregarVehiculoPage> {
         ),
       ),
     );
+      },
+    );
   }
 
   Widget _buildTextField({
     required TextEditingController controller,
     required String label,
     required IconData icon,
+    required bool isDarkMode,
     String? hint,
     int maxLines = 1,
     TextInputType? keyboardType,
     String? Function(String?)? validator,
     void Function(String)? onChanged,
   }) {
-    final Color primario = Color(0xFF6B3B2D);
-    final Color secundario = Color(0xFF8D4F3A);
-
+    final primaryColor = isDarkMode ? AppColors.primaryDark : AppColors.primaryLight;
+    final backgroundColor = isDarkMode ? AppColors.darkBackground : AppColors.lightBackground;
+    
     return TextFormField(
       controller: controller,
       maxLines: maxLines,
@@ -529,16 +549,16 @@ class _AgregarVehiculoPageState extends State<AgregarVehiculoPage> {
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
-        prefixIcon: Icon(icon, color: primario),
-        labelStyle: TextStyle(color: primario),
+        prefixIcon: Icon(icon, color: primaryColor),
+        labelStyle: TextStyle(color: primaryColor),
         hintStyle: TextStyle(color: Colors.grey[400]),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: secundario.withOpacity(0.3)),
+          borderSide: BorderSide(color: primaryColor.withOpacity(0.3)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: primario, width: 2),
+          borderSide: BorderSide(color: primaryColor, width: 2),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -549,7 +569,7 @@ class _AgregarVehiculoPageState extends State<AgregarVehiculoPage> {
           borderSide: BorderSide(color: Colors.red, width: 2),
         ),
         filled: true,
-        fillColor: Colors.grey[50],
+        fillColor: backgroundColor.withOpacity(0.1),
       ),
     );
   }
