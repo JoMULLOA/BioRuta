@@ -82,7 +82,7 @@ class _PublicarViajePaso3State extends State<PublicarViajePaso3> {
       backgroundColor: const Color(0xFFF2EEED),
       appBar: AppBar(
         title: const Text('Paso 3: Configuración'),
-        backgroundColor: const Color(0xFF854937),
+        backgroundColor: const Color(0xFF5c63cc),
         foregroundColor: Colors.white,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -104,7 +104,7 @@ class _PublicarViajePaso3State extends State<PublicarViajePaso3> {
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF854937),
+                color: Color(0xFF5c63cc),
               ),
             ),
             
@@ -114,7 +114,7 @@ class _PublicarViajePaso3State extends State<PublicarViajePaso3> {
               'Define los detalles y preferencias para tu viaje',
               style: TextStyle(
                 fontSize: 16,
-                color: Color(0xFF6B3B2D),
+                color: Color(0xFF5c63cc),
               ),
             ),
               const SizedBox(height: 30),
@@ -163,7 +163,7 @@ class _PublicarViajePaso3State extends State<PublicarViajePaso3> {
                             _verificarGeneroUsuario();
                           },
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF854937),
+                            backgroundColor: const Color(0xFF5c63cc),
                             foregroundColor: Colors.white,
                             minimumSize: const Size(100, 32),
                           ),
@@ -201,13 +201,13 @@ class _PublicarViajePaso3State extends State<PublicarViajePaso3> {
                     child: Column(
                       children: [
                         CircularProgressIndicator(
-                          valueColor: AlwaysStoppedAnimation(Color(0xFF854937)),
+                          valueColor: AlwaysStoppedAnimation(Color(0xFF5c63cc)),
                         ),
                         SizedBox(height: 12),
                         Text(
                           'Verificando perfil de usuario...',
                           style: TextStyle(
-                            color: Color(0xFF854937),
+                            color: Color(0xFF5c63cc),
                             fontSize: 14,
                           ),
                         ),
@@ -226,7 +226,7 @@ class _PublicarViajePaso3State extends State<PublicarViajePaso3> {
                     title: const Text('Solo mujeres'),
                     subtitle: const Text('Viaje exclusivo para mujeres'),
                     value: _soloMujeres,
-                    activeColor: const Color(0xFF854937),
+                    activeColor: const Color(0xFF5c63cc),
                     onChanged: (value) {
                       setState(() {
                         _soloMujeres = value;
@@ -252,7 +252,7 @@ class _PublicarViajePaso3State extends State<PublicarViajePaso3> {
                     title: Text(opcion),
                     value: opcion,
                     groupValue: _flexibilidadSalida,
-                    activeColor: const Color(0xFF854937),
+                    activeColor: const Color(0xFF5c63cc),
                     onChanged: (value) {
                       setState(() {
                         _flexibilidadSalida = value!;
@@ -272,7 +272,7 @@ class _PublicarViajePaso3State extends State<PublicarViajePaso3> {
               child: ElevatedButton(
                 onPressed: _continuarFinal,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF854937),
+                  backgroundColor: const Color(0xFF5c63cc),
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -307,9 +307,9 @@ class _PublicarViajePaso3State extends State<PublicarViajePaso3> {
                 width: 30,
                 height: 30,
                 decoration: BoxDecoration(
-                  color: isActive ? const Color(0xFF854937) : Colors.grey.shade300,
+                  color: isActive ? const Color(0xFF5c63cc) : Colors.grey.shade300,
                   borderRadius: BorderRadius.circular(15),
-                  border: isCurrent ? Border.all(color: const Color(0xFF854937), width: 3) : null,
+                  border: isCurrent ? Border.all(color: const Color(0xFF5c63cc), width: 3) : null,
                 ),
                 child: Center(
                   child: Text(
@@ -325,7 +325,7 @@ class _PublicarViajePaso3State extends State<PublicarViajePaso3> {
                 Expanded(
                   child: Container(
                     height: 2,
-                    color: isActive ? const Color(0xFF854937) : Colors.grey.shade300,
+                    color: isActive ? const Color(0xFF5c63cc) : Colors.grey.shade300,
                   ),
                 ),
             ],
@@ -362,12 +362,12 @@ class _PublicarViajePaso3State extends State<PublicarViajePaso3> {
                 width: 40,
                 height: 40,
         decoration: BoxDecoration(
-          color: const Color(0xFF854937).withValues(alpha: 0.1),
+          color: const Color(0xFF5c63cc).withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(20),
         ),
                 child: Icon(
                   icon,
-                  color: const Color(0xFF854937),
+                  color: const Color(0xFF5c63cc),
                 ),
               ),
               const SizedBox(width: 16),
@@ -376,7 +376,7 @@ class _PublicarViajePaso3State extends State<PublicarViajePaso3> {
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFF854937),
+                  color: Color(0xFF5c63cc),
                 ),
               ),
             ],

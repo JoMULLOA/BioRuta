@@ -97,7 +97,7 @@ class MapaUIComponents {
       child: FloatingActionButton( // Tamaño más grande
         heroTag: 'radar', // Agregar heroTag para evitar conflictos
         onPressed: onPressed,
-        backgroundColor: radarActivo ? Colors.red : const Color(0xFF8D4F3A), // Fondo café
+        backgroundColor: radarActivo ? Colors.red : const Color(0xFF5c63cc), // Fondo morado
         foregroundColor: Colors.white, // Contenido blanco
         tooltip: 'Activar radar de viajes',
         child: AnimatedSwitcher(
@@ -166,7 +166,7 @@ class MapaUIComponents {
               children: [
                 CircleAvatar(
                   radius: 25,
-                  backgroundColor: const Color(0xFF854937),
+                  backgroundColor: const Color(0xFF5c63cc),
                   child: Text(
                     viaje['conductor']?[0]?.toUpperCase() ?? 'C',
                     style: const TextStyle(
@@ -206,7 +206,7 @@ class MapaUIComponents {
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF854937),
+                        color: Color(0xFF5c63cc),
                       ),
                     ),
                     Text(
@@ -232,7 +232,7 @@ class MapaUIComponents {
                       width: 8,
                       height: 8,
                       decoration: const BoxDecoration(
-                        color: Color(0xFF854937),
+                        color: Color(0xFF5c63cc),
                         shape: BoxShape.circle,
                       ),
                     ),
@@ -245,7 +245,7 @@ class MapaUIComponents {
                       width: 8,
                       height: 8,
                       decoration: const BoxDecoration(
-                        color: Color(0xFF854937),
+                        color: Color(0xFF5c63cc),
                         shape: BoxShape.rectangle,
                       ),
                     ),
@@ -290,7 +290,7 @@ class MapaUIComponents {
                   child: OutlinedButton(
                     onPressed: onCancelar,
                     style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: Color(0xFF854937)),
+                      side: const BorderSide(color: Color(0xFF5c63cc)),
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
@@ -299,7 +299,7 @@ class MapaUIComponents {
                     child: const Text(
                       'Cancelar',
                       style: TextStyle(
-                        color: Color(0xFF854937),
+                        color: Color(0xFF5c63cc),
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -311,7 +311,7 @@ class MapaUIComponents {
                   child: ElevatedButton(
                     onPressed: onSolicitarViaje,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF854937),
+                      backgroundColor: const Color(0xFF5c63cc),
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
@@ -359,7 +359,7 @@ class MapaUIComponents {
             height: 16,
             child: CircularProgressIndicator(
               strokeWidth: 2,
-              valueColor: AlwaysStoppedAnimation(Color(0xFF854937)),
+              valueColor: AlwaysStoppedAnimation(Color(0xFF5c63cc)),
             ),
           ),
           const SizedBox(width: 12),
@@ -385,7 +385,7 @@ class MapaUIComponents {
       child: FloatingActionButton( // Tamaño más grande
         heroTag: 'ubicacion', // Agregar heroTag para evitar conflictos
         onPressed: onPressed,
-        backgroundColor: const Color(0xFF8D4F3A), // Fondo café
+        backgroundColor: const Color(0xFF5c63cc), // Fondo café
         foregroundColor: Colors.white, // Contenido blanco
         tooltip: 'Centrar en mi ubicación',
         child: const Icon(
@@ -415,7 +415,7 @@ class MapaUIComponents {
             mainAxisSize: MainAxisSize.min,
             children: [
               const CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation(Color(0xFF854937)),
+                valueColor: AlwaysStoppedAnimation(Color(0xFF5c63cc)),
               ),
               const SizedBox(height: 16),
               Text(
@@ -433,7 +433,7 @@ class MapaUIComponents {
                   child: const Text(
                     'Cancelar',
                     style: TextStyle(
-                      color: Color(0xFF854937),
+                      color: Color(0xFF5c63cc),
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -450,7 +450,7 @@ class MapaUIComponents {
   static void mostrarSnackbar(
     BuildContext context,
     String mensaje, {
-    Color backgroundColor = const Color(0xFF854937),
+    Color backgroundColor = const Color(0xFF5c63cc),
     Duration duration = const Duration(seconds: 3),
     IconData? icono,
   }) {

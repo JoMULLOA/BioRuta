@@ -281,7 +281,7 @@ class _MapPageState extends State<MapPage> {
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF854937),
+                  color: Color(0xFF5c63cc),
                 ),
               ),
               const SizedBox(height: 20),
@@ -296,12 +296,12 @@ class _MapPageState extends State<MapPage> {
                 child: Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    border: Border.all(color: const Color(0xFF854937)),
+                    border: Border.all(color: const Color(0xFF5c63cc)),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.my_location, color: Color(0xFF854937)),
+                      const Icon(Icons.my_location, color: Color(0xFF5c63cc)),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
@@ -328,12 +328,12 @@ class _MapPageState extends State<MapPage> {
                 child: Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    border: Border.all(color: const Color(0xFF854937)),
+                    border: Border.all(color: const Color(0xFF5c63cc)),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.location_on, color: Color(0xFF854937)),
+                      const Icon(Icons.location_on, color: Color(0xFF5c63cc)),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
@@ -362,12 +362,12 @@ class _MapPageState extends State<MapPage> {
                       child: Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          border: Border.all(color: const Color(0xFF854937)),
+                          border: Border.all(color: const Color(0xFF5c63cc)),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.calendar_today, color: Color(0xFF854937), size: 20),
+                            const Icon(Icons.calendar_today, color: Color(0xFF5c63cc), size: 20),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
@@ -388,7 +388,7 @@ class _MapPageState extends State<MapPage> {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      border: Border.all(color: const Color(0xFF854937)),
+                      border: Border.all(color: const Color(0xFF5c63cc)),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
@@ -402,7 +402,7 @@ class _MapPageState extends State<MapPage> {
                               setModalState(() {}); // Actualizar modal inmediatamente
                             }
                           },
-                          icon: const Icon(Icons.remove, color: Color(0xFF854937)),
+                          icon: const Icon(Icons.remove, color: Color(0xFF5c63cc)),
                           constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                           padding: EdgeInsets.zero,
                         ),
@@ -416,7 +416,7 @@ class _MapPageState extends State<MapPage> {
                               setModalState(() {}); // Actualizar modal inmediatamente
                             }
                           },
-                          icon: const Icon(Icons.add, color: Color(0xFF854937)),
+                          icon: const Icon(Icons.add, color: Color(0xFF5c63cc)),
                           constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                           padding: EdgeInsets.zero,
                         ),
@@ -439,7 +439,7 @@ class _MapPageState extends State<MapPage> {
                         });
                         setModalState(() {}); // Actualizar modal inmediatamente
                       },
-                      activeColor: const Color(0xFF854937),
+                      activeColor: const Color(0xFF5c63cc),
                     ),
                     const SizedBox(width: 8),
                     const Text(
@@ -463,7 +463,7 @@ class _MapPageState extends State<MapPage> {
                     if (mounted) _buscarViajes();
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF854937),
+                    backgroundColor: const Color(0xFF5c63cc),
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
@@ -718,7 +718,7 @@ class _MapPageState extends State<MapPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('📍 Ubicado en: $region'),
-            backgroundColor: const Color(0xFF854937),
+            backgroundColor: const Color(0xFF5c63cc),
           ),
         );
       }
@@ -793,7 +793,7 @@ class _MapPageState extends State<MapPage> {
           markerIcon: const MarkerIcon(
             icon: Icon(
               Icons.directions_car,
-              color: Color(0xFF854937),
+              color: Color(0xFF5c63cc),
               size: 72,
             ),
           ),
@@ -832,8 +832,8 @@ class _MapPageState extends State<MapPage> {
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    const Color(0xFF854937),
-                    const Color(0xFF6B3B2D),
+                    const Color(0xFF5c63cc),
+                    const Color(0xFF5c63cc),
                   ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
@@ -987,7 +987,7 @@ class _MapPageState extends State<MapPage> {
                               width: 50,
                               height: 50,
                               decoration: BoxDecoration(
-                                color: const Color(0xFF854937),
+                                color: const Color(0xFF5c63cc),
                                 borderRadius: BorderRadius.circular(25),
                               ),
                               child: const Icon(
@@ -1014,7 +1014,7 @@ class _MapPageState extends State<MapPage> {
                                     style: const TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.w600,
-                                      color: Color(0xFF6B3B2D),
+                                      color: Color(0xFF5c63cc),
                                     ),
                                   ),
                                 ],
@@ -1032,7 +1032,7 @@ class _MapPageState extends State<MapPage> {
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF6B3B2D),
+                        color: Color(0xFF5c63cc),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -1063,7 +1063,7 @@ class _MapPageState extends State<MapPage> {
                         icon: Icons.directions_car,
                         title: 'Vehículo',
                         value: '${marcador.detallesViaje.vehiculo!.modelo} (${marcador.detallesViaje.vehiculo!.color})',
-                        color: const Color(0xFF854937),
+                        color: const Color(0xFF5c63cc),
                       ),
                   ],
                 ),
@@ -1082,7 +1082,7 @@ class _MapPageState extends State<MapPage> {
                 child: ElevatedButton(
                   onPressed: () => _unirseAlViaje(marcador),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF854937),
+                    backgroundColor: const Color(0xFF5c63cc),
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
@@ -1205,7 +1205,7 @@ class _MapPageState extends State<MapPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Enviando solicitud con información de pago...'),
-            backgroundColor: Color(0xFF854937),
+            backgroundColor: Color(0xFF5c63cc),
           ),
         );
       }
@@ -1227,7 +1227,7 @@ class _MapPageState extends State<MapPage> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(mensaje),
-              backgroundColor: const Color(0xFF854937),
+              backgroundColor: const Color(0xFF5c63cc),
               duration: const Duration(seconds: 4),
             ),
           );
@@ -1343,7 +1343,7 @@ class _MapPageState extends State<MapPage> {
         origen,
         destino,
         roadType: RoadType.car,
-        roadOption: const RoadOption(roadColor: Color(0xFF854937)),
+        roadOption: const RoadOption(roadColor: Color(0xFF5c63cc)),
       );
 
       // Agregar marcadores
@@ -1368,7 +1368,7 @@ class _MapPageState extends State<MapPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('🚗 Ruta del viaje mostrada'),
-            backgroundColor: Color(0xFF854937),
+            backgroundColor: Color(0xFF5c63cc),
           ),
         );
       }
@@ -1816,7 +1816,7 @@ class _MapPageState extends State<MapPage> {
             Container(
               padding: const EdgeInsets.all(20),
               decoration: const BoxDecoration(
-                color: Color(0xFF854937),
+                color: Color(0xFF5c63cc),
                 borderRadius: BorderRadius.only(
                   topLeft: Radius.circular(20),
                   topRight: Radius.circular(20),
@@ -1944,7 +1944,7 @@ class _MapPageState extends State<MapPage> {
                       child: ElevatedButton(
                         onPressed: () => _unirseViajeRadar(viaje),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF854937),
+                          backgroundColor: const Color(0xFF5c63cc),
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
@@ -1976,7 +1976,7 @@ class _MapPageState extends State<MapPage> {
       children: [
         Icon(
           icon,
-          color: const Color(0xFF854937),
+          color: const Color(0xFF5c63cc),
           size: 20,
         ),
         const SizedBox(width: 12),
@@ -2185,7 +2185,7 @@ class _MapPageState extends State<MapPage> {
             ),
           ],
         ),
-        backgroundColor:const Color(0xFF8D4F3A),
+        backgroundColor:const Color(0xFF5c63cc),
         foregroundColor: Colors.white,
         actions: [
           // Botón de refresh
@@ -2229,7 +2229,7 @@ class _MapPageState extends State<MapPage> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF854937),
+                  color: const Color(0xFF5c63cc),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: const Row(
@@ -2300,13 +2300,13 @@ class _MapPageState extends State<MapPage> {
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF854937),
+                            color: Color(0xFF5c63cc),
                           ),
                         ),
                         IconButton(
                           onPressed: _toggleFormularioBusqueda,
                           icon: const Icon(Icons.close),
-                          color: const Color(0xFF854937),
+                          color: const Color(0xFF5c63cc),
                         ),
                       ],
                     ),
@@ -2326,7 +2326,7 @@ class _MapPageState extends State<MapPage> {
                           children: [
                             const Icon(
                               Icons.my_location,
-                              color: Color(0xFF854937),
+                              color: Color(0xFF5c63cc),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
@@ -2360,7 +2360,7 @@ class _MapPageState extends State<MapPage> {
                           children: [
                             const Icon(
                               Icons.location_on,
-                              color: Color(0xFF854937),
+                              color: Color(0xFF5c63cc),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
@@ -2394,7 +2394,7 @@ class _MapPageState extends State<MapPage> {
                           children: [
                             const Icon(
                               Icons.calendar_today,
-                              color: Color(0xFF854937),
+                              color: Color(0xFF5c63cc),
                             ),
                             const SizedBox(width: 12),
                             Text(
@@ -2423,7 +2423,7 @@ class _MapPageState extends State<MapPage> {
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w500,
-                            color: Color(0xFF854937),
+                            color: Color(0xFF5c63cc),
                           ),
                         ),
                         Row(
@@ -2431,7 +2431,7 @@ class _MapPageState extends State<MapPage> {
                             IconButton(
                               onPressed: _decrementarPasajeros,
                               icon: const Icon(Icons.remove_circle_outline),
-                              color: const Color(0xFF854937),
+                              color: const Color(0xFF5c63cc),
                             ),
                             Container(
                               padding: const EdgeInsets.symmetric(
@@ -2453,7 +2453,7 @@ class _MapPageState extends State<MapPage> {
                             IconButton(
                               onPressed: _incrementarPasajeros,
                               icon: const Icon(Icons.add_circle_outline),
-                              color: const Color(0xFF854937),
+                              color: const Color(0xFF5c63cc),
                             ),
                           ],
                         ),
@@ -2467,7 +2467,7 @@ class _MapPageState extends State<MapPage> {
                       child: ElevatedButton(
                         onPressed: _buscarViajes,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF854937),
+                          backgroundColor: const Color(0xFF5c63cc),
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(

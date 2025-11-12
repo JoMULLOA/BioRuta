@@ -166,7 +166,7 @@ class _PublicarViajePaso1State extends State<PublicarViajePaso1> {
       backgroundColor: const Color(0xFFF2EEED),
       appBar: AppBar(
         title: const Text('Paso 1: Ruta'),
-        backgroundColor: const Color(0xFF854937),
+        backgroundColor: const Color(0xFF5c63cc),
         foregroundColor: Colors.white,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -188,7 +188,7 @@ class _PublicarViajePaso1State extends State<PublicarViajePaso1> {
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF854937),
+                color: Color(0xFF5c63cc),
               ),
             ),
             
@@ -198,7 +198,7 @@ class _PublicarViajePaso1State extends State<PublicarViajePaso1> {
               'Selecciona el punto de partida y destino de tu viaje',
               style: TextStyle(
                 fontSize: 16,
-                color: Color(0xFF6B3B2D),
+                color: Color(0xFF5c63cc),
               ),
             ),
             
@@ -220,7 +220,7 @@ class _PublicarViajePaso1State extends State<PublicarViajePaso1> {
               child: Icon(
                 Icons.arrow_downward,
                 size: 30,
-                color: Color(0xFF854937),
+                color: Color(0xFF5c63cc),
               ),
             ),
             
@@ -298,7 +298,7 @@ class _PublicarViajePaso1State extends State<PublicarViajePaso1> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF854937),
+                            color: const Color(0xFF5c63cc),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
@@ -355,7 +355,7 @@ class _PublicarViajePaso1State extends State<PublicarViajePaso1> {
                 } : null,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _puedeAvanzar 
-                    ? const Color(0xFF854937) 
+                    ? const Color(0xFF5c63cc) 
                     : Colors.grey,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
@@ -391,9 +391,9 @@ class _PublicarViajePaso1State extends State<PublicarViajePaso1> {
                 width: 30,
                 height: 30,
                 decoration: BoxDecoration(
-                  color: isActive ? const Color(0xFF854937) : Colors.grey.shade300,
+                  color: isActive ? const Color(0xFF5c63cc) : Colors.grey.shade300,
                   borderRadius: BorderRadius.circular(15),
-                  border: isCurrent ? Border.all(color: const Color(0xFF854937), width: 3) : null,
+                  border: isCurrent ? Border.all(color: const Color(0xFF5c63cc), width: 3) : null,
                 ),
                 child: Center(
                   child: Text(
@@ -409,7 +409,7 @@ class _PublicarViajePaso1State extends State<PublicarViajePaso1> {
                 Expanded(
                   child: Container(
                     height: 2,
-                    color: isActive ? const Color(0xFF854937) : Colors.grey.shade300,
+                    color: isActive ? const Color(0xFF5c63cc) : Colors.grey.shade300,
                   ),
                 ),
             ],
@@ -435,7 +435,7 @@ class _PublicarViajePaso1State extends State<PublicarViajePaso1> {
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: selectedLocation != null 
-              ? const Color(0xFF854937) 
+              ? const Color(0xFF5c63cc) 
               : Colors.grey.shade300,
           ),          boxShadow: [
             BoxShadow(
@@ -451,12 +451,12 @@ class _PublicarViajePaso1State extends State<PublicarViajePaso1> {
             Container(
               width: 40,
               height: 40,              decoration: BoxDecoration(
-                color: const Color(0xFF854937).withValues(alpha: 0.1),
+                color: const Color(0xFF5c63cc).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Icon(
                 icon,
-                color: const Color(0xFF854937),
+                color: const Color(0xFF5c63cc),
               ),
             ),
             const SizedBox(width: 16),
@@ -469,7 +469,7 @@ class _PublicarViajePaso1State extends State<PublicarViajePaso1> {
                     style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFF854937),
+                      color: Color(0xFF5c63cc),
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -489,7 +489,7 @@ class _PublicarViajePaso1State extends State<PublicarViajePaso1> {
             ),
             const Icon(
               Icons.arrow_forward_ios,
-              color: Color(0xFF854937),
+              color: Color(0xFF5c63cc),
               size: 16,
             ),
           ],

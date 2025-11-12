@@ -416,7 +416,7 @@ class _PublicarViajeFinalState extends State<PublicarViajeFinal> {
       backgroundColor: const Color(0xFFF2EEED),
       appBar: AppBar(
         title: const Text('Publicar'),
-        backgroundColor: const Color(0xFF8D4F3A),
+        backgroundColor: const Color(0xFF5c63cc),
         foregroundColor: Colors.white,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -436,9 +436,9 @@ class _PublicarViajeFinalState extends State<PublicarViajeFinal> {
             const Text(
               'Finalizar publicación',
               style: TextStyle(
-                fontSize: 24,
+                fontSize: 32,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF854937),
+                color: Color(0xFF5c63cc),
               ),
             ),
             
@@ -448,7 +448,7 @@ class _PublicarViajeFinalState extends State<PublicarViajeFinal> {
               'Revisa los detalles y publica tu viaje',
               style: TextStyle(
                 fontSize: 16,
-                color: Color(0xFF6B3B2D),
+                color: Color(0xFF5c63cc),
               ),
             ),
             
@@ -504,7 +504,7 @@ class _PublicarViajeFinalState extends State<PublicarViajeFinal> {
                         style: const TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF854937),
+                          color: Color(0xFF5c63cc),
                         ),
                       ),
                     ],
@@ -635,7 +635,7 @@ class _PublicarViajeFinalState extends State<PublicarViajeFinal> {
                   if (cargandoVehiculos)
                     const Center(
                       child: CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF854937)),
+                        valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF5c63cc)),
                       ),
                     )
                   else if (vehiculosDisponibles.isEmpty)
@@ -674,7 +674,7 @@ class _PublicarViajeFinalState extends State<PublicarViajeFinal> {
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(color: Color(0xFF854937)),
+                          borderSide: const BorderSide(color: Color(0xFF5c63cc)),
                         ),
                       ),
                       items: vehiculosDisponibles.map((vehiculo) {
@@ -753,13 +753,13 @@ class _PublicarViajeFinalState extends State<PublicarViajeFinal> {
                             ? () => setState(() => plazasDisponibles--)
                             : null,
                         icon: const Icon(Icons.remove_circle_outline),
-                        color: const Color(0xFF854937),
+                        color: const Color(0xFF5c63cc),
                       ),
                       const SizedBox(width: 20),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                         decoration: BoxDecoration(
-                          border: Border.all(color: const Color(0xFF854937)),
+                          border: Border.all(color: const Color(0xFF5c63cc)),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
@@ -767,7 +767,7 @@ class _PublicarViajeFinalState extends State<PublicarViajeFinal> {
                           style: const TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF854937),
+                            color: Color(0xFF5c63cc),
                           ),
                         ),
                       ),
@@ -777,7 +777,7 @@ class _PublicarViajeFinalState extends State<PublicarViajeFinal> {
                             ? () => setState(() => plazasDisponibles++)
                             : null,
                         icon: const Icon(Icons.add_circle_outline),
-                        color: const Color(0xFF854937),
+                        color: const Color(0xFF5c63cc),
                       ),
                     ],
                   ),
@@ -848,7 +848,7 @@ class _PublicarViajeFinalState extends State<PublicarViajeFinal> {
         child: ElevatedButton(
           onPressed: (vehiculoSeleccionado != null && !cargandoVehiculos) ? _publicarViaje : null,
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF8D4F3A),
+            backgroundColor: const Color(0xFF5c63cc),
             foregroundColor: Colors.white,
             minimumSize: const Size(double.infinity, 50),
             shape: RoundedRectangleBorder(
@@ -881,9 +881,9 @@ class _PublicarViajeFinalState extends State<PublicarViajeFinal> {
                 width: 30,
                 height: 30,
                 decoration: BoxDecoration(
-                  color: isActive ? const Color(0xFF854937) : Colors.grey.shade300,
+                  color: isActive ? const Color(0xFF5c63cc) : Colors.grey.shade300,
                   borderRadius: BorderRadius.circular(15),
-                  border: isCurrent ? Border.all(color: const Color(0xFF854937), width: 3) : null,
+                  border: isCurrent ? Border.all(color: const Color(0xFF5c63cc), width: 3) : null,
                 ),
                 child: Center(
                   child: Text(
@@ -899,7 +899,7 @@ class _PublicarViajeFinalState extends State<PublicarViajeFinal> {
                 Expanded(
                   child: Container(
                     height: 2,
-                    color: isActive ? const Color(0xFF854937) : Colors.grey.shade300,
+                    color: isActive ? const Color(0xFF5c63cc) : Colors.grey.shade300,
                   ),
                 ),
             ],

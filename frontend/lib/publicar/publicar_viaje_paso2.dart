@@ -27,7 +27,7 @@ class _PublicarViajePaso2State extends State<PublicarViajePaso2> {
       backgroundColor: const Color(0xFFF2EEED),
       appBar: AppBar(
         title: const Text("Paso 2: Fecha y Hora"),
-        backgroundColor: const Color(0xFF854937),
+        backgroundColor: const Color(0xFF5c63cc),
         foregroundColor: Colors.white,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -42,9 +42,9 @@ class _PublicarViajePaso2State extends State<PublicarViajePaso2> {
             children: [
               _buildProgressIndicator(2),
               const SizedBox(height: 30),
-              const Text("Programa tu viaje", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF854937))),
+              const Text("Programa tu viaje", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF5c63cc))),
               const SizedBox(height: 10),
-              const Text("Selecciona cuándo quieres realizar tu viaje", style: TextStyle(fontSize: 16, color: Color(0xFF6B3B2D))),
+              const Text("Selecciona cuándo quieres realizar tu viaje", style: TextStyle(fontSize: 16, color: Color(0xFF5c63cc))),
               const SizedBox(height: 30),
               Container(
                 padding: const EdgeInsets.all(16),
@@ -56,7 +56,7 @@ class _PublicarViajePaso2State extends State<PublicarViajePaso2> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text("Tipo de viaje", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF854937))),
+                    const Text("Tipo de viaje", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF5c63cc))),
                     const SizedBox(height: 10),
                     Row(
                       children: [
@@ -65,7 +65,7 @@ class _PublicarViajePaso2State extends State<PublicarViajePaso2> {
                             title: const Text("Solo ida", style: TextStyle(fontSize: 14)),
                             value: false,
                             groupValue: _viajeIdaYVuelta,
-                            activeColor: const Color(0xFF854937),
+                            activeColor: const Color(0xFF5c63cc),
                             contentPadding: EdgeInsets.zero,
                             onChanged: (value) {
                               setState(() {
@@ -82,7 +82,7 @@ class _PublicarViajePaso2State extends State<PublicarViajePaso2> {
                             title: const Text("Ida y vuelta", style: TextStyle(fontSize: 14)),
                             value: true,
                             groupValue: _viajeIdaYVuelta,
-                            activeColor: const Color(0xFF854937),
+                            activeColor: const Color(0xFF5c63cc),
                             contentPadding: EdgeInsets.zero,
                             onChanged: (value) {
                               setState(() {
@@ -116,9 +116,9 @@ class _PublicarViajePaso2State extends State<PublicarViajePaso2> {
                 height: 50,
                 child: ElevatedButton(
                   onPressed: _puedeAvanzar ? _continuarPaso3 : null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _puedeAvanzar ? const Color(0xFF854937) : Colors.grey,
-                    foregroundColor: Colors.white,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _puedeAvanzar ? const Color(0xFF5c63cc) : Colors.grey,
+                  foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                   child: const Text("Siguiente", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
@@ -144,13 +144,13 @@ class _PublicarViajePaso2State extends State<PublicarViajePaso2> {
                 width: 30,
                 height: 30,
                 decoration: BoxDecoration(
-                  color: isActive ? const Color(0xFF854937) : Colors.grey.shade300,
+                  color: isActive ? const Color(0xFF5c63cc) : Colors.grey.shade300,
                   borderRadius: BorderRadius.circular(15),
-                  border: isCurrent ? Border.all(color: const Color(0xFF854937), width: 3) : null,
+                  border: isCurrent ? Border.all(color: const Color(0xFF5c63cc), width: 3) : null,
                 ),
                 child: Center(child: Text(stepNumber.toString(), style: TextStyle(color: isActive ? Colors.white : Colors.grey, fontWeight: FontWeight.bold))),
               ),
-              if (index < 3) Expanded(child: Container(height: 2, color: isActive ? const Color(0xFF854937) : Colors.grey.shade300)),
+              if (index < 3) Expanded(child: Container(height: 2, color: isActive ? const Color(0xFF5c63cc) : Colors.grey.shade300)),
             ],
           ),
         );
@@ -187,13 +187,13 @@ class _PublicarViajePaso2State extends State<PublicarViajePaso2> {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF854937).withOpacity(0.1), 
-                  borderRadius: BorderRadius.circular(20)
+                  color: const Color(0xFF5c63cc).withOpacity(0.1), 
+                  borderRadius: BorderRadius.circular(20),
                 ),
-                child: Icon(icon, color: const Color(0xFF854937)),
+                child: Icon(icon, color: const Color(0xFF5c63cc)),
               ),
               const SizedBox(width: 16),
-              Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Color(0xFF854937))),
+              Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Color(0xFF5c63cc))),
             ],
           ),
           const SizedBox(height: 16),
@@ -210,8 +210,8 @@ class _PublicarViajePaso2State extends State<PublicarViajePaso2> {
                 style: const TextStyle(fontSize: 16),
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: fechaHora != null ? const Color(0xFF854937) : Colors.grey.shade300,
-                foregroundColor: fechaHora != null ? Colors.white : Colors.grey.shade600,
+                backgroundColor: fechaHora != null ? const Color(0xFF5c63cc) : Colors.grey.shade300,
+                foregroundColor: fechaHora != null ? Colors.white : Colors.grey.shade700,
                 padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
@@ -260,7 +260,7 @@ class _PublicarViajePaso2State extends State<PublicarViajePaso2> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(primary: Color(0xFF854937)),
+            colorScheme: const ColorScheme.light(primary: Color(0xFF5c63cc)),
           ),
           child: child!,
         );
@@ -293,7 +293,7 @@ class _PublicarViajePaso2State extends State<PublicarViajePaso2> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(primary: Color(0xFF854937)),
+            colorScheme: const ColorScheme.light(primary: Color(0xFF5c63cc)),
           ),
           child: child!,
         );

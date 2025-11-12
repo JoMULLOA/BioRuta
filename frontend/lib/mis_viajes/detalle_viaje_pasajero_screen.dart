@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../models/viaje_model.dart';
 import '../services/ruta_service.dart';
 import '../services/viaje_service.dart';
@@ -9,6 +10,8 @@ import 'package:http/http.dart' as http;
 import '../utils/token_manager.dart';
 import '../config/confGlobal.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../providers/theme_provider.dart';
+import '../config/app_colors.dart';
 
 class DetalleViajePasajeroScreen extends StatefulWidget {
   final Viaje viaje;
@@ -293,14 +296,18 @@ class _DetalleViajePasajeroScreenState extends State<DetalleViajePasajeroScreen>
   }
 
   void _mostrarModalCalificacion() {
-    // Color palette from perfil.dart
-    final Color primario = Color(0xFF6B3B2D);
-    
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) {
-        return StatefulBuilder(
+        return Consumer<ThemeProvider>(
+          builder: (context, themeProvider, child) {
+            // Color palette adaptativo según el tema
+            final Color primario = themeProvider.isDarkMode 
+                ? AppColors.primaryDark 
+                : AppColors.primaryLight;
+            
+            return StatefulBuilder(
           builder: (context, setModalState) {
             return AlertDialog(
               title: Row(
@@ -316,7 +323,7 @@ class _DetalleViajePasajeroScreenState extends State<DetalleViajePasajeroScreen>
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF6B3B2D),
+                      color: Color(0xFF5c63cc),
                     ),
                   ),
                 ],
@@ -405,7 +412,7 @@ class _DetalleViajePasajeroScreenState extends State<DetalleViajePasajeroScreen>
                       style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF854937),
+                        color: Color(0xFF5c63cc),
                       ),
                     ),
                 ],
@@ -450,16 +457,26 @@ class _DetalleViajePasajeroScreenState extends State<DetalleViajePasajeroScreen>
             );
           },
         );
+          },
+        );
       },
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    // Color palette from perfil.dart
-    final Color fondo = Color(0xFFF8F2EF);
-    final Color primario = Color(0xFF6B3B2D);
-    final Color secundario = Color(0xFF8D4F3A);
+    return Consumer<ThemeProvider>(
+      builder: (context, themeProvider, child) {
+        // Color palette adaptativo según el tema
+        final Color primario = themeProvider.isDarkMode 
+            ? AppColors.primaryDark 
+            : AppColors.primaryLight;
+        final Color fondo = themeProvider.isDarkMode 
+            ? AppColors.darkBackground 
+            : AppColors.lightBackground;
+        final Color secundario = themeProvider.isDarkMode
+            ? AppColors.darkSurface
+            : AppColors.primaryLight;
     
     // Encontrar el estado del usuario actual como pasajero
     // Por simplicidad, asumimos que es el primer pasajero, pero en una implementación real
@@ -470,7 +487,7 @@ class _DetalleViajePasajeroScreenState extends State<DetalleViajePasajeroScreen>
       backgroundColor: fondo,
       appBar: AppBar(
         title: const Text('Detalle del Viaje'),
-        backgroundColor: secundario,
+        backgroundColor: primario,
         foregroundColor: Colors.white,
         elevation: 0,
       ),
@@ -1030,6 +1047,8 @@ class _DetalleViajePasajeroScreenState extends State<DetalleViajePasajeroScreen>
           ],
         ),
       ),
+    );
+      },
     );
   }
 

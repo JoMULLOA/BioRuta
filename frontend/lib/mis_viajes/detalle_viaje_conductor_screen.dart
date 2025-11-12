@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../models/viaje_model.dart';
 import '../services/viaje_service.dart';
 import '../services/ruta_service.dart';
@@ -8,6 +9,8 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../utils/token_manager.dart';
 import '../config/confGlobal.dart';
+import '../providers/theme_provider.dart';
+import '../config/app_colors.dart';
 
 class DetalleViajeConductorScreen extends StatefulWidget {
   final Viaje viaje;
@@ -123,7 +126,7 @@ class _DetalleViajeConductorScreenState extends State<DetalleViajeConductorScree
                 ElevatedButton(
                   onPressed: () => Navigator.of(context).pop(),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Color(0xFF854937),
+                    backgroundColor: Color(0xFF5c63cc),
                     foregroundColor: Colors.white,
                     padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                   ),
@@ -165,7 +168,7 @@ class _DetalleViajeConductorScreenState extends State<DetalleViajeConductorScree
             ElevatedButton(
               onPressed: () => Navigator.of(context).pop(true),
               style: ElevatedButton.styleFrom(
-                backgroundColor: nuevoEstado == 'cancelado' ? Colors.red : const Color(0xFF854937),
+                backgroundColor: nuevoEstado == 'cancelado' ? Colors.red : const Color(0xFF5c63cc),
                 foregroundColor: Colors.white,
               ),
               child: const Text('Confirmar'),
@@ -274,7 +277,7 @@ class _DetalleViajeConductorScreenState extends State<DetalleViajeConductorScree
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF854937),
+                        color: Color(0xFF5c63cc),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -450,7 +453,7 @@ class _DetalleViajeConductorScreenState extends State<DetalleViajeConductorScree
                           clasificacionTexto,
                           style: const TextStyle(
                             fontSize: 12,
-                            color: Color(0xFF854937),
+                            color: Color(0xFF5c63cc),
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -745,7 +748,7 @@ class _DetalleViajeConductorScreenState extends State<DetalleViajeConductorScree
         barrierDismissible: false,
         builder: (context) => const Center(
           child: CircularProgressIndicator(
-            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF854937)),
+            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF5c63cc)),
           ),
         ),
       );
@@ -830,16 +833,24 @@ class _DetalleViajeConductorScreenState extends State<DetalleViajeConductorScree
 
   @override
   Widget build(BuildContext context) {
-    // Color palette from perfil.dart
-    final Color fondo = Color(0xFFF8F2EF);
-    final Color primario = Color(0xFF6B3B2D);
-    final Color secundario = Color(0xFF8D4F3A);
-    
-    return Scaffold(
+    return Consumer<ThemeProvider>(
+      builder: (context, themeProvider, child) {
+        // Color palette adaptativo según el tema
+        final Color primario = themeProvider.isDarkMode 
+            ? AppColors.primaryDark 
+            : AppColors.primaryLight;
+        final Color fondo = themeProvider.isDarkMode 
+            ? AppColors.darkBackground 
+            : AppColors.lightBackground;
+        final Color secundario = themeProvider.isDarkMode
+            ? AppColors.darkSurface
+            : AppColors.primaryLight;
+        
+        return Scaffold(
       backgroundColor: fondo,
       appBar: AppBar(
         title: const Text('Detalle del Viaje'),
-        backgroundColor: secundario,
+        backgroundColor: primario,
         foregroundColor: Colors.white,
         elevation: 0,
       ),
@@ -1036,10 +1047,12 @@ class _DetalleViajeConductorScreenState extends State<DetalleViajeConductorScree
                   const SizedBox(height: 24),
 
                   // Botones de acción
-                  _buildBotonesAccion(),
+                  _buildBotonesAccion(primario),
                 ],
               ),
             ),
+    );
+      },
     );
   }
 
@@ -1261,10 +1274,8 @@ class _DetalleViajeConductorScreenState extends State<DetalleViajeConductorScree
     );
   }
 
-  Widget _buildBotonesAccion() {
+  Widget _buildBotonesAccion(Color primario) {
     final estado = viaje.estado;
-    // Color palette from perfil.dart
-    final Color primario = Color(0xFF6B3B2D);
     
     return Column(
       children: [
@@ -1380,7 +1391,7 @@ class _DetalleViajeConductorScreenState extends State<DetalleViajeConductorScree
               icon: const Icon(Icons.play_arrow),
               label: const Text('Iniciar Viaje'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
+                backgroundColor: primario,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 12),
               ),
