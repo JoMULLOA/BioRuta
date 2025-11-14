@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import 'dart:async';
 import '../models/notificacion_model.dart';
 import '../services/notificacion_service.dart';
+import '../config/app_colors.dart';
+import '../providers/theme_provider.dart';
 
 class SolicitudesPasajerosModal extends StatefulWidget {
   final VoidCallback? onSolicitudProcesada;
@@ -145,7 +148,7 @@ class _SolicitudesPasajerosModalState extends State<SolicitudesPasajerosModal> {
             SnackBar(
               content: Text(resultado['message'] ?? 
                 (aceptar ? 'Solicitud aceptada' : 'Solicitud rechazada')),
-              backgroundColor: aceptar ? Colors.green : Colors.orange,
+              backgroundColor: aceptar ? Colors.green : Colors.red,
             ),
           );
         }
@@ -173,12 +176,18 @@ class _SolicitudesPasajerosModalState extends State<SolicitudesPasajerosModal> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.8,
-      decoration: const BoxDecoration(
-        color: Color(0xFFF8F2EF),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+    return Consumer<ThemeProvider>(
+      builder: (context, themeProvider, child) {
+        final isDarkMode = themeProvider.isDarkMode;
+        final primaryColor = isDarkMode ? AppColors.primaryDark : AppColors.primaryLight;
+        final backgroundColor = isDarkMode ? AppColors.darkBackground : AppColors.lightBackground;
+        
+        return Container(
+          height: MediaQuery.of(context).size.height * 0.8,
+          decoration: BoxDecoration(
+            color: backgroundColor,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
       child: Column(
         children: [
           // Header mejorado
@@ -189,8 +198,8 @@ class _SolicitudesPasajerosModalState extends State<SolicitudesPasajerosModal> {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  const Color(0xFF8D4F3A),
-                  const Color(0xFF6B3B2D),
+                  primaryColor,
+                  primaryColor.withOpacity(0.8),
                 ],
               ),
               borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
@@ -351,26 +360,25 @@ class _SolicitudesPasajerosModalState extends State<SolicitudesPasajerosModal> {
                           physics: const AlwaysScrollableScrollPhysics(),
                           itemBuilder: (context, index) {
                             final solicitud = solicitudes[index];
-                            return _buildSolicitudCard(solicitud);
+                            return _buildSolicitudCard(solicitud, primaryColor, backgroundColor, isDarkMode);
                           },
                         ),
                       ),
           ),
         ],
       ),
+        );
+      },
     );
   }
 
-  Widget _buildSolicitudCard(Notificacion solicitud) {
-    // Color palette from perfil.dart
-    final Color primario = Color(0xFF6B3B2D);
-    
+  Widget _buildSolicitudCard(Notificacion solicitud, Color primaryColor, Color backgroundColor, bool isDarkMode) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 3,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: primario.withOpacity(0.2), width: 1.5),
+        side: BorderSide(color: primaryColor.withOpacity(0.2), width: 1.5),
       ),
       child: Container(
         decoration: BoxDecoration(
@@ -380,7 +388,7 @@ class _SolicitudesPasajerosModalState extends State<SolicitudesPasajerosModal> {
             end: Alignment.bottomRight,
             colors: [
               Colors.white,
-              primario.withOpacity(0.02),
+              primaryColor.withOpacity(0.02),
             ],
           ),
         ),
@@ -395,11 +403,11 @@ class _SolicitudesPasajerosModalState extends State<SolicitudesPasajerosModal> {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: primario.withOpacity(0.15),
+                      color: primaryColor.withOpacity(0.15),
                       borderRadius: BorderRadius.circular(12),
                       boxShadow: [
                         BoxShadow(
-                          color: primario.withOpacity(0.1),
+                          color: primaryColor.withOpacity(0.1),
                           blurRadius: 4,
                           offset: const Offset(0, 2),
                         ),
@@ -407,7 +415,7 @@ class _SolicitudesPasajerosModalState extends State<SolicitudesPasajerosModal> {
                     ),
                     child: Icon(
                       Icons.person_add_alt_1,
-                      color: primario,
+                      color: primaryColor,
                       size: 22,
                     ),
                   ),
@@ -442,14 +450,14 @@ class _SolicitudesPasajerosModalState extends State<SolicitudesPasajerosModal> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: primario.withOpacity(0.1),
+                      color: primaryColor.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
                       _formatearTiempo(solicitud.fechaCreacion),
                       style: TextStyle(
                         fontSize: 11,
-                        color: primario,
+                        color: primaryColor,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -464,9 +472,9 @@ class _SolicitudesPasajerosModalState extends State<SolicitudesPasajerosModal> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: primario.withOpacity(0.05),
+                    color: primaryColor.withOpacity(0.05),
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: primario.withOpacity(0.2)),
+                    border: Border.all(color: primaryColor.withOpacity(0.2)),
                   ),
                   child: Column(
                     children: [
@@ -650,10 +658,10 @@ class _SolicitudesPasajerosModalState extends State<SolicitudesPasajerosModal> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: primario.withOpacity(0.05),
+                    color: primaryColor.withOpacity(0.05),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: primario.withOpacity(0.2),
+                      color: primaryColor.withOpacity(0.2),
                     ),
                   ),
                   child: Column(
@@ -664,14 +672,14 @@ class _SolicitudesPasajerosModalState extends State<SolicitudesPasajerosModal> {
                           Icon(
                             Icons.chat_bubble_outline,
                             size: 16,
-                            color: primario,
+                            color: primaryColor,
                           ),
                           const SizedBox(width: 6),
                           Text(
                             'Mensaje:',
                             style: TextStyle(
                               fontSize: 12,
-                              color: primario,
+                              color: primaryColor,
                               fontWeight: FontWeight.w600,
                             ),
                           ),

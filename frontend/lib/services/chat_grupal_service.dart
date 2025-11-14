@@ -466,20 +466,20 @@ class ChatGrupalService {
     _socketService.getGroupChatState(idViaje);
   }
 
-  // Colores para los participantes del chat grupal - cálidos y oscuros
+  // Colores para los participantes del chat grupal - del gradiente azul-morado
   static List<int> get coloresParticipantes => [
-    0xFF2E1065, // Purple muy oscuro
-    0xFF4C1D95, // Purple oscuro cálido
-    0xFF5B21B6, // Violet oscuro
-    0xFF6D28D9, // Purple medio oscuro
-    0xFF1E3A8A, // Blue oscuro cálido
-    0xFF312E81, // Indigo oscuro
-    0xFF3730A3, // Purple-blue oscuro
-    0xFF4338CA, // Indigo medio oscuro
-    0xFF581C87, // Purple muy oscuro cálido
-    0xFF6B46C1, // Purple oscuro vibrante
-    0xFF7C3AED, // Violet oscuro cálido
-    0xFF1D4ED8, // Blue oscuro vibrante
+    0xFF2196F3, // Azul vibrante del gradiente
+    0xFF3F51B5, // Índigo del gradiente
+    0xFF5E35B1, // Púrpura medio del gradiente
+    0xFF673AB7, // Púrpura del gradiente
+    0xFF7B1FA2, // Púrpura oscuro del gradiente
+    0xFF8E24AA, // Púrpura-magenta del gradiente
+    0xFF9C27B0, // Magenta del gradiente
+    0xFF1976D2, // Azul medio del gradiente
+    0xFF512DA8, // Púrpura profundo del gradiente
+    0xFF6A1B9A, // Púrpura violeta del gradiente
+    0xFF4527A0, // Violeta del gradiente
+    0xFF283593, // Índigo profundo del gradiente
   ];
 
   // Obtener color para un participante específico
